@@ -1,0 +1,56 @@
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  color: white;
+}
+
+table.main-table {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+table.main-table th {
+  position: relative;
+  padding: 0 6px;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+  text-align: left;
+  font-weight: normal;
+}
+
+table.main-table th::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  width: 1px;
+  background-color: rgb(77, 77, 77);
+  height: 20px;
+  top: 5px;
+}
+
+table.main-table th:active {
+  background-color: rgb(51, 51, 51);
+}
+
+table.main-table > thead > tr {
+  height: 30px;
+  border-bottom: solid 1px rgb(77, 77, 77);
+}
+
+table.main-table tr {
+  height: 20px;
+}
+
+table.main-table tr:nth-child(odd) {
+  background-color: rgb(61, 61, 61);
+}
+
+table.main-table tr:nth-child(even) {
+  background-color: rgb(69, 69, 69);
+}
+
+table.main-table td {
+  padding: 0 6px;
+  cursor: default;
+}
