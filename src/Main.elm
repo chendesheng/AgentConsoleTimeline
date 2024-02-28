@@ -12,6 +12,7 @@ import Icons
 import Json.Decode as D
 import List exposing (sortBy)
 import Task
+import Time
 
 
 
@@ -55,6 +56,7 @@ type Model
 type alias OpenedModel =
     { log : Har.Log
     , table : TableModel
+    , timezone : Time.Zone
     }
 
 
@@ -82,6 +84,7 @@ type InitialMsg
 
 type OpenedMsg
     = TableAction TableAction
+    | GotTimezone Time.Zone
 
 
 type SortOrder
@@ -90,7 +93,7 @@ type SortOrder
 
 
 type alias SortBy =
-    ( String, SortOrder )
+    ( TableColumnName, SortOrder )
 
 
 flipSortOrder : SortOrder -> SortOrder
@@ -104,13 +107,28 @@ flipSortOrder sortOrder =
 
 
 type TableAction
-    = FlipSort String
+    = FlipSort TableColumnName
+    | Select Har.Entry
+
+
+type TableColumnName
+    = URL
+    | Status
+    | Time
+
+
+type alias TableColumn =
+    { name : TableColumnName
+    , label : String
+    , width : Int
+    }
 
 
 type alias TableModel =
     { sortBy : SortBy
-    , columns : List String
+    , columns : List TableColumn
     , entries : List Har.Entry
+    , selected : Maybe Har.Entry
     }
 
 
@@ -127,12 +145,18 @@ update msg model =
                                     ( Opened
                                         { log = log
                                         , table =
-                                            { sortBy = ( "url", Asc )
-                                            , columns = [ "url", "status" ]
+                                            { sortBy = ( URL, Asc )
+                                            , columns =
+                                                [ { name = URL, label = "URL", width = 250 }
+                                                , { name = Status, label = "Status", width = 100 }
+                                                , { name = Time, label = "Time", width = 150 }
+                                                ]
                                             , entries = log.entries
+                                            , selected = Nothing
                                             }
+                                        , timezone = Time.utc
                                         }
-                                    , Cmd.none
+                                    , Task.perform (\zone -> OpenedMsg <| GotTimezone zone) Time.here
                                     )
 
                                 _ ->
@@ -152,17 +176,17 @@ update msg model =
                     ( model, Cmd.none )
 
 
-compareEntry : String -> Har.Entry -> Har.Entry -> Order
+compareEntry : TableColumnName -> Har.Entry -> Har.Entry -> Order
 compareEntry column a b =
     case column of
-        "url" ->
+        URL ->
             compareString a.request.url b.request.url
 
-        "status" ->
+        Status ->
             compareInt a.response.status b.response.status
 
-        _ ->
-            EQ
+        Time ->
+            compareInt (Time.posixToMillis a.startedDateTime) (Time.posixToMillis b.startedDateTime)
 
 
 compareInt : Int -> Int -> Order
@@ -244,6 +268,16 @@ updateOpened msg model =
                     in
                     { model | table = { table | sortBy = newSortBy, entries = newEntries } }
 
+                Select entry ->
+                    let
+                        table =
+                            model.table
+                    in
+                    { model | table = { table | selected = Just entry } }
+
+        GotTimezone timezone ->
+            { model | timezone = timezone }
+
 
 updateInitial : InitialMsg -> InitialModel -> ( InitialModel, Cmd InitialMsg )
 updateInitial msg model =
@@ -275,7 +309,7 @@ updateInitial msg model =
                 Ok { log } ->
                     let
                         entries =
-                            List.sortBy (\entry -> entry.startedDateTime) log.entries
+                            List.sortBy (\entry -> Time.posixToMillis entry.startedDateTime) log.entries
                     in
                     { model | fileContent = Just { log | entries = entries } }
 
@@ -328,23 +362,78 @@ initialView model =
         ]
 
 
-tableCellView : String -> Har.Entry -> Html msg
-tableCellView column entry =
-    case column of
-        "url" ->
-            text entry.request.url
+toIntPad2 : Int -> String
+toIntPad2 n =
+    if n < 10 then
+        "0" ++ String.fromInt n
 
-        "status" ->
+    else
+        String.fromInt n
+
+
+toIntPad3 : Int -> String
+toIntPad3 n =
+    if n < 10 then
+        "00" ++ String.fromInt n
+
+    else if n < 100 then
+        "0" ++ String.fromInt n
+
+    else
+        String.fromInt n
+
+
+tableCellView : Time.Zone -> TableColumnName -> Har.Entry -> Html msg
+tableCellView tz column entry =
+    case column of
+        URL ->
+            text <|
+                case List.head <| List.reverse <| String.indexes "/" entry.request.url of
+                    Just i ->
+                        String.dropLeft (i + 1) entry.request.url
+
+                    _ ->
+                        entry.request.url
+
+        Status ->
             text <| String.fromInt entry.response.status
 
-        _ ->
-            text ""
+        Time ->
+            text <|
+                toIntPad2 (Time.toHour tz entry.startedDateTime)
+                    ++ ":"
+                    ++ toIntPad2 (Time.toMinute tz entry.startedDateTime)
+                    ++ ":"
+                    ++ toIntPad2 (Time.toSecond tz entry.startedDateTime)
+                    ++ ","
+                    ++ toIntPad3 (Time.toMillis tz entry.startedDateTime)
 
 
-entryView : List String -> Har.Entry -> Html msg
-entryView columns entry =
-    tr [] <|
-        List.map (\column -> td [] <| [ tableCellView column entry ]) columns
+entryView : Time.Zone -> List TableColumn -> Maybe Har.Entry -> Har.Entry -> Html TableAction
+entryView tz columns selected entry =
+    tr
+        [ class
+            (case selected of
+                Just selectedEntry ->
+                    if selectedEntry == entry then
+                        "selected"
+
+                    else
+                        ""
+
+                _ ->
+                    ""
+            )
+        , onClick (Select entry)
+        ]
+        (List.map
+            (\column ->
+                td
+                    [ style "width" <| String.fromInt column.width ++ "px" ]
+                    [ tableCellView tz column.name entry ]
+            )
+            columns
+        )
 
 
 tableSortIcon : SortOrder -> Html msg
@@ -357,16 +446,21 @@ tableSortIcon sortOrder =
             Icons.sortDesc
 
 
-tableHeaderCell : SortBy -> String -> Html TableAction
+tableHeaderCell : SortBy -> TableColumn -> Html TableAction
 tableHeaderCell ( sortColumn, sortOrder ) column =
-    let
-        label =
-            getColumnLabel column
-    in
-    th [ onClick (FlipSort column) ]
+    th
+        [ onClick (FlipSort column.name)
+        , style "width" <| String.fromInt column.width ++ "px"
+        , class <|
+            if column.name == sortColumn then
+                "sorted"
+
+            else
+                ""
+        ]
         [ div [ class "table-header" ]
-            [ text label
-            , if column == sortColumn then
+            [ text column.label
+            , if column.name == sortColumn then
                 tableSortIcon sortOrder
 
               else
@@ -375,34 +469,21 @@ tableHeaderCell ( sortColumn, sortOrder ) column =
         ]
 
 
-getColumnLabel : String -> String
-getColumnLabel column =
-    case column of
-        "url" ->
-            "URL"
-
-        "status" ->
-            "Status"
-
-        _ ->
-            column
-
-
-tableView : TableModel -> Html TableAction
-tableView { entries, sortBy, columns } =
+tableView : Time.Zone -> TableModel -> Html TableAction
+tableView tz { entries, sortBy, columns, selected } =
     table [ class "main-table" ]
         [ thead []
             [ tr [] <|
                 List.map (tableHeaderCell sortBy) columns
             ]
         , tbody [] <|
-            List.map (entryView columns) entries
+            List.map (entryView tz columns selected) entries
         ]
 
 
 viewOpened : OpenedModel -> Html OpenedMsg
-viewOpened { log, table } =
-    Html.map TableAction (tableView table)
+viewOpened { log, table, timezone } =
+    Html.map TableAction (tableView timezone table)
 
 
 externalCss : String -> Html msg
@@ -413,7 +494,8 @@ externalCss url =
 view : Model -> Html Msg
 view model =
     div [ class "app" ]
-        [ externalCss "./assets/css/normalize.css"
+        [ externalCss "./assets/css/variables.css"
+        , externalCss "./assets/css/normalize.css"
         , externalCss "./assets/css/app.css"
         , externalCss "./assets/css/table.css"
         , externalCss "./assets/css/icons.css"

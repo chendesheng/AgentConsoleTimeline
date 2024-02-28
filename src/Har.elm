@@ -1,7 +1,10 @@
 module Har exposing (..)
 
-{-| <https://github.com/ahmadnassri/har-spec/blob/master/versions/1.2.md>
--}
+import Time
+
+
+
+{- <https://github.com/ahmadnassri/har-spec/blob/master/versions/1.2.md> -}
 
 
 type alias HarFile =
@@ -63,7 +66,7 @@ type alias PageTimings =
 -}
 type alias Entry =
     { pageref : Maybe String -- Reference to the parent page.
-    , startedDateTime : String -- The date and time the request started.
+    , startedDateTime : Time.Posix -- The date and time the request started.
     , time : Float -- Total time for the request in milliseconds.
     , request : Request -- The request information.
     , response : Response -- The response information.

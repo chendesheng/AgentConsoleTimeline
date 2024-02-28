@@ -1,6 +1,7 @@
 module HarDecoder exposing (harDecoder)
 
 import Har exposing (..)
+import Iso8601
 import Json.Decode as Decode exposing (Decoder, bool, field, float, int, list, maybe, nullable, string)
 
 
@@ -59,7 +60,7 @@ entryDecoder : Decoder Entry
 entryDecoder =
     map10 Entry
         (maybe <| field "pageref" string)
-        (field "startedDateTime" string)
+        (field "startedDateTime" Iso8601.decoder)
         (field "time" float)
         (field "request" requestDecoder)
         (field "response" responseDecoder)
