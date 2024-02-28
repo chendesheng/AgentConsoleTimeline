@@ -7,16 +7,27 @@ table {
 table.main-table {
   user-select: none;
   -webkit-user-select: none;
+  position: relative;
 }
 
 table.main-table th {
-  position: relative;
+  position: sticky;
   padding: 0 6px;
   user-select: none;
   -webkit-user-select: none;
   cursor: default;
   text-align: left;
   font-weight: normal;
+  min-width: 80px;
+}
+
+table.main-table th .table-header {
+  display: flex;
+  align-items: center;
+}
+
+table.main-table th .icon {
+  margin-left: auto;
 }
 
 table.main-table th::after {
@@ -27,6 +38,7 @@ table.main-table th::after {
   background-color: rgb(77, 77, 77);
   height: 20px;
   top: 5px;
+  cursor: col-resize;
 }
 
 table.main-table th:active {
@@ -53,4 +65,13 @@ table.main-table tr:nth-child(even) {
 table.main-table td {
   padding: 0 6px;
   cursor: default;
+}
+
+table.main-table {
+  height: 100%;
+}
+
+table.main-table tbody {
+  height: 100%;
+  overflow: scroll;
 }

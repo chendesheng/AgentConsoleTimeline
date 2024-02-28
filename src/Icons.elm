@@ -21,3 +21,13 @@ objectType =
 stringType : Html msg
 stringType =
     icon "type-icons-type-string"
+
+
+sortAsc : Html msg
+sortAsc =
+    icon "sort-asc"
+
+
+sortDesc : Html msg
+sortDesc =
+    icon "sort-desc"

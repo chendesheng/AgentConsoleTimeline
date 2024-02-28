@@ -27,6 +27,11 @@ body {
   margin: 0;
 }
 
+html,
+body {
+  height: 100%;
+}
+
 /**
  * Render the `main` element consistently in IE.
  */

@@ -8,7 +8,9 @@ import HarDecoder exposing (harDecoder)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import Icons
 import Json.Decode as D
+import List exposing (sortBy)
 import Task
 
 
@@ -47,7 +49,13 @@ defaultInitialModel =
 
 type Model
     = Initial InitialModel
-    | Opened Har.Log
+    | Opened OpenedModel
+
+
+type alias OpenedModel =
+    { log : Har.Log
+    , table : TableModel
+    }
 
 
 init : () -> ( Model, Cmd Msg )
@@ -61,6 +69,7 @@ init _ =
 
 type Msg
     = InitialMsg InitialMsg
+    | OpenedMsg OpenedMsg
 
 
 type InitialMsg
@@ -69,6 +78,40 @@ type InitialMsg
     | DragLeave
     | GotFile File
     | GotFileContent String
+
+
+type OpenedMsg
+    = TableAction TableAction
+
+
+type SortOrder
+    = Asc
+    | Desc
+
+
+type alias SortBy =
+    ( String, SortOrder )
+
+
+flipSortOrder : SortOrder -> SortOrder
+flipSortOrder sortOrder =
+    case sortOrder of
+        Asc ->
+            Desc
+
+        Desc ->
+            Asc
+
+
+type TableAction
+    = FlipSort String
+
+
+type alias TableModel =
+    { sortBy : SortBy
+    , columns : List String
+    , entries : List Har.Entry
+    }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -81,13 +124,125 @@ update msg model =
                         ( newModel, cmd ) ->
                             case newModel.fileContent of
                                 Just log ->
-                                    ( Opened log, Cmd.none )
+                                    ( Opened
+                                        { log = log
+                                        , table =
+                                            { sortBy = ( "url", Asc )
+                                            , columns = [ "url", "status" ]
+                                            , entries = log.entries
+                                            }
+                                        }
+                                    , Cmd.none
+                                    )
 
                                 _ ->
                                     ( Initial newModel, Cmd.map InitialMsg cmd )
 
                 _ ->
                     ( model, Cmd.none )
+
+        OpenedMsg openedMsg ->
+            case model of
+                Opened openedModel ->
+                    case updateOpened openedMsg openedModel of
+                        newOpenedModel ->
+                            ( Opened newOpenedModel, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+
+compareEntry : String -> Har.Entry -> Har.Entry -> Order
+compareEntry column a b =
+    case column of
+        "url" ->
+            compareString a.request.url b.request.url
+
+        "status" ->
+            compareInt a.response.status b.response.status
+
+        _ ->
+            EQ
+
+
+compareInt : Int -> Int -> Order
+compareInt a b =
+    if a < b then
+        LT
+
+    else if a > b then
+        GT
+
+    else
+        EQ
+
+
+compareString : String -> String -> Order
+compareString a b =
+    if a < b then
+        LT
+
+    else if a > b then
+        GT
+
+    else
+        EQ
+
+
+sortEntries : SortBy -> List Har.Entry -> List Har.Entry
+sortEntries ( column, sortOrder ) =
+    List.sortWith
+        (\a b ->
+            let
+                order =
+                    compareEntry column a b
+            in
+            case order of
+                EQ ->
+                    EQ
+
+                LT ->
+                    case sortOrder of
+                        Asc ->
+                            LT
+
+                        Desc ->
+                            GT
+
+                GT ->
+                    case sortOrder of
+                        Asc ->
+                            GT
+
+                        Desc ->
+                            LT
+        )
+
+
+updateOpened : OpenedMsg -> OpenedModel -> OpenedModel
+updateOpened msg model =
+    case msg of
+        TableAction action ->
+            case action of
+                FlipSort column ->
+                    let
+                        table =
+                            model.table
+
+                        ( currentSortColumn, currentSortOrder ) =
+                            table.sortBy
+
+                        newSortBy =
+                            if currentSortColumn == column then
+                                ( column, flipSortOrder currentSortOrder )
+
+                            else
+                                ( column, Asc )
+
+                        newEntries =
+                            sortEntries newSortBy table.entries
+                    in
+                    { model | table = { table | sortBy = newSortBy, entries = newEntries } }
 
 
 updateInitial : InitialMsg -> InitialModel -> ( InitialModel, Cmd InitialMsg )
@@ -118,7 +273,11 @@ updateInitial msg model =
         GotFileContent content ->
             ( case D.decodeString harDecoder content of
                 Ok { log } ->
-                    { model | fileContent = Just log }
+                    let
+                        entries =
+                            List.sortBy (\entry -> entry.startedDateTime) log.entries
+                    in
+                    { model | fileContent = Just { log | entries = entries } }
 
                 Err err ->
                     { model | error = Just <| D.errorToString err }
@@ -169,34 +328,81 @@ initialView model =
         ]
 
 
-entryView : Har.Entry -> Html msg
-entryView entry =
+tableCellView : String -> Har.Entry -> Html msg
+tableCellView column entry =
+    case column of
+        "url" ->
+            text entry.request.url
+
+        "status" ->
+            text <| String.fromInt entry.response.status
+
+        _ ->
+            text ""
+
+
+entryView : List String -> Har.Entry -> Html msg
+entryView columns entry =
     tr [] <|
-        [ td [] <| [ text entry.request.url ]
-        , td [] <| [ text (String.fromInt entry.response.status) ]
+        List.map (\column -> td [] <| [ tableCellView column entry ]) columns
+
+
+tableSortIcon : SortOrder -> Html msg
+tableSortIcon sortOrder =
+    case sortOrder of
+        Asc ->
+            Icons.sortAsc
+
+        Desc ->
+            Icons.sortDesc
+
+
+tableHeaderCell : SortBy -> String -> Html TableAction
+tableHeaderCell ( sortColumn, sortOrder ) column =
+    let
+        label =
+            getColumnLabel column
+    in
+    th [ onClick (FlipSort column) ]
+        [ div [ class "table-header" ]
+            [ text label
+            , if column == sortColumn then
+                tableSortIcon sortOrder
+
+              else
+                div [] []
+            ]
         ]
 
 
-tableHeaderCell : String -> Html msg
-tableHeaderCell s =
-    th []
-        [ text s
-        , div [] []
-        ]
+getColumnLabel : String -> String
+getColumnLabel column =
+    case column of
+        "url" ->
+            "URL"
+
+        "status" ->
+            "Status"
+
+        _ ->
+            column
 
 
-viewOpened : Har.Log -> Html msg
-viewOpened log =
+tableView : TableModel -> Html TableAction
+tableView { entries, sortBy, columns } =
     table [ class "main-table" ]
         [ thead []
-            [ tr []
-                [ tableHeaderCell "URL"
-                , tableHeaderCell "Status"
-                ]
+            [ tr [] <|
+                List.map (tableHeaderCell sortBy) columns
             ]
         , tbody [] <|
-            List.map entryView log.entries
+            List.map (entryView columns) entries
         ]
+
+
+viewOpened : OpenedModel -> Html OpenedMsg
+viewOpened { log, table } =
+    Html.map TableAction (tableView table)
 
 
 externalCss : String -> Html msg
@@ -206,16 +412,17 @@ externalCss url =
 
 view : Model -> Html Msg
 view model =
-    div []
+    div [ class "app" ]
         [ externalCss "./assets/css/normalize.css"
+        , externalCss "./assets/css/app.css"
         , externalCss "./assets/css/table.css"
-        , externalCss "./assets/css/icon.css"
+        , externalCss "./assets/css/icons.css"
         , case model of
             Initial initialModel ->
                 Html.map InitialMsg (initialView initialModel)
 
             Opened log ->
-                viewOpened log
+                Html.map OpenedMsg (viewOpened log)
         ]
 
 
