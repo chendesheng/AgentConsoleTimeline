@@ -2,7 +2,7 @@ module HarDecoder exposing (harDecoder)
 
 import Har exposing (..)
 import Iso8601
-import Json.Decode as Decode exposing (Decoder, bool, field, float, int, list, maybe, nullable, string)
+import Json.Decode as Decode exposing (Decoder, bool, field, float, int, list, maybe, string)
 
 
 harDecoder : Decoder HarFile

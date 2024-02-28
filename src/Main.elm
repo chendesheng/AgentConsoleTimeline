@@ -324,7 +324,7 @@ updateInitial msg model =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Sub.none
 
 
@@ -482,7 +482,7 @@ tableView tz { entries, sortBy, columns, selected } =
 
 
 viewOpened : OpenedModel -> Html OpenedMsg
-viewOpened { log, table, timezone } =
+viewOpened { table, timezone } =
     Html.map TableAction (tableView timezone table)
 
 
