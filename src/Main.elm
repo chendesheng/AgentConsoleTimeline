@@ -115,6 +115,8 @@ type TableColumnName
     = URL
     | Status
     | Time
+    | Domain
+    | Size
 
 
 type alias TableColumn =
@@ -147,9 +149,11 @@ update msg model =
                                         , table =
                                             { sortBy = ( URL, Asc )
                                             , columns =
-                                                [ { name = URL, label = "URL", width = 250 }
+                                                [ { name = URL, label = "Name", width = 250 }
                                                 , { name = Status, label = "Status", width = 100 }
                                                 , { name = Time, label = "Time", width = 150 }
+                                                , { name = Domain, label = "Domain", width = 150 }
+                                                , { name = Size, label = "Size", width = 150 }
                                                 ]
                                             , entries = log.entries
                                             , selected = Nothing
@@ -187,6 +191,12 @@ compareEntry column a b =
 
         Time ->
             compareInt (Time.posixToMillis a.startedDateTime) (Time.posixToMillis b.startedDateTime)
+
+        Domain ->
+            compareString a.request.url b.request.url
+
+        Size ->
+            compareInt (a.response.bodySize + a.request.bodySize) (b.response.bodySize + b.request.bodySize)
 
 
 compareInt : Int -> Int -> Order
@@ -407,6 +417,30 @@ tableCellView tz column entry =
                     ++ toIntPad2 (Time.toSecond tz entry.startedDateTime)
                     ++ ","
                     ++ toIntPad3 (Time.toMillis tz entry.startedDateTime)
+
+        Domain ->
+            text <|
+                if String.startsWith "http" entry.request.url then
+                    case String.split "/" entry.request.url of
+                        _ :: _ :: domain :: _ ->
+                            domain
+
+                        _ ->
+                            entry.request.url
+
+                else
+                    "-"
+
+        Size ->
+            let
+                size =
+                    entry.response.bodySize + entry.request.bodySize
+            in
+            if size < 0 then
+                text "-"
+
+            else
+                text <| String.fromInt (entry.response.bodySize + entry.request.bodySize)
 
 
 entryView : Time.Zone -> List TableColumn -> Maybe Har.Entry -> Har.Entry -> Html TableAction
