@@ -56,7 +56,7 @@ type Model
 type alias OpenedModel =
     { log : Har.Log
     , table : TableModel
-    , timezone : Time.Zone
+    , timezone : Maybe Time.Zone
     }
 
 
@@ -154,7 +154,7 @@ update msg model =
                                             , entries = log.entries
                                             , selected = Nothing
                                             }
-                                        , timezone = Time.utc
+                                        , timezone = Nothing
                                         }
                                     , Task.perform (\zone -> OpenedMsg <| GotTimezone zone) Time.here
                                     )
@@ -275,8 +275,8 @@ updateOpened msg model =
                     in
                     { model | table = { table | selected = Just entry } }
 
-        GotTimezone timezone ->
-            { model | timezone = timezone }
+        GotTimezone tz ->
+            { model | timezone = Just tz }
 
 
 updateInitial : InitialMsg -> InitialModel -> ( InitialModel, Cmd InitialMsg )
@@ -483,7 +483,12 @@ tableView tz { entries, sortBy, columns, selected } =
 
 viewOpened : OpenedModel -> Html OpenedMsg
 viewOpened { table, timezone } =
-    Html.map TableAction (tableView timezone table)
+    case timezone of
+        Just tz ->
+            Html.map TableAction (tableView tz table)
+
+        _ ->
+            div [] [ text "Loading..." ]
 
 
 externalCss : String -> Html msg
