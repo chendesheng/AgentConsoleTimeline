@@ -8,17 +8,17 @@
 }
 
 .icon.type-icons-type-object {
-  content: url('../images/TypeIcons.svg#TypeObject-dark');
+  content: url("../images/TypeIcons.svg#TypeObject-dark");
 }
 
 .icon.type-icons-type-string {
-  content: url('../images/TypeIcons.svg#TypeString-dark');
+  content: url("../images/TypeIcons.svg#TypeString-dark");
 }
 
 .icon.sort-asc {
-  content: url('../images/SortIndicatorArrows.svg#up-arrow-normal');
+  content: url("../images/SortIndicatorArrows.svg#up-arrow-normal");
 }
 
 .icon.sort-desc {
-  content: url('../images/SortIndicatorArrows.svg#down-arrow-normal');
+  content: url("../images/SortIndicatorArrows.svg#down-arrow-normal");
 }
