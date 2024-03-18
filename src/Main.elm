@@ -108,6 +108,7 @@ flipSortOrder sortOrder =
 
 type TableAction
     = FlipSort TableColumnName
+    | ResizeColumn TableColumnName Int
     | Select Har.Entry
 
 
@@ -284,6 +285,24 @@ updateOpened msg model =
                             model.table
                     in
                     { model | table = { table | selected = Just entry } }
+
+                ResizeColumn column width ->
+                    let
+                        table =
+                            model.table
+
+                        columns =
+                            List.map
+                                (\c ->
+                                    if c.name == column then
+                                        { c | width = width }
+
+                                    else
+                                        c
+                                )
+                                table.columns
+                    in
+                    { model | table = { table | columns = columns } }
 
         GotTimezone tz ->
             { model | timezone = Just tz }
