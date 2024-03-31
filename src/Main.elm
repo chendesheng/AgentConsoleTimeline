@@ -538,7 +538,20 @@ viewOpened : OpenedModel -> Html OpenedMsg
 viewOpened { table, timezone } =
     case timezone of
         Just tz ->
-            Html.map TableAction (tableView tz table)
+            div
+                [ style "width" "100%"
+                , style "height" "100%"
+                ]
+                [ Html.map TableAction (tableView tz table)
+                , case table.selected of
+                    Just entry ->
+                        div [ class "detail" ]
+                            [ text (Maybe.withDefault "" entry.response.content.text)
+                            ]
+
+                    _ ->
+                        div [] []
+                ]
 
         _ ->
             div [] [ text "Loading..." ]

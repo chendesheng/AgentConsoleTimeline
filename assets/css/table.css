@@ -1,102 +1,102 @@
 table {
-  border-collapse: collapse;
-  border-spacing: 0;
-  color: rgb(230, 230, 230);
-  table-layout: fixed;
+    border-collapse: collapse;
+    border-spacing: 0;
+    color: rgb(230, 230, 230);
+    table-layout: fixed;
 }
 
 table.main-table {
-  user-select: none;
-  -webkit-user-select: none;
-  position: relative;
+    user-select: none;
+    -webkit-user-select: none;
+    position: relative;
 }
 
 table.main-table th {
-  position: relative;
-  padding: 0 6px;
-  user-select: none;
-  -webkit-user-select: none;
-  cursor: default;
-  text-align: left;
-  font-weight: normal;
-  min-width: 80px;
-  background-color: var(--background-color);
+    position: relative;
+    padding: 0 6px;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: default;
+    text-align: left;
+    font-weight: normal;
+    min-width: 80px;
+    background-color: var(--background-color);
 }
 
 table.main-table th.sorted {
-  font-weight: var(--sorted-header-font-weight);
+    font-weight: var(--sorted-header-font-weight);
 }
 
 table.main-table th .table-header {
-  display: flex;
-  align-items: center;
+    display: flex;
+    align-items: center;
 }
 
 table.main-table th .icon {
-  margin-left: auto;
+    margin-left: auto;
 }
 
 table.main-table th::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  width: 1px;
-  background-color: var(--border-color);
-  height: 20px;
-  top: 5px;
-  cursor: col-resize;
+    content: "";
+    position: absolute;
+    right: 0;
+    width: 1px;
+    background-color: var(--border-color);
+    height: 20px;
+    top: 5px;
+    cursor: col-resize;
 }
 
 table.main-table th:active {
-  background-color: var(--background-color-pressed);
+    background-color: var(--background-color-pressed);
 }
 
 table.main-table > thead > tr {
-  height: 30px;
-  line-height: 30px;
-  border-bottom: solid 1px var(--border-color);
+    height: 30px;
+    line-height: 30px;
+    border-bottom: solid 1px var(--border-color);
 }
 
 table.main-table tr {
-  height: 20px;
-  display: flex;
-  width: 100%;
+    height: 20px;
+    display: flex;
+    width: 100%;
 }
 
 table.main-table tr:nth-child(odd).selected,
 table.main-table tr:nth-child(even).selected {
-  background-color: var(--selected-background-color);
-  color: var(--selected-foreground-color);
+    background-color: var(--selected-background-color);
+    color: var(--selected-foreground-color);
 }
 
 table.main-table tr:nth-child(odd) {
-  background-color: var(--odd-zebra-stripe-row-background-color);
+    background-color: var(--odd-zebra-stripe-row-background-color);
 }
 
 table.main-table tr:nth-child(even) {
-  background-color: var(--even-zebra-stripe-row-background-color);
+    background-color: var(--even-zebra-stripe-row-background-color);
 }
 
 table.main-table td {
-  cursor: default;
-  vertical-align: top;
-  height: 16px;
-  line-height: 16px;
-  padding: 2px 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  font-family: -webkit-system-font, sans-serif;
-  font-variant-numeric: tabular-nums;
-  text-overflow: ellipsis;
+    cursor: default;
+    vertical-align: top;
+    height: 16px;
+    line-height: 16px;
+    padding: 2px 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    font-family: -webkit-system-font, sans-serif;
+    font-variant-numeric: tabular-nums;
+    text-overflow: ellipsis;
 }
 
 table.main-table {
-  height: 100%;
+    width: 100%;
 }
 
 table.main-table tbody {
-  height: 100%;
-  width: 100%;
-  overflow-y: scroll;
-  display: block;
+    height: 100%;
+    width: 100%;
+    overflow-y: scroll;
+    display: block;
 }
