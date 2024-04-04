@@ -10,6 +10,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Icons
 import Json.Decode as D
+import JsonTree as JT
 import List exposing (sortBy)
 import Task
 import Time
@@ -57,6 +58,8 @@ type alias OpenedModel =
     { log : Har.Log
     , table : TableModel
     , timezone : Maybe Time.Zone
+    , treeState : JT.State
+    , treeRootNode : Maybe JT.Node
     }
 
 
@@ -85,6 +88,7 @@ type InitialMsg
 type OpenedMsg
     = TableAction TableAction
     | GotTimezone Time.Zone
+    | SetTreeViewState JT.State
 
 
 type SortOrder
@@ -160,6 +164,8 @@ update msg model =
                                             , selected = Nothing
                                             }
                                         , timezone = Nothing
+                                        , treeState = JT.defaultState
+                                        , treeRootNode = Nothing
                                         }
                                     , Task.perform (\zone -> OpenedMsg <| GotTimezone zone) Time.here
                                     )
@@ -283,8 +289,26 @@ updateOpened msg model =
                     let
                         table =
                             model.table
+
+                        model1 =
+                            { model
+                                | table = { table | selected = Just entry }
+                            }
                     in
-                    { model | table = { table | selected = Just entry } }
+                    case entry.response.content.text of
+                        Just text ->
+                            case text |> JT.parseString |> Result.toMaybe of
+                                Just node ->
+                                    { model1
+                                        | treeRootNode = Just node
+                                        , treeState = JT.collapseToDepth 2 node JT.defaultState
+                                    }
+
+                                _ ->
+                                    { model1 | treeRootNode = Nothing }
+
+                        Nothing ->
+                            model1
 
                 ResizeColumn column width ->
                     let
@@ -306,6 +330,9 @@ updateOpened msg model =
 
         GotTimezone tz ->
             { model | timezone = Just tz }
+
+        SetTreeViewState state ->
+            { model | treeState = state }
 
 
 updateInitial : InitialMsg -> InitialModel -> ( InitialModel, Cmd InitialMsg )
@@ -535,7 +562,7 @@ tableView tz { entries, sortBy, columns, selected } =
 
 
 viewOpened : OpenedModel -> Html OpenedMsg
-viewOpened { table, timezone } =
+viewOpened { table, timezone, treeState, treeRootNode } =
     case timezone of
         Just tz ->
             div
@@ -546,7 +573,17 @@ viewOpened { table, timezone } =
                 , case table.selected of
                     Just entry ->
                         div [ class "detail" ]
-                            [ text (Maybe.withDefault "" entry.response.content.text)
+                            [ case treeRootNode of
+                                Just node ->
+                                    JT.view node
+                                        { colors = JT.defaultColors
+                                        , onSelect = Nothing
+                                        , toMsg = SetTreeViewState
+                                        }
+                                        treeState
+
+                                _ ->
+                                    text <| Maybe.withDefault "" entry.response.content.text
                             ]
 
                     _ ->
