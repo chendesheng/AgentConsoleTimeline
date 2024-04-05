@@ -31,3 +31,8 @@ sortAsc =
 sortDesc : Html msg
 sortDesc =
     icon "sort-desc"
+
+
+close : Html msg
+close =
+    icon "close"

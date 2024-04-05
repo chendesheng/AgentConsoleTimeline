@@ -1,0 +1,47 @@
+.detail-header {
+    height: 30px;
+    border-bottom: solid 1px var(--border-color);
+    background-color: var(--background-color);
+    display: flex;
+    width: 100%;
+    align-items: center;
+    flex: none;
+}
+
+.detail-close {
+    height: 16px;
+    width: 16px;
+    margin-left: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--button-background-color);
+    border-radius: 2px;
+    border: none;
+}
+
+.detail-close .icon {
+    opacity: 0.6;
+}
+
+.detail-close:hover .icon {
+    opacity: 1;
+}
+
+.detail-close:hover {
+    background-color: var(--button-background-color-hover);
+}
+
+.detail-close:active {
+    background-color: var(--button-background-color-pressed);
+}
+
+.detail-close:disabled {
+    background-color: var(--button-background-color-inactive);
+}
+
+.detail-body {
+    flex: auto;
+    overflow: auto;
+    padding: 8px;
+}

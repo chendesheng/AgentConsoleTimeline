@@ -1,24 +1,30 @@
 .icon {
-  display: inline-block;
-  width: 1em;
-  height: 1em;
-  fill: currentColor;
-  vertical-align: middle;
-  overflow: hidden;
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    fill: currentColor;
+    vertical-align: middle;
+    overflow: hidden;
+    flex: none;
+    color: currentColor;
 }
 
 .icon.type-icons-type-object {
-  content: url("../images/TypeIcons.svg#TypeObject-dark");
+    content: url("../images/TypeIcons.svg#TypeObject-dark");
 }
 
 .icon.type-icons-type-string {
-  content: url("../images/TypeIcons.svg#TypeString-dark");
+    content: url("../images/TypeIcons.svg#TypeString-dark");
 }
 
 .icon.sort-asc {
-  content: url("../images/SortIndicatorArrows.svg#up-arrow-normal");
+    content: url("../images/SortIndicatorArrows.svg#up-arrow-normal");
 }
 
 .icon.sort-desc {
-  content: url("../images/SortIndicatorArrows.svg#down-arrow-normal");
+    content: url("../images/SortIndicatorArrows.svg#down-arrow-normal");
+}
+
+.icon.close {
+    content: url("../images/CloseLarge.svg");
 }

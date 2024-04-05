@@ -123,6 +123,7 @@ type TableAction
     = FlipSort TableColumnName
     | ResizeColumn TableColumnName Int
     | Select Har.Entry
+    | Unselect
 
 
 type TableColumnName
@@ -350,6 +351,13 @@ updateOpened msg model =
 
                         Nothing ->
                             model1
+
+                Unselect ->
+                    let
+                        table =
+                            model.table
+                    in
+                    { model | table = { table | selected = Nothing } }
 
                 ResizeColumn column width ->
                     let
@@ -649,36 +657,40 @@ getReduxState entry =
 detailView : OpenedModel -> Har.Entry -> Html OpenedMsg
 detailView { treeState, treeRootNode, clientInfo } entry =
     section [ class "detail" ]
-        [ case treeRootNode of
-            Just node ->
-                if isReduxStateEntry entry && not (String.isEmpty clientInfo.href) then
-                    case getReduxState entry of
-                        Just s ->
-                            Html.node "agent-console-snapshot"
-                                [ src <| clientInfo.href ++ "&snapshot=true"
-                                , attribute "state" s
-                                ]
-                                []
+        [ div [ class "detail-header" ]
+            [ button [ class "detail-close", onClick (TableAction Unselect) ] [ Icons.close ] ]
+        , div [ class "detail-body" ]
+            [ case treeRootNode of
+                Just node ->
+                    if isReduxStateEntry entry && not (String.isEmpty clientInfo.href) then
+                        case getReduxState entry of
+                            Just s ->
+                                Html.node "agent-console-snapshot"
+                                    [ src <| clientInfo.href ++ "&snapshot=true"
+                                    , attribute "state" s
+                                    ]
+                                    []
 
-                        _ ->
-                            text "No redux state found"
+                            _ ->
+                                text "No redux state found"
 
-                else
-                    JT.view node
-                        { colors =
-                            { string = "var(--syntax-highlight-string-color)"
-                            , number = "var(--syntax-highlight-number-color)"
-                            , bool = "var(--syntax-highlight-boolean-color)"
-                            , null = "var(--syntax-highlight-symbol-color)"
-                            , selectable = ""
+                    else
+                        JT.view node
+                            { colors =
+                                { string = "var(--syntax-highlight-string-color)"
+                                , number = "var(--syntax-highlight-number-color)"
+                                , bool = "var(--syntax-highlight-boolean-color)"
+                                , null = "var(--syntax-highlight-symbol-color)"
+                                , selectable = ""
+                                }
+                            , onSelect = Nothing
+                            , toMsg = SetTreeViewState
                             }
-                        , onSelect = Nothing
-                        , toMsg = SetTreeViewState
-                        }
-                        treeState
+                            treeState
 
-            _ ->
-                text <| Maybe.withDefault "" entry.response.content.text
+                _ ->
+                    text <| Maybe.withDefault "" entry.response.content.text
+            ]
         ]
 
 
@@ -708,14 +720,12 @@ externalCss url =
 
 view : Model -> Html Msg
 view model =
-    div [ style "width" "100%", style "height" "100%" ]
-        [ case model of
-            Initial initialModel ->
-                Html.map InitialMsg (initialView initialModel)
+    case model of
+        Initial initialModel ->
+            Html.map InitialMsg (initialView initialModel)
 
-            Opened log ->
-                Html.map OpenedMsg (viewOpened log)
-        ]
+        Opened log ->
+            Html.map OpenedMsg (viewOpened log)
 
 
 dropDecoder : D.Decoder InitialMsg

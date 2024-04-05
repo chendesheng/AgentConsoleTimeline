@@ -16,4 +16,6 @@
     flex: auto;
     background-color: rgb(43, 43, 43);
     border-left: solid 1px var(--border-color);
+    display: flex;
+    flex-flow: column;
 }
