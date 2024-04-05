@@ -1,6 +1,7 @@
 module Main exposing (main)
 
 import Browser
+import Browser.Events exposing (onKeyDown)
 import File exposing (File)
 import File.Select as Select
 import Har
@@ -119,11 +120,19 @@ flipSortOrder sortOrder =
             Asc
 
 
+type KeyCode
+    = ArrowUp
+    | ArrowDown
+    | NoKey
+
+
 type TableAction
     = FlipSort TableColumnName
     | ResizeColumn TableColumnName Int
     | Select Har.Entry
     | Unselect
+      -- key events
+    | KeyDown KeyCode
 
 
 type TableColumnName
@@ -229,6 +238,66 @@ update msg model =
                     ( model, Cmd.none )
 
 
+tableSelectIndex : Int -> TableModel -> TableModel
+tableSelectIndex index table =
+    let
+        indexedEntries =
+            List.indexedMap Tuple.pair table.entries
+
+        newSelected =
+            indexedEntries
+                |> List.filter (\( i, entry ) -> i == index)
+                |> List.head
+                |> Maybe.map Tuple.second
+    in
+    { table | selected = newSelected }
+
+
+tableGetSelectedIndex : TableModel -> Maybe Int
+tableGetSelectedIndex table =
+    case table.selected of
+        Just selected ->
+            table.entries
+                |> List.indexedMap Tuple.pair
+                |> List.filter (\( i, entry ) -> entry == selected)
+                |> List.head
+                |> Maybe.map Tuple.first
+
+        _ ->
+            Nothing
+
+
+tableSelectNextEntry : TableModel -> Bool -> TableModel
+tableSelectNextEntry table isUp =
+    case tableGetSelectedIndex table of
+        Just index ->
+            let
+                nextIndex =
+                    if isUp then
+                        if index - 1 > 0 then
+                            index - 1
+
+                        else
+                            List.length table.entries - 1
+
+                    else if index + 1 < List.length table.entries then
+                        index + 1
+
+                    else
+                        0
+            in
+            tableSelectIndex nextIndex table
+
+        Nothing ->
+            table
+
+
+updateSelectNextEntry : OpenedModel -> Bool -> OpenedModel
+updateSelectNextEntry model isUp =
+    { model | table = tableSelectNextEntry model.table isUp }
+        |> updateSelectEntry
+
+
 compareEntry : TableColumnName -> Har.Entry -> Har.Entry -> Order
 compareEntry column a b =
     case column of
@@ -302,6 +371,29 @@ sortEntries ( column, sortOrder ) =
         )
 
 
+updateSelectEntry : OpenedModel -> OpenedModel
+updateSelectEntry model =
+    case model.table.selected of
+        Just entry ->
+            case entry.response.content.text of
+                Just text ->
+                    case text |> JT.parseString |> Result.toMaybe of
+                        Just node ->
+                            { model
+                                | treeRootNode = Just node
+                                , treeState = JT.collapseToDepth 2 node JT.defaultState
+                            }
+
+                        _ ->
+                            { model | treeRootNode = Nothing }
+
+                Nothing ->
+                    model
+
+        _ ->
+            model
+
+
 updateOpened : OpenedMsg -> OpenedModel -> OpenedModel
 updateOpened msg model =
     case msg of
@@ -331,33 +423,31 @@ updateOpened msg model =
                     let
                         table =
                             model.table
-
-                        model1 =
-                            { model
-                                | table = { table | selected = Just entry }
-                            }
                     in
-                    case entry.response.content.text of
-                        Just text ->
-                            case text |> JT.parseString |> Result.toMaybe of
-                                Just node ->
-                                    { model1
-                                        | treeRootNode = Just node
-                                        , treeState = JT.collapseToDepth 2 node JT.defaultState
-                                    }
-
-                                _ ->
-                                    { model1 | treeRootNode = Nothing }
-
-                        Nothing ->
-                            model1
+                    { model | table = { table | selected = Just entry } } |> updateSelectEntry
 
                 Unselect ->
                     let
                         table =
                             model.table
                     in
-                    { model | table = { table | selected = Nothing } }
+                    { model
+                        | table = { table | selected = Nothing }
+                        , treeRootNode = Nothing
+                    }
+
+                KeyDown key ->
+                    case key of
+                        ArrowUp ->
+                            { model | table = tableSelectNextEntry model.table True }
+                                |> updateSelectEntry
+
+                        ArrowDown ->
+                            { model | table = tableSelectNextEntry model.table False }
+                                |> updateSelectEntry
+
+                        _ ->
+                            model
 
                 ResizeColumn column width ->
                     let
@@ -598,6 +688,23 @@ tableHeaderCell ( sortColumn, sortOrder ) column =
         ]
 
 
+keyDecoder : D.Decoder KeyCode
+keyDecoder =
+    let
+        toKey key =
+            case key of
+                "ArrowUp" ->
+                    ArrowUp
+
+                "ArrowDown" ->
+                    ArrowDown
+
+                _ ->
+                    NoKey
+    in
+    D.map toKey <| D.field "key" D.string
+
+
 tableView : Time.Zone -> TableModel -> Html TableAction
 tableView tz { entries, sortBy, columns, selected } =
     let
@@ -622,7 +729,12 @@ tableView tz { entries, sortBy, columns, selected } =
         )
         [ div [ class "table-header" ] <|
             List.map (tableHeaderCell sortBy) visibleColumns
-        , div [ class "table-body" ] <|
+        , div
+            [ class "table-body"
+            , tabindex 0
+            , hijackOn "keydown" (D.map KeyDown keyDecoder)
+            ]
+          <|
             List.map (entryView tz visibleColumns selected) entries
         ]
 

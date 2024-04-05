@@ -22,6 +22,9 @@
 .table-body {
     overflow: auto;
 }
+.table-body:focus-visible {
+    outline: none;
+}
 
 .table-header-cell {
     padding: 0 6px;
