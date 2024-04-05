@@ -1,18 +1,29 @@
-table {
-    border-collapse: collapse;
-    border-spacing: 0;
+.table {
     color: rgb(230, 230, 230);
-    table-layout: fixed;
-}
-
-table.main-table {
     user-select: none;
     -webkit-user-select: none;
     position: relative;
+    display: flex;
+    flex-flow: column;
+    width: 100%;
+    height: 100%;
 }
 
-table.main-table th {
-    position: relative;
+.table-header {
+    height: 30px;
+    line-height: 30px;
+    border-bottom: solid 1px var(--border-color);
+    background-color: var(--background-color);
+    display: flex;
+    width: 100%;
+    flex: none;
+}
+
+.table-body {
+    overflow: auto;
+}
+
+.table-header-cell {
     padding: 0 6px;
     user-select: none;
     -webkit-user-select: none;
@@ -21,22 +32,26 @@ table.main-table th {
     font-weight: normal;
     min-width: 80px;
     background-color: var(--background-color);
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    position: relative;
+    flex: none;
 }
 
-table.main-table th.sorted {
+.table-header-cell.sorted {
     font-weight: var(--sorted-header-font-weight);
 }
 
-table.main-table th .table-header {
-    display: flex;
-    align-items: center;
-}
-
-table.main-table th .icon {
+.table-header-cell .icon {
     margin-left: auto;
 }
 
-table.main-table th::after {
+.table--selected .table-header-cell::after {
+    display: none;
+}
+
+.table-header-cell::after {
     content: "";
     position: absolute;
     right: 0;
@@ -47,37 +62,31 @@ table.main-table th::after {
     cursor: col-resize;
 }
 
-table.main-table th:active {
+.table-header-cell:active {
     background-color: var(--background-color-pressed);
 }
 
-table.main-table > thead > tr {
-    height: 30px;
-    line-height: 30px;
-    border-bottom: solid 1px var(--border-color);
-}
-
-table.main-table tr {
+.table-body-row {
     height: 20px;
-    display: flex;
     width: 100%;
+    display: flex;
 }
 
-table.main-table tr:nth-child(odd).selected,
-table.main-table tr:nth-child(even).selected {
+.table-body-row:nth-child(odd).selected,
+.table-body-row:nth-child(even).selected {
     background-color: var(--selected-background-color);
     color: var(--selected-foreground-color);
 }
 
-table.main-table tr:nth-child(odd) {
+.table-body-row:nth-child(odd) {
     background-color: var(--odd-zebra-stripe-row-background-color);
 }
 
-table.main-table tr:nth-child(even) {
+.table-body-row:nth-child(even) {
     background-color: var(--even-zebra-stripe-row-background-color);
 }
 
-table.main-table td {
+.table-body-cell {
     cursor: default;
     vertical-align: top;
     height: 16px;
@@ -88,15 +97,7 @@ table.main-table td {
     font-family: -webkit-system-font, sans-serif;
     font-variant-numeric: tabular-nums;
     text-overflow: ellipsis;
-}
-
-table.main-table {
-    width: 100%;
-}
-
-table.main-table tbody {
-    height: 100%;
-    width: 100%;
-    overflow-y: scroll;
-    display: block;
+    box-sizing: border-box;
+    flex: none;
+    font-size: 11px;
 }

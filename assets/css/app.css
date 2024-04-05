@@ -1,5 +1,19 @@
 .app {
-  height: 100%;
-  display: flex;
-  flex-flow: column;
+    height: 100%;
+    display: flex;
+    flex-flow: row;
+}
+
+.app section {
+    overflow: auto;
+}
+
+.app section.table {
+    flex: none;
+}
+
+.app section.detail {
+    flex: auto;
+    background-color: rgb(43, 43, 43);
+    border-left: solid 1px var(--border-color);
 }

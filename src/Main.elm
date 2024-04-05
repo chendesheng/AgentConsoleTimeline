@@ -54,12 +54,21 @@ type Model
     | Opened OpenedModel
 
 
+type alias ClientInfo =
+    { href : String
+    , userAgent : String
+    , version : String
+    , commit : String
+    }
+
+
 type alias OpenedModel =
     { log : Har.Log
     , table : TableModel
     , timezone : Maybe Time.Zone
     , treeState : JT.State
     , treeRootNode : Maybe JT.Node
+    , clientInfo : ClientInfo
     }
 
 
@@ -139,6 +148,37 @@ type alias TableModel =
     }
 
 
+getClientInfo : Har.Log -> ClientInfo
+getClientInfo { entries } =
+    let
+        clientInfoDecoder =
+            D.map4 ClientInfo
+                (D.field "href" D.string)
+                (D.field "userAgent" D.string)
+                (D.field "version" D.string)
+                (D.field "commit" D.string)
+
+        emptyClientInfo =
+            ClientInfo "" "" "" ""
+    in
+    case List.filter (\entry -> entry.request.url == "/log/message") entries of
+        entry :: _ ->
+            case entry.response.content.text of
+                Just text ->
+                    case D.decodeString clientInfoDecoder text of
+                        Ok clientInfo ->
+                            clientInfo
+
+                        Err _ ->
+                            emptyClientInfo
+
+                _ ->
+                    emptyClientInfo
+
+        _ ->
+            emptyClientInfo
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -166,6 +206,7 @@ update msg model =
                                         , timezone = Nothing
                                         , treeState = JT.defaultState
                                         , treeRootNode = Nothing
+                                        , clientInfo = getClientInfo log
                                         }
                                     , Task.perform (\zone -> OpenedMsg <| GotTimezone zone) Time.here
                                     )
@@ -491,7 +532,7 @@ tableCellView tz column entry =
 
 entryView : Time.Zone -> List TableColumn -> Maybe Har.Entry -> Har.Entry -> Html TableAction
 entryView tz columns selected entry =
-    tr
+    div
         [ class
             (case selected of
                 Just selectedEntry ->
@@ -504,12 +545,13 @@ entryView tz columns selected entry =
                 _ ->
                     ""
             )
+        , class "table-body-row"
         , onClick (Select entry)
         ]
         (List.map
             (\column ->
-                td
-                    [ style "width" <| String.fromInt column.width ++ "px" ]
+                div
+                    [ class "table-body-cell", style "width" <| String.fromInt column.width ++ "px" ]
                     [ tableCellView tz column.name entry ]
             )
             columns
@@ -528,8 +570,9 @@ tableSortIcon sortOrder =
 
 tableHeaderCell : SortBy -> TableColumn -> Html TableAction
 tableHeaderCell ( sortColumn, sortOrder ) column =
-    th
-        [ onClick (FlipSort column.name)
+    div
+        [ class "table-header-cell"
+        , onClick (FlipSort column.name)
         , style "width" <| String.fromInt column.width ++ "px"
         , class <|
             if column.name == sortColumn then
@@ -538,56 +581,120 @@ tableHeaderCell ( sortColumn, sortOrder ) column =
             else
                 ""
         ]
-        [ div [ class "table-header" ]
-            [ text column.label
-            , if column.name == sortColumn then
-                tableSortIcon sortOrder
+        [ text column.label
+        , if column.name == sortColumn then
+            tableSortIcon sortOrder
 
-              else
-                div [] []
-            ]
+          else
+            div [] []
         ]
 
 
 tableView : Time.Zone -> TableModel -> Html TableAction
 tableView tz { entries, sortBy, columns, selected } =
-    table [ class "main-table" ]
-        [ thead []
-            [ tr [] <|
-                List.map (tableHeaderCell sortBy) columns
-            ]
-        , tbody [] <|
-            List.map (entryView tz columns selected) entries
+    let
+        -- hide columns except first column when selected
+        visibleColumns =
+            case selected of
+                Just _ ->
+                    List.take 1 columns
+
+                _ ->
+                    columns
+    in
+    section
+        (case selected of
+            Just _ ->
+                [ class "table table--selected"
+                , style "width" <| totalWidth visibleColumns
+                ]
+
+            _ ->
+                [ class "table" ]
+        )
+        [ div [ class "table-header" ] <|
+            List.map (tableHeaderCell sortBy) visibleColumns
+        , div [ class "table-body" ] <|
+            List.map (entryView tz visibleColumns selected) entries
+        ]
+
+
+totalWidth : List TableColumn -> String
+totalWidth columns =
+    columns
+        |> List.foldl (\column acc -> acc + column.width) 0
+        |> String.fromInt
+        |> (\w -> w ++ "px")
+
+
+isReduxStateEntry : Har.Entry -> Bool
+isReduxStateEntry entry =
+    entry.request.url == "/redux/state"
+
+
+getReduxState : Har.Entry -> Maybe String
+getReduxState entry =
+    if isReduxStateEntry entry then
+        case entry.response.content.text of
+            Just text ->
+                Just text
+
+            _ ->
+                Nothing
+
+    else
+        Nothing
+
+
+detailView : OpenedModel -> Har.Entry -> Html OpenedMsg
+detailView { treeState, treeRootNode, clientInfo } entry =
+    section [ class "detail" ]
+        [ case treeRootNode of
+            Just node ->
+                if isReduxStateEntry entry && not (String.isEmpty clientInfo.href) then
+                    case getReduxState entry of
+                        Just s ->
+                            Html.node "agent-console-snapshot"
+                                [ src <| clientInfo.href ++ "&snapshot=true"
+                                , attribute "state" s
+                                ]
+                                []
+
+                        _ ->
+                            text "No redux state found"
+
+                else
+                    JT.view node
+                        { colors =
+                            { string = "var(--syntax-highlight-string-color)"
+                            , number = "var(--syntax-highlight-number-color)"
+                            , bool = "var(--syntax-highlight-boolean-color)"
+                            , null = "var(--syntax-highlight-symbol-color)"
+                            , selectable = ""
+                            }
+                        , onSelect = Nothing
+                        , toMsg = SetTreeViewState
+                        }
+                        treeState
+
+            _ ->
+                text <| Maybe.withDefault "" entry.response.content.text
         ]
 
 
 viewOpened : OpenedModel -> Html OpenedMsg
-viewOpened { table, timezone, treeState, treeRootNode } =
-    case timezone of
+viewOpened model =
+    case model.timezone of
         Just tz ->
             div
-                [ style "width" "100%"
-                , style "height" "100%"
-                ]
-                [ Html.map TableAction (tableView tz table)
-                , case table.selected of
+                [ class "app" ]
+                [ Html.map TableAction (tableView tz model.table)
+                , case model.table.selected of
                     Just entry ->
-                        div [ class "detail" ]
-                            [ case treeRootNode of
-                                Just node ->
-                                    JT.view node
-                                        { colors = JT.defaultColors
-                                        , onSelect = Nothing
-                                        , toMsg = SetTreeViewState
-                                        }
-                                        treeState
-
-                                _ ->
-                                    text <| Maybe.withDefault "" entry.response.content.text
-                            ]
+                        detailView model entry
 
                     _ ->
-                        div [] []
+                        text ""
                 ]
 
         _ ->
@@ -601,13 +708,8 @@ externalCss url =
 
 view : Model -> Html Msg
 view model =
-    div [ class "app" ]
-        [ externalCss "./assets/css/variables.css"
-        , externalCss "./assets/css/normalize.css"
-        , externalCss "./assets/css/app.css"
-        , externalCss "./assets/css/table.css"
-        , externalCss "./assets/css/icons.css"
-        , case model of
+    div [ style "width" "100%", style "height" "100%" ]
+        [ case model of
             Initial initialModel ->
                 Html.map InitialMsg (initialView initialModel)
 
