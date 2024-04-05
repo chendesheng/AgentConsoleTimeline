@@ -28,3 +28,15 @@
 .icon.close {
     content: url("../images/CloseLarge.svg");
 }
+
+.icon.jsdoc {
+    content: url("../images/DocumentIcons.svg#js-dark");
+}
+
+.icon.imagedoc {
+    content: url("../images/DocumentIcons.svg#image-dark");
+}
+
+.icon.networkdoc {
+    content: url("../images/DocumentIcons.svg#network-dark");
+}

@@ -578,17 +578,32 @@ toIntPad3 n =
         String.fromInt n
 
 
+getEntryIcon : Har.Entry -> Html msg
+getEntryIcon entry =
+    if entry.request.url == "/redux/state" then
+        Icons.imageDoc
+
+    else if String.startsWith "https://" entry.request.url || String.startsWith "http://" entry.request.url then
+        Icons.networkDoc
+
+    else
+        Icons.jsDoc
+
+
 tableCellView : Time.Zone -> TableColumnName -> Har.Entry -> Html msg
 tableCellView tz column entry =
     case column of
         URL ->
-            text <|
-                case List.head <| List.reverse <| String.indexes "/" entry.request.url of
-                    Just i ->
-                        String.dropLeft (i + 1) entry.request.url
+            div [ class "table-body-cell-url" ]
+                [ getEntryIcon entry
+                , text <|
+                    case List.head <| List.reverse <| String.indexes "/" entry.request.url of
+                        Just i ->
+                            String.dropLeft (i + 1) entry.request.url
 
-                    _ ->
-                        entry.request.url
+                        _ ->
+                            entry.request.url
+                ]
 
         Status ->
             text <| String.fromInt entry.response.status
@@ -649,7 +664,9 @@ entryView tz columns selected entry =
         (List.map
             (\column ->
                 div
-                    [ class "table-body-cell", style "width" <| String.fromInt column.width ++ "px" ]
+                    [ class "table-body-cell"
+                    , style "width" <| String.fromInt column.width ++ "px"
+                    ]
                     [ tableCellView tz column.name entry ]
             )
             columns

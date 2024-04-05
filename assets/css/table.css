@@ -90,11 +90,11 @@
 }
 
 .table-body-cell {
-    cursor: default;
+    cursor: pointer;
     vertical-align: top;
-    height: 16px;
-    line-height: 16px;
-    padding: 2px 6px;
+    height: 20px;
+    line-height: 20px;
+    padding: 0 6px;
     white-space: nowrap;
     overflow: hidden;
     font-family: -webkit-system-font, sans-serif;
@@ -103,4 +103,12 @@
     box-sizing: border-box;
     flex: none;
     font-size: 11px;
+}
+.table-body-cell-url {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.table-body-cell-url .icon {
+    font-size: 14px;
 }
