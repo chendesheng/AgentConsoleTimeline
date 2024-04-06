@@ -621,10 +621,20 @@ toIntPad3 n =
 getEntryIcon : Har.Entry -> Html msg
 getEntryIcon entry =
     if entry.request.url == "/redux/state" then
-        Icons.imageDoc
+        Icons.snapshotDoc
 
-    else if String.startsWith "https://" entry.request.url || String.startsWith "http://" entry.request.url then
-        Icons.networkDoc
+    else if String.startsWith "/redux/" entry.request.url then
+        Icons.actionDoc
+
+    else if String.startsWith "/log/" entry.request.url then
+        Icons.logDoc
+
+    else if
+        String.startsWith "https://" entry.request.url
+            || String.startsWith "http://" entry.request.url
+            || String.startsWith "/api/" entry.request.url
+    then
+        Icons.httpDoc
 
     else
         Icons.jsDoc

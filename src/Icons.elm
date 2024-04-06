@@ -51,3 +51,23 @@ imageDoc =
 networkDoc : Html msg
 networkDoc =
     icon "networkdoc"
+
+
+actionDoc : Html msg
+actionDoc =
+    icon "actiondoc"
+
+
+logDoc : Html msg
+logDoc =
+    icon "logdoc"
+
+
+httpDoc : Html msg
+httpDoc =
+    icon "httpdoc"
+
+
+snapshotDoc : Html msg
+snapshotDoc =
+    icon "snapshotdoc"
