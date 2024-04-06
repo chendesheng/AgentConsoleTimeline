@@ -141,6 +141,7 @@ type TableColumnName
     | Time
     | Domain
     | Size
+    | Method
 
 
 type alias TableColumn =
@@ -205,7 +206,8 @@ update msg model =
                                             { sortBy = ( URL, Asc )
                                             , columns =
                                                 [ { name = URL, label = "Name", width = 250 }
-                                                , { name = Status, label = "Status", width = 100 }
+                                                , { name = Method, label = "Method", width = 80 }
+                                                , { name = Status, label = "Status", width = 80 }
                                                 , { name = Time, label = "Time", width = 150 }
                                                 , { name = Domain, label = "Domain", width = 150 }
                                                 , { name = Size, label = "Size", width = 150 }
@@ -315,6 +317,9 @@ compareEntry column a b =
 
         Size ->
             compareInt (a.response.bodySize + a.request.bodySize) (b.response.bodySize + b.request.bodySize)
+
+        Method ->
+            compareString a.request.method b.request.method
 
 
 compareInt : Int -> Int -> Order
@@ -641,6 +646,9 @@ tableCellView tz column entry =
 
             else
                 text <| String.fromInt (entry.response.bodySize + entry.request.bodySize)
+
+        Method ->
+            text entry.request.method
 
 
 entryView : Time.Zone -> List TableColumn -> Maybe Har.Entry -> Har.Entry -> Html TableAction
