@@ -10,6 +10,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Icons
+import Iso8601
 import Json.Decode as D
 import JsonTree as JT
 import List exposing (sortBy)
@@ -805,6 +806,12 @@ detailView { treeState, treeRootNode, clientInfo } entry =
                                 Html.node "agent-console-snapshot"
                                     [ src <| clientInfo.href ++ "&snapshot=true"
                                     , attribute "state" s
+                                    , attribute "time" <|
+                                        (entry.time
+                                            |> round
+                                            |> Time.millisToPosix
+                                            |> Iso8601.fromTime
+                                        )
                                     ]
                                     []
 

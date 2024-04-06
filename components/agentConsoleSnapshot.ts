@@ -7,6 +7,8 @@ export class AgentConsoleSnapshot extends LitElement {
   src = "";
   @property()
   state = "";
+  @property()
+  time = "";
 
   @query("iframe")
   iframe!: HTMLIFrameElement;
@@ -25,14 +27,20 @@ export class AgentConsoleSnapshot extends LitElement {
     return html`<iframe src="${this.src}" frameborder="0" />`;
   }
 
+  sendToIframe() {
+    if (this.iframe?.contentWindow) {
+      this.iframe.contentWindow.postMessage(
+        { type: "restoreReduxState", payload: this.state, time: this.time },
+        "*",
+      );
+    }
+  }
+
   connectedCallback(): void {
     super.connectedCallback();
     const handleMessage = (e: MessageEvent) => {
-      if (this.iframe?.contentWindow && e.data?.type === "waitForReduxState") {
-        this.iframe.contentWindow.postMessage(
-          { type: "restoreReduxState", payload: this.state },
-          "*",
-        );
+      if (e.data?.type === "waitForReduxState") {
+        this.sendToIframe();
         window.removeEventListener("message", handleMessage);
       }
     };
@@ -41,12 +49,7 @@ export class AgentConsoleSnapshot extends LitElement {
 
   updated(changed: PropertyValues<this>) {
     if (changed.has("state")) {
-      // console.log("updated");
-      // console.log(this.state);
-      this.iframe?.contentWindow?.postMessage(
-        { type: "restoreReduxState", payload: this.state },
-        "*",
-      );
+      this.sendToIframe();
     }
   }
 }
