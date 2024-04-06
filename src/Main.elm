@@ -1,7 +1,6 @@
 module Main exposing (main)
 
 import Browser
-import Browser.Events exposing (onKeyDown)
 import File exposing (File)
 import File.Select as Select
 import Har
@@ -68,8 +67,7 @@ type alias OpenedModel =
     { log : Har.Log
     , table : TableModel
     , timezone : Maybe Time.Zone
-    , treeState : JT.State
-    , treeRootNode : Maybe JT.Node
+    , detail : DetailMode
     , clientInfo : ClientInfo
     }
 
@@ -100,6 +98,7 @@ type OpenedMsg
     = TableAction TableAction
     | GotTimezone Time.Zone
     | SetTreeViewState JT.State
+    | ChangeDetailTab DetailTabName
 
 
 type SortOrder
@@ -160,6 +159,22 @@ type alias TableModel =
     }
 
 
+type DetailTabName
+    = Preview
+    | Raw
+
+
+type alias DetailTab =
+    { name : DetailTabName, label : String }
+
+
+type alias DetailMode =
+    { tab : DetailTabName
+    , treeState : JT.State
+    , treeRootNode : Maybe JT.Node
+    }
+
+
 getClientInfo : Har.Log -> ClientInfo
 getClientInfo { entries } =
     let
@@ -217,8 +232,11 @@ update msg model =
                                             , selected = Nothing
                                             }
                                         , timezone = Nothing
-                                        , treeState = JT.defaultState
-                                        , treeRootNode = Nothing
+                                        , detail =
+                                            { treeState = JT.defaultState
+                                            , treeRootNode = Nothing
+                                            , tab = Preview
+                                            }
                                         , clientInfo = getClientInfo log
                                         }
                                     , Task.perform (\zone -> OpenedMsg <| GotTimezone zone) Time.here
@@ -249,7 +267,7 @@ tableSelectIndex index table =
 
         newSelected =
             indexedEntries
-                |> List.filter (\( i, entry ) -> i == index)
+                |> List.filter (\( i, _ ) -> i == index)
                 |> List.head
                 |> Maybe.map Tuple.second
     in
@@ -262,7 +280,7 @@ tableGetSelectedIndex table =
         Just selected ->
             table.entries
                 |> List.indexedMap Tuple.pair
-                |> List.filter (\( i, entry ) -> entry == selected)
+                |> List.filter (\( _, entry ) -> entry == selected)
                 |> List.head
                 |> Maybe.map Tuple.first
 
@@ -383,15 +401,22 @@ updateSelectEntry model =
         Just entry ->
             case entry.response.content.text of
                 Just text ->
+                    let
+                        detail =
+                            model.detail
+                    in
                     case text |> JT.parseString |> Result.toMaybe of
                         Just node ->
                             { model
-                                | treeRootNode = Just node
-                                , treeState = JT.collapseToDepth 2 node JT.defaultState
+                                | detail =
+                                    { detail
+                                        | treeRootNode = Just node
+                                        , treeState = JT.collapseToDepth 2 node JT.defaultState
+                                    }
                             }
 
                         _ ->
-                            { model | treeRootNode = Nothing }
+                            { model | detail = { detail | treeRootNode = Nothing } }
 
                 Nothing ->
                     model
@@ -436,24 +461,22 @@ updateOpened msg model =
                     let
                         table =
                             model.table
+
+                        detail =
+                            model.detail
                     in
                     { model
                         | table = { table | selected = Nothing }
-                        , treeRootNode = Nothing
+                        , detail = { detail | treeRootNode = Nothing }
                     }
 
                 KeyDown key ->
                     case key of
-                        ArrowUp ->
-                            { model | table = tableSelectNextEntry model.table True }
-                                |> updateSelectEntry
-
-                        ArrowDown ->
-                            { model | table = tableSelectNextEntry model.table False }
-                                |> updateSelectEntry
-
-                        _ ->
+                        NoKey ->
                             model
+
+                        arrow ->
+                            updateSelectNextEntry model (arrow == ArrowUp)
 
                 ResizeColumn column width ->
                     let
@@ -477,7 +500,18 @@ updateOpened msg model =
             { model | timezone = Just tz }
 
         SetTreeViewState state ->
-            { model | treeState = state }
+            let
+                detail =
+                    model.detail
+            in
+            { model | detail = { detail | treeState = state } }
+
+        ChangeDetailTab tab ->
+            let
+                detail =
+                    model.detail
+            in
+            { model | detail = { detail | tab = tab } }
 
 
 updateInitial : InitialMsg -> InitialModel -> ( InitialModel, Cmd InitialMsg )
@@ -792,48 +826,89 @@ getReduxState entry =
         Nothing
 
 
+detailTab : DetailTabName -> DetailTab -> Html OpenedMsg
+detailTab selected { name, label } =
+    button
+        [ class "detail-header-tab"
+        , class <|
+            if name == selected then
+                "selected"
+
+            else
+                ""
+        , onClick (ChangeDetailTab name)
+        ]
+        [ text label ]
+
+
+detailTabs : DetailTabName -> Har.Entry -> Html OpenedMsg
+detailTabs tab entry =
+    div [ class "detail-header-tabs" ] <|
+        List.map (detailTab tab)
+            [ { name = Preview, label = "Preview" }
+            , { name = Raw, label = "Raw" }
+            ]
+
+
+detailPreviewView : OpenedModel -> Har.Entry -> Html OpenedMsg
+detailPreviewView { detail, clientInfo } entry =
+    if isReduxStateEntry entry && not (String.isEmpty clientInfo.href) then
+        case getReduxState entry of
+            Just s ->
+                Html.node "agent-console-snapshot"
+                    [ src <| clientInfo.href ++ "&snapshot=true"
+                    , attribute "state" s
+                    , attribute "time" <|
+                        (entry.time
+                            |> round
+                            |> Time.millisToPosix
+                            |> Iso8601.fromTime
+                        )
+                    ]
+                    []
+
+            _ ->
+                text "No redux state found"
+
+    else
+        case detail.treeRootNode of
+            Just node ->
+                JT.view node
+                    { colors =
+                        { string = "var(--syntax-highlight-string-color)"
+                        , number = "var(--syntax-highlight-number-color)"
+                        , bool = "var(--syntax-highlight-boolean-color)"
+                        , null = "var(--syntax-highlight-symbol-color)"
+                        , selectable = ""
+                        }
+                    , onSelect = Nothing
+                    , toMsg = SetTreeViewState
+                    }
+                    detail.treeState
+
+            _ ->
+                text <| Maybe.withDefault "" entry.response.content.text
+
+
 detailView : OpenedModel -> Har.Entry -> Html OpenedMsg
-detailView { treeState, treeRootNode, clientInfo } entry =
+detailView model entry =
     section [ class "detail" ]
         [ div [ class "detail-header" ]
-            [ button [ class "detail-close", onClick (TableAction Unselect) ] [ Icons.close ] ]
+            [ button [ class "detail-close", onClick (TableAction Unselect) ] [ Icons.close ]
+            , detailTabs model.detail.tab entry
+            ]
         , div [ class "detail-body" ]
-            [ case treeRootNode of
-                Just node ->
-                    if isReduxStateEntry entry && not (String.isEmpty clientInfo.href) then
-                        case getReduxState entry of
-                            Just s ->
-                                Html.node "agent-console-snapshot"
-                                    [ src <| clientInfo.href ++ "&snapshot=true"
-                                    , attribute "state" s
-                                    , attribute "time" <|
-                                        (entry.time
-                                            |> round
-                                            |> Time.millisToPosix
-                                            |> Iso8601.fromTime
-                                        )
-                                    ]
-                                    []
+            [ case model.detail.tab of
+                Preview ->
+                    detailPreviewView model entry
 
-                            _ ->
-                                text "No redux state found"
+                Raw ->
+                    case entry.response.content.text of
+                        Just t ->
+                            pre [ class "detail-body-raw" ] [ text t ]
 
-                    else
-                        JT.view node
-                            { colors =
-                                { string = "var(--syntax-highlight-string-color)"
-                                , number = "var(--syntax-highlight-number-color)"
-                                , bool = "var(--syntax-highlight-boolean-color)"
-                                , null = "var(--syntax-highlight-symbol-color)"
-                                , selectable = ""
-                                }
-                            , onSelect = Nothing
-                            , toMsg = SetTreeViewState
-                            }
-                            treeState
-
-                _ ->
-                    text <| Maybe.withDefault "" entry.response.content.text
+                        _ ->
+                            text "No content"
             ]
         ]
 
@@ -855,11 +930,6 @@ viewOpened model =
 
         _ ->
             div [] [ text "Loading..." ]
-
-
-externalCss : String -> Html msg
-externalCss url =
-    Html.node "link" [ rel "stylesheet", href url ] []
 
 
 view : Model -> Html Msg

@@ -4,7 +4,7 @@
   "description": "",
   "source": "select.html",
   "scripts": {
-    "start": "parcel",
+    "start": "parcel index.html",
     "build": "tsc && elm make src/Main.elm --debug --output=dist/elm.js",
     "build:components": "tsc"
   },

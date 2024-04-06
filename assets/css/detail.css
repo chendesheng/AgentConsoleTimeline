@@ -1,47 +1,69 @@
 .detail-header {
-    height: 30px;
-    border-bottom: solid 1px var(--border-color);
-    background-color: var(--background-color);
-    display: flex;
-    width: 100%;
-    align-items: center;
-    flex: none;
+  height: 30px;
+  border-bottom: solid 1px var(--border-color);
+  background-color: var(--background-color);
+  display: flex;
+  width: 100%;
+  align-items: center;
+  flex: none;
+}
+
+.detail-header-tabs {
+  display: flex;
+  gap: 6px;
+  margin-left: 8px;
+}
+
+.detail-header-tabs button {
+  background: none;
+  border: none;
+  color: var(--text-color);
+}
+
+.detail-header-tabs button.selected {
+  color: var(--glyph-color-active);
 }
 
 .detail-close {
-    height: 16px;
-    width: 16px;
-    margin-left: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--button-background-color);
-    border-radius: 2px;
-    border: none;
+  height: 16px;
+  width: 16px;
+  margin-left: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--button-background-color);
+  border-radius: 2px;
+  border: none;
 }
 
 .detail-close .icon {
-    opacity: 0.6;
+  opacity: 0.6;
 }
 
 .detail-close:hover .icon {
-    opacity: 1;
+  opacity: 1;
 }
 
 .detail-close:hover {
-    background-color: var(--button-background-color-hover);
+  background-color: var(--button-background-color-hover);
 }
 
 .detail-close:active {
-    background-color: var(--button-background-color-pressed);
+  background-color: var(--button-background-color-pressed);
 }
 
 .detail-close:disabled {
-    background-color: var(--button-background-color-inactive);
+  background-color: var(--button-background-color-inactive);
 }
 
 .detail-body {
-    flex: auto;
-    overflow: auto;
-    padding: 8px;
+  flex: auto;
+  overflow: auto;
+  padding: 8px;
+}
+
+.detail-body-raw {
+  width: 100%;
+  white-space: pre-wrap;
+  margin: 0;
 }
