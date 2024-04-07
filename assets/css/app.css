@@ -1,15 +1,81 @@
 .app {
     height: 100%;
-    display: flex;
-    flex-flow: row;
+    display: grid;
+    grid-template-rows: 30px auto;
+    grid-template-areas: "filter" "table";
+}
+
+.app:has(section.detail) {
+    grid-template-columns: auto 1fr;
+    grid-template-areas: "filter filter" "table detail";
 }
 
 .app section {
     overflow: auto;
 }
 
+.app section.table-filter {
+    border-bottom: solid 1px var(--border-color);
+    display: flex;
+    grid-area: filter;
+    align-items: center;
+    gap: 12px;
+    padding-left: 6px;
+    background-color: var(--background-color-content);
+}
+
+.table-filter input[type="search"] {
+    position: relative;
+    padding-left: 18px;
+    border: solid 1px var(--border-color);
+    border-radius: 3px;
+    height: 20px;
+    width: 150px;
+    outline: none;
+    background: url("../images/FilterFieldGlyph.svg") no-repeat scroll 3px 3px;
+    background-size: 12px;
+}
+
+.table-filter-select {
+    position: relative;
+    height: 30px;
+}
+
+.table-filter-select:hover > div {
+    background-color: var(--selected-background-color);
+}
+
+.table-filter-select > div:after {
+    content: url("../images/UpDownArrows.svg");
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    width: 6px;
+}
+
+.table-filter-select > div {
+    pointer-events: none;
+    background-color: var(--background-color-content);
+    position: absolute;
+    left: -2px;
+    top: 6px;
+    border-radius: 2px;
+    padding: 2px 4px;
+    padding-right: 16px;
+    white-space: nowrap;
+}
+
+.table-filter-select > select {
+    border: none;
+    outline: none;
+    appearance: none;
+    background: none;
+    width: fit-content;
+    height: 30px;
+}
+
 .app section.table {
-    flex: none;
+    grid-area: table;
 }
 
 .app section.detail {
@@ -18,4 +84,5 @@
     border-left: solid 1px var(--border-color);
     display: flex;
     flex-flow: column;
+    grid-area: detail;
 }

@@ -95,7 +95,7 @@ type InitialMsg
 
 
 type OpenedMsg
-    = TableAction TableAction
+    = TableAction TableMsg
     | GotTimezone Time.Zone
     | SetTreeViewState JT.State
     | ChangeDetailTab DetailTabName
@@ -126,13 +126,14 @@ type KeyCode
     | NoKey
 
 
-type TableAction
+type TableMsg
     = FlipSort TableColumnName
     | ResizeColumn TableColumnName Int
     | Select Har.Entry
     | Unselect
-      -- key events
     | KeyDown KeyCode
+    | InputFilter String
+    | SelectKind (Maybe EntryKind)
 
 
 type TableColumnName
@@ -151,11 +152,21 @@ type alias TableColumn =
     }
 
 
+type EntryKind
+    = ReduxState
+    | NetworkHttp
+    | Log
+    | ReduxAction
+    | Others
+
+
 type alias TableModel =
     { sortBy : SortBy
     , columns : List TableColumn
     , entries : List Har.Entry
     , selected : Maybe Har.Entry
+    , filterMatch : Maybe String
+    , filterKind : Maybe EntryKind
     }
 
 
@@ -230,6 +241,8 @@ update msg model =
                                                 ]
                                             , entries = log.entries
                                             , selected = Nothing
+                                            , filterMatch = Nothing
+                                            , filterKind = Nothing
                                             }
                                         , timezone = Nothing
                                         , detail =
@@ -425,6 +438,39 @@ updateSelectEntry model =
             model
 
 
+filterByKind : Maybe EntryKind -> List Har.Entry -> List Har.Entry
+filterByKind kind entries =
+    case kind of
+        Just kd ->
+            entries
+                |> List.filter (\entry -> getEntryKind entry == kd)
+
+        Nothing ->
+            entries
+
+
+filterByMatch : Maybe String -> List Har.Entry -> List Har.Entry
+filterByMatch match entries =
+    case match of
+        Just filter ->
+            let
+                loweredFilter =
+                    String.toLower filter
+            in
+            entries
+                |> List.filter (\entry -> String.contains loweredFilter (String.toLower entry.request.url))
+
+        Nothing ->
+            entries
+
+
+filterEntries : Maybe String -> Maybe EntryKind -> List Har.Entry -> List Har.Entry
+filterEntries match kind entries =
+    entries
+        |> filterByMatch match
+        |> filterByKind kind
+
+
 updateOpened : OpenedMsg -> OpenedModel -> OpenedModel
 updateOpened msg model =
     case msg of
@@ -495,6 +541,26 @@ updateOpened msg model =
                                 table.columns
                     in
                     { model | table = { table | columns = columns } }
+
+                InputFilter filter ->
+                    let
+                        table =
+                            model.table
+
+                        newEntries =
+                            filterEntries (Just filter) table.filterKind model.log.entries
+                    in
+                    { model | table = { table | entries = newEntries, filterMatch = Just filter } }
+
+                SelectKind kind ->
+                    let
+                        table =
+                            model.table
+
+                        newEntries =
+                            filterEntries table.filterMatch kind model.log.entries
+                    in
+                    { model | table = { table | entries = newEntries, filterKind = kind } }
 
         GotTimezone tz ->
             { model | timezone = Just tz }
@@ -618,26 +684,108 @@ toIntPad3 n =
         String.fromInt n
 
 
-getEntryIcon : Har.Entry -> Html msg
-getEntryIcon entry =
+getEntryKind : Har.Entry -> EntryKind
+getEntryKind entry =
     if entry.request.url == "/redux/state" then
-        Icons.snapshotDoc
+        ReduxState
 
     else if String.startsWith "/redux/" entry.request.url then
-        Icons.actionDoc
+        ReduxAction
 
     else if String.startsWith "/log/" entry.request.url then
-        Icons.logDoc
+        Log
 
     else if
         String.startsWith "https://" entry.request.url
             || String.startsWith "http://" entry.request.url
             || String.startsWith "/api/" entry.request.url
     then
-        Icons.httpDoc
+        NetworkHttp
 
     else
-        Icons.jsDoc
+        Others
+
+
+entryKindLabel : Maybe EntryKind -> String
+entryKindLabel kind =
+    case kind of
+        Nothing ->
+            "All"
+
+        Just ReduxState ->
+            "Redux State"
+
+        Just ReduxAction ->
+            "Redux Action"
+
+        Just Log ->
+            "Log"
+
+        Just NetworkHttp ->
+            "Network HTTP"
+
+        Just Others ->
+            "Others"
+
+
+stringToEntryKind : String -> Maybe EntryKind
+stringToEntryKind s =
+    case s of
+        "0" ->
+            Just ReduxState
+
+        "1" ->
+            Just ReduxAction
+
+        "2" ->
+            Just Log
+
+        "3" ->
+            Just NetworkHttp
+
+        "4" ->
+            Just Others
+
+        _ ->
+            Nothing
+
+
+entryKindValue : EntryKind -> String
+entryKindValue kind =
+    case kind of
+        ReduxState ->
+            "0"
+
+        ReduxAction ->
+            "1"
+
+        Log ->
+            "2"
+
+        NetworkHttp ->
+            "3"
+
+        Others ->
+            "4"
+
+
+getEntryIcon : Har.Entry -> Html msg
+getEntryIcon entry =
+    case getEntryKind entry of
+        ReduxState ->
+            Icons.snapshotDoc
+
+        ReduxAction ->
+            Icons.actionDoc
+
+        Log ->
+            Icons.logDoc
+
+        NetworkHttp ->
+            Icons.httpDoc
+
+        Others ->
+            Icons.jsDoc
 
 
 tableCellView : Time.Zone -> TableColumnName -> Har.Entry -> Html msg
@@ -696,7 +844,7 @@ tableCellView tz column entry =
             text entry.request.method
 
 
-entryView : Time.Zone -> List TableColumn -> Maybe Har.Entry -> Har.Entry -> Html TableAction
+entryView : Time.Zone -> List TableColumn -> Maybe Har.Entry -> Har.Entry -> Html TableMsg
 entryView tz columns selected entry =
     div
         [ class
@@ -736,7 +884,7 @@ tableSortIcon sortOrder =
             Icons.sortDesc
 
 
-tableHeaderCell : SortBy -> TableColumn -> Html TableAction
+tableHeaderCell : SortBy -> TableColumn -> Html TableMsg
 tableHeaderCell ( sortColumn, sortOrder ) column =
     div
         [ class "table-header-cell"
@@ -775,7 +923,33 @@ keyDecoder =
     D.map toKey <| D.field "key" D.string
 
 
-tableView : Time.Zone -> TableModel -> Html TableAction
+tableFilterView : TableModel -> Html TableMsg
+tableFilterView model =
+    section [ class "table-filter" ]
+        [ input
+            [ class "table-filter-input"
+            , value (Maybe.withDefault "" model.filterMatch)
+            , onInput InputFilter
+            , type_ "search"
+            , autofocus True
+            , placeholder "Filter"
+            ]
+            []
+        , label [ class "table-filter-select" ]
+            [ div [] [ text <| entryKindLabel model.filterKind ]
+            , select [ onInput (stringToEntryKind >> SelectKind) ]
+                [ option [ value "" ] [ text "All" ]
+                , option [ value "0" ] [ text "Redux State" ]
+                , option [ value "1" ] [ text "Redux Action" ]
+                , option [ value "2" ] [ text "Log" ]
+                , option [ value "3" ] [ text "Http" ]
+                , option [ value "4" ] [ text "Others" ]
+                ]
+            ]
+        ]
+
+
+tableView : Time.Zone -> TableModel -> Html TableMsg
 tableView tz { entries, sortBy, columns, selected } =
     let
         -- hide columns except first column when selected
@@ -929,7 +1103,8 @@ viewOpened model =
         Just tz ->
             div
                 [ class "app" ]
-                [ Html.map TableAction (tableView tz model.table)
+                [ Html.map TableAction (tableFilterView model.table)
+                , Html.map TableAction (tableView tz model.table)
                 , case model.table.selected of
                     Just entry ->
                         detailView model entry
