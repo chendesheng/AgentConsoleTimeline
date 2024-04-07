@@ -67,7 +67,7 @@ type alias OpenedModel =
     { log : Har.Log
     , table : TableModel
     , timezone : Maybe Time.Zone
-    , detail : DetailMode
+    , detail : DetailModel
     , clientInfo : ClientInfo
     }
 
@@ -168,7 +168,7 @@ type alias DetailTab =
     { name : DetailTabName, label : String }
 
 
-type alias DetailMode =
+type alias DetailModel =
     { tab : DetailTabName
     , treeState : JT.State
     , treeRootNode : Maybe JT.Node
