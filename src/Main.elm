@@ -1,5 +1,6 @@
 module Main exposing (main)
 
+import Base64
 import Browser
 import File exposing (File)
 import File.Select as Select
@@ -11,6 +12,7 @@ import Html.Events exposing (..)
 import Icons
 import Iso8601
 import Json.Decode as D
+import Json.Encode as Encode
 import JsonTree as JT
 import List exposing (sortBy)
 import Task
@@ -172,7 +174,9 @@ type alias TableModel =
 
 type DetailTabName
     = Preview
-    | Raw
+    | Headers
+    | Request
+    | Response
 
 
 type alias DetailTab =
@@ -1030,7 +1034,9 @@ detailTabs tab entry =
     div [ class "detail-header-tabs" ] <|
         List.map (detailTab tab)
             [ { name = Preview, label = "Preview" }
-            , { name = Raw, label = "Raw" }
+            , { name = Headers, label = "Headers" }
+            , { name = Request, label = "Request" }
+            , { name = Response, label = "Response" }
             ]
 
 
@@ -1074,6 +1080,75 @@ detailPreviewView { detail, clientInfo } entry =
                 text <| Maybe.withDefault "" entry.response.content.text
 
 
+keyValue : { x | name : String, value : String } -> Html msg
+keyValue { name, value } =
+    let
+        name1 =
+            if String.endsWith ":" name then
+                name
+
+            else
+                name ++ ":"
+    in
+    div [ class "detail-body-header-item" ]
+        [ span
+            [ style "color" "var(--color)"
+            , class "detail-body-header-key"
+            ]
+            [ text name1 ]
+        , span [ class "detail-body-header-value" ] [ text value ]
+        ]
+
+
+requestHeaderKeyValue : { x | name : String, value : String } -> Html msg
+requestHeaderKeyValue { name, value } =
+    if name == "Authorization" then
+        div []
+            [ keyValue
+                { name = name, value = value }
+            , div [ class "detail-body-header-token-value" ] [ text (Maybe.withDefault "" <| parseToken value) ]
+            ]
+
+    else
+        keyValue { name = name, value = value }
+
+
+styleVar : String -> String -> Attribute msg
+styleVar name value =
+    attribute "style" (name ++ ": " ++ value)
+
+
+parseToken : String -> Maybe String
+parseToken token =
+    if String.startsWith "Bearer " token then
+        let
+            _ =
+                token
+                    |> String.dropLeft 7
+                    |> String.split "."
+                    |> Debug.log "splitted"
+        in
+        case
+            token
+                |> String.dropLeft 7
+                |> String.split "."
+        of
+            [ _, meta, _ ] ->
+                let
+                    _ =
+                        Debug.log "meta"
+                in
+                meta
+                    |> Base64.decode
+                    |> Result.toMaybe
+
+            _ ->
+                Nothing
+
+    else
+        Nothing
+
+
 detailView : OpenedModel -> Har.Entry -> Html OpenedMsg
 detailView model entry =
     section [ class "detail" ]
@@ -1086,7 +1161,50 @@ detailView model entry =
                 Preview ->
                     detailPreviewView model entry
 
-                Raw ->
+                Headers ->
+                    div
+                        [ class "detail-body-headers-container" ]
+                        [ h3 [] [ text "Summary" ]
+                        , div [ styleVar "--color" "var(--network-system-color)", class "detail-body-headers" ]
+                            [ keyValue { name = "URL", value = entry.request.url }
+                            , keyValue { name = "Method", value = String.toUpper entry.request.method }
+                            , keyValue { name = "Status", value = String.fromInt entry.response.status }
+                            , keyValue { name = "Address", value = Maybe.withDefault "" entry.serverIPAddress }
+                            ]
+                        , h3 [] [ text "Request Headers" ]
+                        , div
+                            [ styleVar "--color" "var(--network-header-color)"
+                            , class "detail-body-headers"
+                            ]
+                            (List.map requestHeaderKeyValue entry.request.headers)
+                        , h3 [] [ text "Response Headers" ]
+                        , div
+                            [ styleVar "--color" "var(--network-header-color)"
+                            , class "detail-body-headers"
+                            ]
+                            (List.map keyValue entry.response.headers)
+                        , h3 [] [ text "Query String Parameters" ]
+                        , div
+                            [ styleVar "--color" "var(--text-color-tertiary)"
+                            , class "detail-body-headers"
+                            ]
+                            (List.map keyValue entry.request.queryString)
+                        ]
+
+                Request ->
+                    case entry.request.postData of
+                        Just postData ->
+                            case postData.text of
+                                Just t ->
+                                    pre [ class "detail-body-raw" ] [ text t ]
+
+                                _ ->
+                                    text "No content"
+
+                        _ ->
+                            text "No content"
+
+                Response ->
                     case entry.response.content.text of
                         Just t ->
                             pre [ class "detail-body-raw" ] [ text t ]
