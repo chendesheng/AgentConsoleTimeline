@@ -229,7 +229,7 @@ update msg model =
                                     ( Opened
                                         { log = log
                                         , table =
-                                            { sortBy = ( URL, Asc )
+                                            { sortBy = ( Time, Asc )
                                             , columns =
                                                 [ { name = URL, label = "Name", width = 250 }
                                                 , { name = Method, label = "Method", width = 80 }
