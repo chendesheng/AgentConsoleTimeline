@@ -15,16 +15,17 @@ export class AgentConsoleSnapshot extends LitElement {
 
   static styles = css`
     iframe {
-      width: calc(100% - 40px);
+      width: calc(100% - 28px);
       height: calc(100% - 40px);
-      margin: 20px;
+      margin: 20px 20px 20px 8px;
       border-radius: 4px;
       box-shadow: 0 0 10px 0 rgba(0, 0, 0, 0.1);
+      border: none;
     }
   `;
 
   render() {
-    return html`<iframe src="${this.src}" frameborder="0" />`;
+    return html`<iframe src="${this.src}" />`;
   }
 
   sendToIframe() {

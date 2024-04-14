@@ -1,3 +1,4 @@
+import "@alenaksu/json-viewer";
 import "./components/agentConsoleSnapshot";
 import { Elm } from "./src/Main.elm";
 

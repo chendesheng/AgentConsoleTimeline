@@ -59,7 +59,12 @@
 .detail-body {
     flex: auto;
     overflow: auto;
-    padding: 8px;
+    padding-left: 12px;
+}
+.detail-body:empty:after {
+    content: "No Content";
+    display: block;
+    margin-top: 12px;
 }
 
 .detail-body-raw {
@@ -70,6 +75,7 @@
 
 .detail-body-headers-container {
     padding: 12px;
+    padding-left: 0;
 }
 
 .detail-body h3 {
@@ -90,16 +96,32 @@
     line-height: 20px;
     display: flex;
     gap: 5px;
+    align-items: baseline;
 }
 .detail-body-header-key {
     font-weight: bold;
     flex: none;
+    text-transform: capitalize;
 }
 .detail-body-header-value {
     flex: auto;
+    overflow: auto;
+    overflow-wrap: break-word;
+    line-height: 1;
 }
 
 .detail-body-header-token-value {
     padding-left: 90px;
-    margin-top: 10px;
+}
+
+json-viewer {
+    --property-color: var(--text-color);
+    --string-color: var(--syntax-highlight-string-color);
+    --number-color: var(--syntax-highlight-number-color);
+    --boolean-color: var(--syntax-highlight-boolean-color);
+    --null-color: var(--syntax-highlight-symbol-color);
+    --background-color: transparent;
+    line-height: 1.5;
+    --font-family: inherit;
+    overflow-wrap: break-word;
 }

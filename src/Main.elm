@@ -1,6 +1,5 @@
 module Main exposing (main)
 
-import Base64
 import Browser
 import File exposing (File)
 import File.Select as Select
@@ -12,11 +11,10 @@ import Html.Events exposing (..)
 import Icons
 import Iso8601
 import Json.Decode as D
-import Json.Encode as Encode
-import JsonTree as JT
 import List exposing (sortBy)
 import Task
 import Time
+import TokenDecoder exposing (parseToken)
 
 
 
@@ -99,7 +97,6 @@ type InitialMsg
 type OpenedMsg
     = TableAction TableMsg
     | GotTimezone Time.Zone
-    | SetTreeViewState JT.State
     | ChangeDetailTab DetailTabName
 
 
@@ -185,8 +182,6 @@ type alias DetailTab =
 
 type alias DetailModel =
     { tab : DetailTabName
-    , treeState : JT.State
-    , treeRootNode : Maybe JT.Node
     }
 
 
@@ -250,9 +245,7 @@ update msg model =
                                             }
                                         , timezone = Nothing
                                         , detail =
-                                            { treeState = JT.defaultState
-                                            , treeRootNode = Nothing
-                                            , tab = Preview
+                                            { tab = Preview
                                             }
                                         , clientInfo = getClientInfo log
                                         }
@@ -333,7 +326,6 @@ tableSelectNextEntry table isUp =
 updateSelectNextEntry : OpenedModel -> Bool -> OpenedModel
 updateSelectNextEntry model isUp =
     { model | table = tableSelectNextEntry model.table isUp }
-        |> updateSelectEntry
 
 
 compareEntry : TableColumnName -> Har.Entry -> Har.Entry -> Order
@@ -412,36 +404,6 @@ sortEntries ( column, sortOrder ) =
         )
 
 
-updateSelectEntry : OpenedModel -> OpenedModel
-updateSelectEntry model =
-    case model.table.selected of
-        Just entry ->
-            case entry.response.content.text of
-                Just text ->
-                    let
-                        detail =
-                            model.detail
-                    in
-                    case text |> JT.parseString |> Result.toMaybe of
-                        Just node ->
-                            { model
-                                | detail =
-                                    { detail
-                                        | treeRootNode = Just node
-                                        , treeState = JT.collapseToDepth 2 node JT.defaultState
-                                    }
-                            }
-
-                        _ ->
-                            { model | detail = { detail | treeRootNode = Nothing } }
-
-                Nothing ->
-                    model
-
-        _ ->
-            model
-
-
 filterByKind : Maybe EntryKind -> List Har.Entry -> List Har.Entry
 filterByKind kind entries =
     case kind of
@@ -505,19 +467,15 @@ updateOpened msg model =
                         table =
                             model.table
                     in
-                    { model | table = { table | selected = Just entry } } |> updateSelectEntry
+                    { model | table = { table | selected = Just entry } }
 
                 Unselect ->
                     let
                         table =
                             model.table
-
-                        detail =
-                            model.detail
                     in
                     { model
                         | table = { table | selected = Nothing }
-                        , detail = { detail | treeRootNode = Nothing }
                     }
 
                 KeyDown key ->
@@ -568,13 +526,6 @@ updateOpened msg model =
 
         GotTimezone tz ->
             { model | timezone = Just tz }
-
-        SetTreeViewState state ->
-            let
-                detail =
-                    model.detail
-            in
-            { model | detail = { detail | treeState = state } }
 
         ChangeDetailTab tab ->
             let
@@ -752,25 +703,6 @@ stringToEntryKind s =
 
         _ ->
             Nothing
-
-
-entryKindValue : EntryKind -> String
-entryKindValue kind =
-    case kind of
-        ReduxState ->
-            "0"
-
-        ReduxAction ->
-            "1"
-
-        Log ->
-            "2"
-
-        NetworkHttp ->
-            "3"
-
-        Others ->
-            "4"
 
 
 getEntryIcon : Har.Entry -> Html msg
@@ -1030,7 +962,7 @@ detailTab selected { name, label } =
 
 
 detailTabs : DetailTabName -> Har.Entry -> Html OpenedMsg
-detailTabs tab entry =
+detailTabs tab _ =
     div [ class "detail-header-tabs" ] <|
         List.map (detailTab tab)
             [ { name = Preview, label = "Preview" }
@@ -1040,8 +972,13 @@ detailTabs tab entry =
             ]
 
 
+jsonViewer : String -> Html msg
+jsonViewer json =
+    Html.node "json-viewer" [ attribute "data" json ] []
+
+
 detailPreviewView : OpenedModel -> Har.Entry -> Html OpenedMsg
-detailPreviewView { detail, clientInfo } entry =
+detailPreviewView { clientInfo } entry =
     if isReduxStateEntry entry && not (String.isEmpty clientInfo.href) then
         case getReduxState entry of
             Just s ->
@@ -1061,26 +998,29 @@ detailPreviewView { detail, clientInfo } entry =
                 text "No redux state found"
 
     else
-        case detail.treeRootNode of
-            Just node ->
-                JT.view node
-                    { colors =
-                        { string = "var(--syntax-highlight-string-color)"
-                        , number = "var(--syntax-highlight-number-color)"
-                        , bool = "var(--syntax-highlight-boolean-color)"
-                        , null = "var(--syntax-highlight-symbol-color)"
-                        , selectable = ""
-                        }
-                    , onSelect = Nothing
-                    , toMsg = SetTreeViewState
-                    }
-                    detail.treeState
-
-            _ ->
-                text <| Maybe.withDefault "" entry.response.content.text
+        jsonViewer <| Maybe.withDefault "" entry.response.content.text
 
 
-keyValue : { x | name : String, value : String } -> Html msg
+
+-- case detail.treeRootNode of
+--     Just node ->
+--         JT.view node
+--             { colors =
+--                 { string = "var(--syntax-highlight-string-color)"
+--                 , number = "var(--syntax-highlight-number-color)"
+--                 , bool = "var(--syntax-highlight-boolean-color)"
+--                 , null = "var(--syntax-highlight-symbol-color)"
+--                 , selectable = ""
+--                 }
+--             , onSelect = Nothing
+--             , toMsg = SetTreeViewState
+--             }
+--             detail.treeState
+--     _ ->
+--         text <| Maybe.withDefault "" entry.response.content.text
+
+
+keyValue : { x | name : String, value : Html msg } -> Html msg
 keyValue { name, value } =
     let
         name1 =
@@ -1096,8 +1036,13 @@ keyValue { name, value } =
             , class "detail-body-header-key"
             ]
             [ text name1 ]
-        , span [ class "detail-body-header-value" ] [ text value ]
+        , span [ class "detail-body-header-value" ] [ value ]
         ]
+
+
+keyValueText : { x | name : String, value : String } -> Html msg
+keyValueText { name, value } =
+    keyValue { name = name, value = text value }
 
 
 requestHeaderKeyValue : { x | name : String, value : String } -> Html msg
@@ -1105,48 +1050,25 @@ requestHeaderKeyValue { name, value } =
     if name == "Authorization" then
         div []
             [ keyValue
-                { name = name, value = value }
-            , div [ class "detail-body-header-token-value" ] [ text (Maybe.withDefault "" <| parseToken value) ]
+                { name = name
+                , value =
+                    div []
+                        [ text value
+                        , jsonViewer <|
+                            "{\"payload\":"
+                                ++ (Maybe.withDefault "" <| parseToken value)
+                                ++ "}"
+                        ]
+                }
             ]
 
     else
-        keyValue { name = name, value = value }
+        keyValueText { name = name, value = value }
 
 
 styleVar : String -> String -> Attribute msg
 styleVar name value =
     attribute "style" (name ++ ": " ++ value)
-
-
-parseToken : String -> Maybe String
-parseToken token =
-    if String.startsWith "Bearer " token then
-        let
-            _ =
-                token
-                    |> String.dropLeft 7
-                    |> String.split "."
-                    |> Debug.log "splitted"
-        in
-        case
-            token
-                |> String.dropLeft 7
-                |> String.split "."
-        of
-            [ _, meta, _ ] ->
-                let
-                    _ =
-                        Debug.log "meta"
-                in
-                meta
-                    |> Base64.decode
-                    |> Result.toMaybe
-
-            _ ->
-                Nothing
-
-    else
-        Nothing
 
 
 detailView : OpenedModel -> Har.Entry -> Html OpenedMsg
@@ -1166,10 +1088,10 @@ detailView model entry =
                         [ class "detail-body-headers-container" ]
                         [ h3 [] [ text "Summary" ]
                         , div [ styleVar "--color" "var(--network-system-color)", class "detail-body-headers" ]
-                            [ keyValue { name = "URL", value = entry.request.url }
-                            , keyValue { name = "Method", value = String.toUpper entry.request.method }
-                            , keyValue { name = "Status", value = String.fromInt entry.response.status }
-                            , keyValue { name = "Address", value = Maybe.withDefault "" entry.serverIPAddress }
+                            [ keyValueText { name = "URL", value = entry.request.url }
+                            , keyValueText { name = "Method", value = String.toUpper entry.request.method }
+                            , keyValueText { name = "Status", value = String.fromInt entry.response.status }
+                            , keyValueText { name = "Address", value = Maybe.withDefault "" entry.serverIPAddress }
                             ]
                         , h3 [] [ text "Request Headers" ]
                         , div
@@ -1182,13 +1104,13 @@ detailView model entry =
                             [ styleVar "--color" "var(--network-header-color)"
                             , class "detail-body-headers"
                             ]
-                            (List.map keyValue entry.response.headers)
+                            (List.map keyValueText entry.response.headers)
                         , h3 [] [ text "Query String Parameters" ]
                         , div
                             [ styleVar "--color" "var(--text-color-tertiary)"
                             , class "detail-body-headers"
                             ]
-                            (List.map keyValue entry.request.queryString)
+                            (List.map keyValueText entry.request.queryString)
                         ]
 
                 Request ->
@@ -1196,21 +1118,21 @@ detailView model entry =
                         Just postData ->
                             case postData.text of
                                 Just t ->
-                                    pre [ class "detail-body-raw" ] [ text t ]
+                                    div [ class "detail-body-raw" ] [ jsonViewer t ]
 
                                 _ ->
-                                    text "No content"
+                                    text ""
 
                         _ ->
-                            text "No content"
+                            text ""
 
                 Response ->
                     case entry.response.content.text of
                         Just t ->
-                            pre [ class "detail-body-raw" ] [ text t ]
+                            div [ class "detail-body-raw" ] [ jsonViewer t ]
 
                         _ ->
-                            text "No content"
+                            text ""
             ]
         ]
 
