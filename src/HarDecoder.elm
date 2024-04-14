@@ -145,7 +145,7 @@ postDataDecoder : Decoder PostData
 postDataDecoder =
     Decode.map4 PostData
         (field "mimeType" string)
-        (field "params" (list paramDecoder))
+        (maybe <| field "params" (list paramDecoder))
         (maybe <| field "text" string)
         (maybe <| field "comment" string)
 

@@ -146,7 +146,9 @@ type alias QueryString =
 -}
 type alias PostData =
     { mimeType : String -- The MIME type of the posted data.
-    , params : List Param -- List of parameters.
+
+    -- text and params fields are mutually exclusive.
+    , params : Maybe (List Param) -- List of parameters.
     , text : Maybe String -- The raw text of the posted data.
     , comment : Maybe String -- Additional information about the posted data.
     }
