@@ -12,13 +12,6 @@ import Time
 parseToken : String -> Maybe String
 parseToken token =
     if String.startsWith "Bearer " token then
-        let
-            _ =
-                token
-                    |> String.dropLeft 7
-                    |> String.split "."
-                    |> Debug.log "splitted"
-        in
         case
             token
                 |> String.dropLeft 7

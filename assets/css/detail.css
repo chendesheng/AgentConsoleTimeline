@@ -61,21 +61,12 @@
     overflow: auto;
     padding-left: 12px;
 }
-.detail-body:empty:after {
-    content: "No Content";
-    display: block;
-    margin-top: 12px;
-}
-
-.detail-body-raw {
-    width: 100%;
-    white-space: pre-wrap;
-    margin: 0;
+.detail-body-empty {
+    padding-top: 12px;
 }
 
 .detail-body-headers-container {
     padding: 12px;
-    padding-left: 0;
 }
 
 .detail-body h3 {
@@ -124,4 +115,8 @@ json-viewer {
     line-height: 1.5;
     --font-family: inherit;
     overflow-wrap: break-word;
+}
+
+code-editor.detail-body {
+    padding: 0;
 }

@@ -174,6 +174,7 @@ type DetailTabName
     | Headers
     | Request
     | Response
+    | Raw
 
 
 type alias DetailTab =
@@ -613,7 +614,6 @@ initialView model =
         , hijackOn "drop" dropDecoder
         ]
         [ button [ onClick Pick ] [ text "Open Dump File" ]
-        , span [ style "color" "#ccc" ] [ text (Debug.toString model) ]
         , span [ style "color" "red" ] [ text <| Maybe.withDefault "" model.error ]
         ]
 
@@ -969,6 +969,7 @@ detailTabs tab _ =
             , { name = Headers, label = "Headers" }
             , { name = Request, label = "Request" }
             , { name = Response, label = "Response" }
+            , { name = Raw, label = "Raw" }
             ]
 
 
@@ -999,25 +1000,6 @@ detailPreviewView { clientInfo } entry =
 
     else
         jsonViewer <| Maybe.withDefault "" entry.response.content.text
-
-
-
--- case detail.treeRootNode of
---     Just node ->
---         JT.view node
---             { colors =
---                 { string = "var(--syntax-highlight-string-color)"
---                 , number = "var(--syntax-highlight-number-color)"
---                 , bool = "var(--syntax-highlight-boolean-color)"
---                 , null = "var(--syntax-highlight-symbol-color)"
---                 , selectable = ""
---                 }
---             , onSelect = Nothing
---             , toMsg = SetTreeViewState
---             }
---             detail.treeState
---     _ ->
---         text <| Maybe.withDefault "" entry.response.content.text
 
 
 keyValue : { x | name : String, value : Html msg } -> Html msg
@@ -1066,6 +1048,11 @@ requestHeaderKeyValue { name, value } =
         keyValueText { name = name, value = value }
 
 
+noContent : Html msg
+noContent =
+    div [ class "detail-body", class "detail-body-empty" ] [ text "No content" ]
+
+
 styleVar : String -> String -> Attribute msg
 styleVar name value =
     attribute "style" (name ++ ": " ++ value)
@@ -1078,62 +1065,68 @@ detailView model entry =
             [ button [ class "detail-close", onClick (TableAction Unselect) ] [ Icons.close ]
             , detailTabs model.detail.tab entry
             ]
-        , div [ class "detail-body" ]
-            [ case model.detail.tab of
-                Preview ->
-                    detailPreviewView model entry
+        , case model.detail.tab of
+            Preview ->
+                div [ class "detail-body" ] [ detailPreviewView model entry ]
 
-                Headers ->
-                    div
-                        [ class "detail-body-headers-container" ]
-                        [ h3 [] [ text "Summary" ]
-                        , div [ styleVar "--color" "var(--network-system-color)", class "detail-body-headers" ]
-                            [ keyValueText { name = "URL", value = entry.request.url }
-                            , keyValueText { name = "Method", value = String.toUpper entry.request.method }
-                            , keyValueText { name = "Status", value = String.fromInt entry.response.status }
-                            , keyValueText { name = "Address", value = Maybe.withDefault "" entry.serverIPAddress }
-                            ]
-                        , h3 [] [ text "Request Headers" ]
-                        , div
-                            [ styleVar "--color" "var(--network-header-color)"
-                            , class "detail-body-headers"
-                            ]
-                            (List.map requestHeaderKeyValue entry.request.headers)
-                        , h3 [] [ text "Response Headers" ]
-                        , div
-                            [ styleVar "--color" "var(--network-header-color)"
-                            , class "detail-body-headers"
-                            ]
-                            (List.map keyValueText entry.response.headers)
-                        , h3 [] [ text "Query String Parameters" ]
-                        , div
-                            [ styleVar "--color" "var(--text-color-tertiary)"
-                            , class "detail-body-headers"
-                            ]
-                            (List.map keyValueText entry.request.queryString)
+            Headers ->
+                div
+                    [ class "detail-body", class "detail-body-headers-container" ]
+                    [ h3 [] [ text "Summary" ]
+                    , div [ styleVar "--color" "var(--network-system-color)", class "detail-body-headers" ]
+                        [ keyValueText { name = "URL", value = entry.request.url }
+                        , keyValueText { name = "Method", value = String.toUpper entry.request.method }
+                        , keyValueText { name = "Status", value = String.fromInt entry.response.status }
+                        , keyValueText { name = "Address", value = Maybe.withDefault "" entry.serverIPAddress }
                         ]
+                    , h3 [] [ text "Request Headers" ]
+                    , div
+                        [ styleVar "--color" "var(--network-header-color)"
+                        , class "detail-body-headers"
+                        ]
+                        (List.map requestHeaderKeyValue entry.request.headers)
+                    , h3 [] [ text "Response Headers" ]
+                    , div
+                        [ styleVar "--color" "var(--network-header-color)"
+                        , class "detail-body-headers"
+                        ]
+                        (List.map keyValueText entry.response.headers)
+                    , h3 [] [ text "Query String Parameters" ]
+                    , div
+                        [ styleVar "--color" "var(--text-color-tertiary)"
+                        , class "detail-body-headers"
+                        ]
+                        (List.map keyValueText entry.request.queryString)
+                    ]
 
-                Request ->
-                    case entry.request.postData of
-                        Just postData ->
-                            case postData.text of
-                                Just t ->
-                                    div [ class "detail-body-raw" ] [ jsonViewer t ]
+            Request ->
+                case entry.request.postData of
+                    Just postData ->
+                        case postData.text of
+                            Just t ->
+                                div [ class "detail-body" ] [ jsonViewer t ]
 
-                                _ ->
-                                    text ""
+                            _ ->
+                                noContent
 
-                        _ ->
-                            text ""
+                    _ ->
+                        noContent
 
-                Response ->
-                    case entry.response.content.text of
-                        Just t ->
-                            div [ class "detail-body-raw" ] [ jsonViewer t ]
+            Response ->
+                case entry.response.content.text of
+                    Just t ->
+                        div [ class "detail-body" ] [ jsonViewer t ]
 
-                        _ ->
-                            text ""
-            ]
+                    _ ->
+                        noContent
+
+            Raw ->
+                case entry.response.content.text of
+                    Just t ->
+                        Html.node "code-editor" [ class "detail-body", attribute "content" t ] []
+
+                    _ ->
+                        noContent
         ]
 
 
