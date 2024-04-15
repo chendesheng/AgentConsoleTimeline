@@ -487,7 +487,7 @@ updateOpened msg model =
                         arrow ->
                             updateSelectNextEntry model (arrow == ArrowUp)
 
-                ResizeColumn column width ->
+                ResizeColumn column dx ->
                     let
                         table =
                             model.table
@@ -496,7 +496,7 @@ updateOpened msg model =
                             List.map
                                 (\c ->
                                     if c.name == column then
-                                        { c | width = width }
+                                        { c | width = dx + c.width }
 
                                     else
                                         c
@@ -839,6 +839,14 @@ tableHeaderCell ( sortColumn, sortOrder ) column =
 
           else
             div [] []
+        , Html.node "resize-divider"
+            [ Html.Events.on
+                "resize"
+                (D.at [ "detail", "dx" ] D.int
+                    |> D.map (ResizeColumn column.name)
+                )
+            ]
+            []
         ]
 
 
