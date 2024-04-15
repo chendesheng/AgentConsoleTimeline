@@ -128,7 +128,7 @@ type KeyCode
 type TableMsg
     = FlipSort TableColumnName
     | ResizeColumn TableColumnName Int
-    | Select Har.Entry
+    | Select Int
     | Unselect
     | KeyDown KeyCode
     | InputFilter String
@@ -163,7 +163,7 @@ type alias TableModel =
     { sortBy : SortBy
     , columns : List TableColumn
     , entries : List Har.Entry
-    , selected : Maybe Har.Entry
+    , selected : Maybe Int
     , filterMatch : Maybe String
     , filterKind : Maybe EntryKind
     }
@@ -270,38 +270,9 @@ update msg model =
                     ( model, Cmd.none )
 
 
-tableSelectIndex : Int -> TableModel -> TableModel
-tableSelectIndex index table =
-    let
-        indexedEntries =
-            List.indexedMap Tuple.pair table.entries
-
-        newSelected =
-            indexedEntries
-                |> List.filter (\( i, _ ) -> i == index)
-                |> List.head
-                |> Maybe.map Tuple.second
-    in
-    { table | selected = newSelected }
-
-
-tableGetSelectedIndex : TableModel -> Maybe Int
-tableGetSelectedIndex table =
-    case table.selected of
-        Just selected ->
-            table.entries
-                |> List.indexedMap Tuple.pair
-                |> List.filter (\( _, entry ) -> entry == selected)
-                |> List.head
-                |> Maybe.map Tuple.first
-
-        _ ->
-            Nothing
-
-
 tableSelectNextEntry : TableModel -> Bool -> TableModel
 tableSelectNextEntry table isUp =
-    case tableGetSelectedIndex table of
+    case table.selected of
         Just index ->
             let
                 nextIndex =
@@ -318,7 +289,7 @@ tableSelectNextEntry table isUp =
                     else
                         0
             in
-            tableSelectIndex nextIndex table
+            { table | selected = Just nextIndex }
 
         Nothing ->
             table
@@ -463,12 +434,12 @@ updateOpened msg model =
                     in
                     { model | table = { table | sortBy = newSortBy, entries = newEntries } }
 
-                Select entry ->
+                Select i ->
                     let
                         table =
                             model.table
                     in
-                    { model | table = { table | selected = Just entry } }
+                    { model | table = { table | selected = Just i } }
 
                 Unselect ->
                     let
@@ -780,13 +751,13 @@ tableCellView tz column entry =
             text entry.request.method
 
 
-entryView : Time.Zone -> List TableColumn -> Maybe Har.Entry -> Har.Entry -> Html TableMsg
-entryView tz columns selected entry =
+entryView : Time.Zone -> List TableColumn -> Maybe Int -> Int -> Har.Entry -> Html TableMsg
+entryView tz columns selected index entry =
     div
         [ class
             (case selected of
-                Just selectedEntry ->
-                    if selectedEntry == entry then
+                Just i ->
+                    if i == index then
                         "selected"
 
                     else
@@ -796,7 +767,7 @@ entryView tz columns selected entry =
                     ""
             )
         , class "table-body-row"
-        , onClick (Select entry)
+        , onClick (Select index)
         ]
         (List.map
             (\column ->
@@ -923,7 +894,7 @@ tableView tz { entries, sortBy, columns, selected } =
             , hijackOn "keydown" (D.map KeyDown keyDecoder)
             ]
           <|
-            List.map (entryView tz visibleColumns selected) entries
+            List.indexedMap (entryView tz visibleColumns selected) entries
         ]
 
 
@@ -1147,8 +1118,13 @@ viewOpened model =
                 [ Html.map TableAction (tableFilterView model.table)
                 , Html.map TableAction (tableView tz model.table)
                 , case model.table.selected of
-                    Just entry ->
-                        detailView model entry
+                    Just index ->
+                        case List.head <| List.drop index model.table.entries of
+                            Just entry ->
+                                detailView model entry
+
+                            _ ->
+                                text ""
 
                     _ ->
                         text ""
