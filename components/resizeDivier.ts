@@ -76,7 +76,7 @@ export class ResizeDivier extends LitElement {
   }
 
   private _dispatchResizeEvent(
-    e: MouseEvent,
+    _e: MouseEvent,
     dx: number,
     dy: number,
     isFinished: boolean,
