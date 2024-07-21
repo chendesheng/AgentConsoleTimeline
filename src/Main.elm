@@ -1,6 +1,7 @@
 module Main exposing (main)
 
 import Browser
+import Dict exposing (Dict)
 import File exposing (File)
 import File.Select as Select
 import Har
@@ -8,6 +9,7 @@ import HarDecoder exposing (harDecoder)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import Html.Lazy exposing (lazy, lazy2, lazy3, lazy4)
 import Icons
 import Iso8601
 import Json.Decode as D
@@ -106,7 +108,7 @@ type SortOrder
 
 
 type alias SortBy =
-    ( TableColumnName, SortOrder )
+    ( String, SortOrder )
 
 
 flipSortOrder : SortOrder -> SortOrder
@@ -126,28 +128,27 @@ type KeyCode
 
 
 type TableMsg
-    = FlipSort TableColumnName
-    | ResizeColumn TableColumnName Int
+    = FlipSort String
+    | ResizeColumn String Int
     | Select Int
-    | Unselect
     | KeyDown KeyCode
     | InputFilter String
     | SelectKind (Maybe EntryKind)
 
 
-type TableColumnName
-    = URL
-    | Status
-    | Time
-    | Domain
-    | Size
-    | Method
+tableColumnWidthVariableName : String -> String
+tableColumnWidthVariableName column =
+    "--table-column-" ++ column ++ "-width"
+
+
+cssVar : String -> String
+cssVar name =
+    "var(" ++ name ++ ")"
 
 
 type alias TableColumn =
-    { name : TableColumnName
-    , label : String
-    , width : Int
+    { label : String
+    , id : String
     }
 
 
@@ -159,13 +160,19 @@ type EntryKind
     | Others
 
 
+type alias TableFilter =
+    { match : Maybe String
+    , kind : Maybe EntryKind
+    }
+
+
 type alias TableModel =
     { sortBy : SortBy
+    , columnWidths : Dict String Int
     , columns : List TableColumn
     , entries : List Har.Entry
-    , selected : Maybe Int
-    , filterMatch : Maybe String
-    , filterKind : Maybe EntryKind
+    , selected : Int
+    , filter : TableFilter
     }
 
 
@@ -230,19 +237,30 @@ update msg model =
                                     ( Opened
                                         { log = log
                                         , table =
-                                            { sortBy = ( Time, Asc )
+                                            { sortBy = ( "time", Asc )
+                                            , columnWidths =
+                                                Dict.fromList
+                                                    [ ( "name", 250 )
+                                                    , ( "method", 80 )
+                                                    , ( "status", 80 )
+                                                    , ( "time", 150 )
+                                                    , ( "domain", 150 )
+                                                    , ( "size", 150 )
+                                                    ]
                                             , columns =
-                                                [ { name = URL, label = "Name", width = 250 }
-                                                , { name = Method, label = "Method", width = 80 }
-                                                , { name = Status, label = "Status", width = 80 }
-                                                , { name = Time, label = "Time", width = 150 }
-                                                , { name = Domain, label = "Domain", width = 150 }
-                                                , { name = Size, label = "Size", width = 150 }
+                                                [ { id = "name", label = "Name" }
+                                                , { id = "method", label = "Method" }
+                                                , { id = "status", label = "Status" }
+                                                , { id = "time", label = "Time" }
+                                                , { id = "domain", label = "Domain" }
+                                                , { id = "size", label = "Size" }
                                                 ]
                                             , entries = log.entries
-                                            , selected = Nothing
-                                            , filterMatch = Nothing
-                                            , filterKind = Nothing
+                                            , selected = -1
+                                            , filter =
+                                                { match = Nothing
+                                                , kind = Nothing
+                                                }
                                             }
                                         , timezone = Nothing
                                         , detail =
@@ -272,27 +290,29 @@ update msg model =
 
 tableSelectNextEntry : TableModel -> Bool -> TableModel
 tableSelectNextEntry table isUp =
-    case table.selected of
-        Just index ->
-            let
-                nextIndex =
-                    if isUp then
-                        if index - 1 > 0 then
-                            index - 1
+    if table.selected >= 0 then
+        let
+            index =
+                table.selected
 
-                        else
-                            List.length table.entries - 1
-
-                    else if index + 1 < List.length table.entries then
-                        index + 1
+            nextIndex =
+                if isUp then
+                    if index - 1 > 0 then
+                        index - 1
 
                     else
-                        0
-            in
-            { table | selected = Just nextIndex }
+                        List.length table.entries - 1
 
-        Nothing ->
-            table
+                else if index + 1 < List.length table.entries then
+                    index + 1
+
+                else
+                    0
+        in
+        { table | selected = nextIndex }
+
+    else
+        table
 
 
 updateSelectNextEntry : OpenedModel -> Bool -> OpenedModel
@@ -300,26 +320,29 @@ updateSelectNextEntry model isUp =
     { model | table = tableSelectNextEntry model.table isUp }
 
 
-compareEntry : TableColumnName -> Har.Entry -> Har.Entry -> Order
+compareEntry : String -> Har.Entry -> Har.Entry -> Order
 compareEntry column a b =
     case column of
-        URL ->
+        "name" ->
             compareString a.request.url b.request.url
 
-        Status ->
+        "status" ->
             compareInt a.response.status b.response.status
 
-        Time ->
+        "time" ->
             compareInt (Time.posixToMillis a.startedDateTime) (Time.posixToMillis b.startedDateTime)
 
-        Domain ->
+        "domain" ->
             compareString a.request.url b.request.url
 
-        Size ->
+        "size" ->
             compareInt (a.response.bodySize + a.request.bodySize) (b.response.bodySize + b.request.bodySize)
 
-        Method ->
+        "method" ->
             compareString a.request.method b.request.method
+
+        _ ->
+            EQ
 
 
 compareInt : Int -> Int -> Order
@@ -439,16 +462,7 @@ updateOpened msg model =
                         table =
                             model.table
                     in
-                    { model | table = { table | selected = Just i } }
-
-                Unselect ->
-                    let
-                        table =
-                            model.table
-                    in
-                    { model
-                        | table = { table | selected = Nothing }
-                    }
+                    { model | table = { table | selected = i } }
 
                 KeyDown key ->
                     case key of
@@ -463,28 +477,25 @@ updateOpened msg model =
                         table =
                             model.table
 
-                        columns =
-                            List.map
-                                (\c ->
-                                    if c.name == column then
-                                        { c | width = dx + c.width }
-
-                                    else
-                                        c
-                                )
-                                table.columns
+                        columnWidths =
+                            Dict.update column
+                                (\width -> Maybe.map (\w -> dx + w) width)
+                                table.columnWidths
                     in
-                    { model | table = { table | columns = columns } }
+                    { model | table = { table | columnWidths = columnWidths } }
 
-                InputFilter filter ->
+                InputFilter match ->
                     let
                         table =
                             model.table
 
                         newEntries =
-                            filterEntries (Just filter) table.filterKind model.log.entries
+                            filterEntries (Just match) table.filter.kind model.log.entries
+
+                        filter =
+                            table.filter
                     in
-                    { model | table = { table | entries = newEntries, filterMatch = Just filter } }
+                    { model | table = { table | entries = newEntries, filter = { filter | match = Just match } } }
 
                 SelectKind kind ->
                     let
@@ -492,9 +503,12 @@ updateOpened msg model =
                             model.table
 
                         newEntries =
-                            filterEntries table.filterMatch kind model.log.entries
+                            filterEntries table.filter.match kind model.log.entries
+
+                        filter =
+                            table.filter
                     in
-                    { model | table = { table | entries = newEntries, filterKind = kind } }
+                    { model | table = { table | entries = newEntries, filter = { filter | kind = kind } } }
 
         GotTimezone tz ->
             { model | timezone = Just tz }
@@ -526,9 +540,7 @@ updateInitial msg model =
             )
 
         GotFile file ->
-            ( { model
-                | hover = False
-              }
+            ( { model | hover = False }
             , Task.perform GotFileContent (File.toString file)
             )
 
@@ -695,10 +707,10 @@ getEntryIcon entry =
             Icons.jsDoc
 
 
-tableCellView : Time.Zone -> TableColumnName -> Har.Entry -> Html msg
-tableCellView tz column entry =
+tableCellContentView : Time.Zone -> String -> Har.Entry -> Html msg
+tableCellContentView tz column entry =
     case column of
-        URL ->
+        "name" ->
             div [ class "table-body-cell-url" ]
                 [ getEntryIcon entry
                 , text <|
@@ -710,10 +722,10 @@ tableCellView tz column entry =
                             entry.request.url
                 ]
 
-        Status ->
+        "status" ->
             text <| String.fromInt entry.response.status
 
-        Time ->
+        "time" ->
             text <|
                 toIntPad2 (Time.toHour tz entry.startedDateTime)
                     ++ ":"
@@ -723,7 +735,7 @@ tableCellView tz column entry =
                     ++ ","
                     ++ toIntPad3 (Time.toMillis tz entry.startedDateTime)
 
-        Domain ->
+        "domain" ->
             text <|
                 if String.startsWith "http" entry.request.url then
                     case String.split "/" entry.request.url of
@@ -736,7 +748,7 @@ tableCellView tz column entry =
                 else
                     "-"
 
-        Size ->
+        "size" ->
             let
                 size =
                     entry.response.bodySize + entry.request.bodySize
@@ -747,38 +759,36 @@ tableCellView tz column entry =
             else
                 text <| String.fromInt (entry.response.bodySize + entry.request.bodySize)
 
-        Method ->
+        "method" ->
             text entry.request.method
 
+        _ ->
+            text ""
 
-entryView : Time.Zone -> List TableColumn -> Maybe Int -> Int -> Har.Entry -> Html TableMsg
+
+tableCellView : Time.Zone -> TableColumn -> Har.Entry -> Html msg
+tableCellView tz column entry =
+    div
+        [ class "table-body-cell"
+        , style "width" <| cssVar <| tableColumnWidthVariableName column.id
+        ]
+        [ tableCellContentView tz column.id entry ]
+
+
+entryView : Time.Zone -> List TableColumn -> Int -> Int -> Har.Entry -> Html TableMsg
 entryView tz columns selected index entry =
     div
         [ class
-            (case selected of
-                Just i ->
-                    if i == index then
-                        "selected"
+            (if selected == index then
+                "selected"
 
-                    else
-                        ""
-
-                _ ->
-                    ""
+             else
+                ""
             )
         , class "table-body-row"
         , onClick (Select index)
         ]
-        (List.map
-            (\column ->
-                div
-                    [ class "table-body-cell"
-                    , style "width" <| String.fromInt column.width ++ "px"
-                    ]
-                    [ tableCellView tz column.name entry ]
-            )
-            columns
-        )
+        (List.map (\column -> tableCellView tz column entry) columns)
 
 
 tableSortIcon : SortOrder -> Html msg
@@ -795,17 +805,17 @@ tableHeaderCell : SortBy -> TableColumn -> Html TableMsg
 tableHeaderCell ( sortColumn, sortOrder ) column =
     div
         [ class "table-header-cell"
-        , onClick (FlipSort column.name)
-        , style "width" <| String.fromInt column.width ++ "px"
+        , onClick (FlipSort column.id)
+        , style "width" <| cssVar <| tableColumnWidthVariableName column.id
         , class <|
-            if column.name == sortColumn then
+            if column.id == sortColumn then
                 "sorted"
 
             else
                 ""
         ]
         [ text column.label
-        , if column.name == sortColumn then
+        , if column.id == sortColumn then
             tableSortIcon sortOrder
 
           else
@@ -814,7 +824,7 @@ tableHeaderCell ( sortColumn, sortOrder ) column =
             [ Html.Events.on
                 "resize"
                 (D.at [ "detail", "dx" ] D.int
-                    |> D.map (ResizeColumn column.name)
+                    |> D.map (ResizeColumn column.id)
                 )
             ]
             []
@@ -838,12 +848,12 @@ keyDecoder =
     D.map toKey <| D.field "key" D.string
 
 
-tableFilterView : TableModel -> Html TableMsg
-tableFilterView model =
+tableFilterView : TableFilter -> Html TableMsg
+tableFilterView filter =
     section [ class "table-filter" ]
         [ input
             [ class "table-filter-input"
-            , value (Maybe.withDefault "" model.filterMatch)
+            , value (Maybe.withDefault "" filter.match)
             , onInput InputFilter
             , type_ "search"
             , autofocus True
@@ -851,7 +861,7 @@ tableFilterView model =
             ]
             []
         , label [ class "table-filter-select" ]
-            [ div [] [ text <| entryKindLabel model.filterKind ]
+            [ div [] [ text <| entryKindLabel filter.kind ]
             , select [ onInput (stringToEntryKind >> SelectKind) ]
                 [ option [ value "" ] [ text "All" ]
                 , option [ value "0" ] [ text "Redux State" ]
@@ -864,44 +874,97 @@ tableFilterView model =
         ]
 
 
+styles : List ( String, String ) -> Attribute msg
+styles ss =
+    let
+        css =
+            List.foldl
+                (\( prop, val ) acc ->
+                    String.append acc (prop ++ ":" ++ val ++ ";\n")
+                )
+                ""
+                ss
+    in
+    attribute "style" css
+
+
+tableBodyView : Time.Zone -> List TableColumn -> Int -> List Har.Entry -> Html TableMsg
+tableBodyView tz columns selected entries =
+    let
+        visibleColumns =
+            if selected >= 0 then
+                List.take 1 columns
+
+            else
+                columns
+    in
+    div
+        [ class "table-body"
+        , tabindex 0
+        , hijackOn "keydown" (D.map KeyDown keyDecoder)
+        ]
+    <|
+        List.indexedMap (entryView tz visibleColumns selected) entries
+
+
+tableHeadersView : SortBy -> List TableColumn -> Int -> Html TableMsg
+tableHeadersView sortBy columns selected =
+    let
+        visibleColumns =
+            if selected >= 0 then
+                List.take 1 columns
+
+            else
+                columns
+    in
+    div [ class "table-header" ] <|
+        List.map (tableHeaderCell sortBy) visibleColumns
+
+
 tableView : Time.Zone -> TableModel -> Html TableMsg
-tableView tz { entries, sortBy, columns, selected } =
+tableView tz { entries, sortBy, columns, columnWidths, selected } =
     let
         -- hide columns except first column when selected
         visibleColumns =
-            case selected of
-                Just _ ->
-                    List.take 1 columns
+            if selected >= 0 then
+                List.take 1 columns
 
-                _ ->
-                    columns
+            else
+                columns
     in
     section
-        (case selected of
-            Just _ ->
-                [ class "table table--selected"
-                , style "width" <| totalWidth visibleColumns
-                ]
+        [ class "table"
+        , class
+            (if selected >= 0 then
+                "table--selected"
 
-            _ ->
-                [ class "table" ]
-        )
-        [ div [ class "table-header" ] <|
-            List.map (tableHeaderCell sortBy) visibleColumns
-        , div
-            [ class "table-body"
-            , tabindex 0
-            , hijackOn "keydown" (D.map KeyDown keyDecoder)
-            ]
-          <|
-            List.indexedMap (entryView tz visibleColumns selected) entries
+             else
+                ""
+            )
+        , styles
+            (( "width", totalWidth columnWidths visibleColumns )
+                :: List.map
+                    (\c ->
+                        ( tableColumnWidthVariableName c.id
+                        , (Dict.get c.id columnWidths
+                            |> Maybe.map (\w -> String.fromInt w)
+                            |> Maybe.withDefault ""
+                          )
+                            ++ "px"
+                        )
+                    )
+                    visibleColumns
+            )
+        ]
+        [ lazy3 tableHeadersView sortBy columns selected
+        , lazy4 tableBodyView tz columns selected entries
         ]
 
 
-totalWidth : List TableColumn -> String
-totalWidth columns =
+totalWidth : Dict String Int -> List TableColumn -> String
+totalWidth columnWidths columns =
     columns
-        |> List.foldl (\column acc -> acc + column.width) 0
+        |> List.foldl (\column acc -> acc + Maybe.withDefault 0 (Dict.get column.id columnWidths)) 0
         |> String.fromInt
         |> (\w -> w ++ "px")
 
@@ -957,8 +1020,8 @@ jsonViewer json =
     Html.node "json-viewer" [ attribute "data" json ] []
 
 
-detailPreviewView : OpenedModel -> Har.Entry -> Html OpenedMsg
-detailPreviewView { clientInfo } entry =
+detailPreviewView : ClientInfo -> Har.Entry -> Html OpenedMsg
+detailPreviewView clientInfo entry =
     if isReduxStateEntry entry && not (String.isEmpty clientInfo.href) then
         case getReduxState entry of
             Just s ->
@@ -1037,16 +1100,16 @@ styleVar name value =
     attribute "style" (name ++ ": " ++ value)
 
 
-detailView : OpenedModel -> Har.Entry -> Html OpenedMsg
-detailView model entry =
+detailView : DetailModel -> ClientInfo -> Har.Entry -> Html OpenedMsg
+detailView detail clientInfo entry =
     section [ class "detail" ]
         [ div [ class "detail-header" ]
-            [ button [ class "detail-close", onClick (TableAction Unselect) ] [ Icons.close ]
-            , detailTabs model.detail.tab entry
+            [ button [ class "detail-close", onClick (TableAction <| Select -1) ] [ Icons.close ]
+            , detailTabs detail.tab entry
             ]
-        , case model.detail.tab of
+        , case detail.tab of
             Preview ->
-                div [ class "detail-body" ] [ detailPreviewView model entry ]
+                div [ class "detail-body" ] [ detailPreviewView clientInfo entry ]
 
             Headers ->
                 div
@@ -1115,19 +1178,18 @@ viewOpened model =
         Just tz ->
             div
                 [ class "app" ]
-                [ Html.map TableAction (tableFilterView model.table)
-                , Html.map TableAction (tableView tz model.table)
-                , case model.table.selected of
-                    Just index ->
-                        case List.head <| List.drop index model.table.entries of
-                            Just entry ->
-                                detailView model entry
+                [ Html.map TableAction (lazy tableFilterView model.table.filter)
+                , Html.map TableAction (lazy2 tableView tz model.table)
+                , if model.table.selected >= 0 then
+                    case List.head <| List.drop model.table.selected model.table.entries of
+                        Just entry ->
+                            lazy3 detailView model.detail model.clientInfo entry
 
-                            _ ->
-                                text ""
+                        _ ->
+                            text ""
 
-                    _ ->
-                        text ""
+                  else
+                    text ""
                 ]
 
         _ ->
