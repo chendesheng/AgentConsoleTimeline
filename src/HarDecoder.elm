@@ -85,9 +85,12 @@ parseQueryString url =
                         (\query ->
                             case String.split "=" query of
                                 [ name, value ] ->
-                                    value
-                                        |> percentDecode
-                                        |> Maybe.map (\val -> QueryString name val Nothing)
+                                    Just <|
+                                        QueryString name
+                                            (percentDecode value
+                                                |> Maybe.withDefault value
+                                            )
+                                            Nothing
 
                                 _ ->
                                     Nothing
