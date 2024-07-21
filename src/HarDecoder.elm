@@ -3,6 +3,7 @@ module HarDecoder exposing (harDecoder)
 import Har exposing (..)
 import Iso8601
 import Json.Decode as Decode exposing (Decoder, bool, field, float, int, list, maybe, string)
+import Url exposing (percentDecode)
 
 
 harDecoder : Decoder HarFile
@@ -71,9 +72,46 @@ entryDecoder =
         (maybe <| field "comment" string)
 
 
+parseQueryString : String -> List QueryString
+parseQueryString url =
+    case String.split "?" url of
+        [ _, queryString ] ->
+            case String.split "&" queryString of
+                [] ->
+                    []
+
+                _ ->
+                    List.filterMap
+                        (\query ->
+                            case String.split "=" query of
+                                [ name, value ] ->
+                                    value
+                                        |> percentDecode
+                                        |> Maybe.map (\val -> QueryString name val Nothing)
+
+                                _ ->
+                                    Nothing
+                        )
+                        (String.split "&" queryString)
+
+        _ ->
+            []
+
+
 requestDecoder : Decoder Request
 requestDecoder =
-    map10 Request
+    map10
+        (\method url httpVersion cookies headers queryString postData headersSize bodySize comment ->
+            let
+                query =
+                    if List.isEmpty queryString then
+                        parseQueryString url
+
+                    else
+                        queryString
+            in
+            Request method url httpVersion cookies headers query postData headersSize bodySize comment
+        )
         (field "method" string)
         (field "url" string)
         (field "httpVersion" string)
