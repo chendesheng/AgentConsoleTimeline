@@ -9,7 +9,7 @@ import HarDecoder exposing (harDecoder)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Html.Lazy exposing (lazy, lazy2, lazy3, lazy4)
+import Html.Lazy exposing (lazy, lazy2, lazy3, lazy5)
 import Icons
 import Iso8601
 import Json.Decode as D
@@ -132,6 +132,7 @@ type TableMsg
     | ResizeColumn String Int
     | Select Int
     | KeyDown KeyCode
+    | Scroll Int
     | InputFilter String
     | SelectKind (Maybe EntryKind)
 
@@ -173,6 +174,7 @@ type alias TableModel =
     , entries : List Har.Entry
     , selected : Int
     , filter : TableFilter
+    , scrollTop : Int
     }
 
 
@@ -254,6 +256,7 @@ update msg model =
                                                 , { id = "time", label = "Time" }
                                                 , { id = "domain", label = "Domain" }
                                                 , { id = "size", label = "Size" }
+                                                , { id = "waterfall", label = "Waterfall" }
                                                 ]
                                             , entries = log.entries
                                             , selected = -1
@@ -261,6 +264,7 @@ update msg model =
                                                 { match = Nothing
                                                 , kind = Nothing
                                                 }
+                                            , scrollTop = 0
                                             }
                                         , timezone = Nothing
                                         , detail =
@@ -330,7 +334,7 @@ compareEntry column a b =
             compareInt a.response.status b.response.status
 
         "time" ->
-            compareInt (Time.posixToMillis a.startedDateTime) (Time.posixToMillis b.startedDateTime)
+            comparePosix a.startedDateTime b.startedDateTime
 
         "domain" ->
             compareString a.request.url b.request.url
@@ -340,6 +344,9 @@ compareEntry column a b =
 
         "method" ->
             compareString a.request.method b.request.method
+
+        "waterfall" ->
+            comparePosix a.startedDateTime b.startedDateTime
 
         _ ->
             EQ
@@ -355,6 +362,11 @@ compareInt a b =
 
     else
         EQ
+
+
+comparePosix : Time.Posix -> Time.Posix -> Order
+comparePosix a b =
+    compareInt (Time.posixToMillis a) (Time.posixToMillis b)
 
 
 compareString : String -> String -> Order
@@ -479,7 +491,7 @@ updateOpened msg model =
 
                         columnWidths =
                             Dict.update column
-                                (\width -> Maybe.map (\w -> dx + w) width)
+                                (\width -> Maybe.map (\w -> Basics.max (dx + w) 0) width)
                                 table.columnWidths
                     in
                     { model | table = { table | columnWidths = columnWidths } }
@@ -496,6 +508,13 @@ updateOpened msg model =
                             table.filter
                     in
                     { model | table = { table | entries = newEntries, filter = { filter | match = Just match } } }
+
+                Scroll top ->
+                    let
+                        table =
+                            model.table
+                    in
+                    { model | table = { table | scrollTop = top } }
 
                 SelectKind kind ->
                     let
@@ -707,8 +726,19 @@ getEntryIcon entry =
             Icons.jsDoc
 
 
-tableCellContentView : Time.Zone -> String -> Har.Entry -> Html msg
-tableCellContentView tz column entry =
+formatTime : Time.Zone -> Time.Posix -> String
+formatTime tz time =
+    toIntPad2 (Time.toHour tz time)
+        ++ ":"
+        ++ toIntPad2 (Time.toMinute tz time)
+        ++ ":"
+        ++ toIntPad2 (Time.toSecond tz time)
+        ++ ","
+        ++ toIntPad3 (Time.toMillis tz time)
+
+
+tableCellContentView : Time.Zone -> String -> Time.Posix -> Har.Entry -> Html msg
+tableCellContentView tz column startTime entry =
     case column of
         "name" ->
             div [ class "table-body-cell-url" ]
@@ -726,14 +756,7 @@ tableCellContentView tz column entry =
             text <| String.fromInt entry.response.status
 
         "time" ->
-            text <|
-                toIntPad2 (Time.toHour tz entry.startedDateTime)
-                    ++ ":"
-                    ++ toIntPad2 (Time.toMinute tz entry.startedDateTime)
-                    ++ ":"
-                    ++ toIntPad2 (Time.toSecond tz entry.startedDateTime)
-                    ++ ","
-                    ++ toIntPad3 (Time.toMillis tz entry.startedDateTime)
+            text <| formatTime tz entry.startedDateTime
 
         "domain" ->
             text <|
@@ -762,21 +785,58 @@ tableCellContentView tz column entry =
         "method" ->
             text entry.request.method
 
+        "waterfall" ->
+            if comparePosix startTime entry.startedDateTime == GT then
+                text ""
+
+            else
+                let
+                    -- each pixel represents 100ms
+                    msPerPx =
+                        100.0
+
+                    left =
+                        (toFloat <| Time.posixToMillis entry.startedDateTime - Time.posixToMillis startTime) / msPerPx
+
+                    width =
+                        entry.time / msPerPx
+                in
+                div
+                    [ class "table-body-cell-waterfall-item"
+                    , style "width" (String.fromFloat width ++ "px")
+                    , style "margin-left" (String.fromFloat left ++ "px")
+                    , title <|
+                        (String.fromInt <| round entry.time)
+                            ++ " ms; "
+                            ++ "at "
+                            ++ formatTime tz entry.startedDateTime
+                    ]
+                    []
+
         _ ->
             text ""
 
 
-tableCellView : Time.Zone -> TableColumn -> Har.Entry -> Html msg
-tableCellView tz column entry =
+toFixed : Int -> Float -> Float
+toFixed n f =
+    let
+        factor =
+            toFloat (10 ^ n)
+    in
+    (toFloat <| round (f * factor)) / factor
+
+
+tableCellView : Time.Zone -> TableColumn -> Time.Posix -> Har.Entry -> Html msg
+tableCellView tz column startTime entry =
     div
         [ class "table-body-cell"
         , style "width" <| cssVar <| tableColumnWidthVariableName column.id
         ]
-        [ tableCellContentView tz column.id entry ]
+        [ tableCellContentView tz column.id startTime entry ]
 
 
-entryView : Time.Zone -> List TableColumn -> Int -> Int -> Har.Entry -> Html TableMsg
-entryView tz columns selected index entry =
+entryView : Time.Zone -> List TableColumn -> Int -> Time.Posix -> Int -> Har.Entry -> Html TableMsg
+entryView tz columns selected startTime index entry =
     div
         [ class
             (if selected == index then
@@ -788,7 +848,7 @@ entryView tz columns selected index entry =
         , class "table-body-row"
         , onClick (Select index)
         ]
-        (List.map (\column -> tableCellView tz column entry) columns)
+        (List.map (\column -> tableCellView tz column startTime entry) columns)
 
 
 tableSortIcon : SortOrder -> Html msg
@@ -888,8 +948,18 @@ styles ss =
     attribute "style" css
 
 
-tableBodyView : Time.Zone -> List TableColumn -> Int -> List Har.Entry -> Html TableMsg
-tableBodyView tz columns selected entries =
+getFirstEntryStartTime : List Har.Entry -> Int -> Time.Posix
+getFirstEntryStartTime entries startIndex =
+    case List.drop startIndex entries of
+        entry :: _ ->
+            entry.startedDateTime
+
+        _ ->
+            Time.millisToPosix 0
+
+
+tableBodyView : Time.Zone -> List TableColumn -> Int -> List Har.Entry -> Int -> Html TableMsg
+tableBodyView tz columns selected entries scrollTop =
     let
         visibleColumns =
             if selected >= 0 then
@@ -897,14 +967,18 @@ tableBodyView tz columns selected entries =
 
             else
                 columns
+
+        startTime =
+            getFirstEntryStartTime entries (floor <| toFloat scrollTop / 20)
     in
     div
         [ class "table-body"
         , tabindex 0
         , hijackOn "keydown" (D.map KeyDown keyDecoder)
+        , on "scroll" (D.map Scroll (D.field "target" (D.field "scrollTop" D.int)))
         ]
     <|
-        List.indexedMap (entryView tz visibleColumns selected) entries
+        List.indexedMap (entryView tz visibleColumns selected startTime) entries
 
 
 tableHeadersView : SortBy -> List TableColumn -> Int -> Html TableMsg
@@ -922,7 +996,7 @@ tableHeadersView sortBy columns selected =
 
 
 tableView : Time.Zone -> TableModel -> Html TableMsg
-tableView tz { entries, sortBy, columns, columnWidths, selected } =
+tableView tz { entries, sortBy, columns, columnWidths, selected, scrollTop } =
     let
         -- hide columns except first column when selected
         visibleColumns =
@@ -942,29 +1016,35 @@ tableView tz { entries, sortBy, columns, columnWidths, selected } =
                 ""
             )
         , styles
-            (( "width", totalWidth columnWidths visibleColumns )
-                :: List.map
-                    (\c ->
-                        ( tableColumnWidthVariableName c.id
-                        , (Dict.get c.id columnWidths
-                            |> Maybe.map (\w -> String.fromInt w)
-                            |> Maybe.withDefault ""
-                          )
-                            ++ "px"
-                        )
+            (List.map
+                (\c ->
+                    ( tableColumnWidthVariableName c.id
+                    , Dict.get c.id columnWidths
+                        |> Maybe.map (\w -> String.fromInt w ++ "px")
+                        |> Maybe.withDefault "auto"
                     )
-                    visibleColumns
+                )
+                visibleColumns
             )
         ]
         [ lazy3 tableHeadersView sortBy columns selected
-        , lazy4 tableBodyView tz columns selected entries
+        , lazy5 tableBodyView tz columns selected entries scrollTop
         ]
 
 
 totalWidth : Dict String Int -> List TableColumn -> String
 totalWidth columnWidths columns =
     columns
-        |> List.foldl (\column acc -> acc + Maybe.withDefault 0 (Dict.get column.id columnWidths)) 0
+        |> List.foldl
+            (\column acc ->
+                acc
+                    + (columnWidths
+                        |> Dict.get column.id
+                        |> Maybe.map (Basics.max 80)
+                        |> Maybe.withDefault 0
+                      )
+            )
+            0
         |> String.fromInt
         |> (\w -> w ++ "px")
 

@@ -101,6 +101,7 @@
     box-sizing: border-box;
     flex: none;
     font-size: 11px;
+    min-width: 80px;
 }
 .table-body-cell-url {
     display: flex;
@@ -109,4 +110,12 @@
 }
 .table-body-cell-url .icon {
     font-size: 14px;
+}
+
+.table-body-cell-waterfall-item {
+    background-color: skyblue;
+    border-radius: 2px;
+    height: 12px;
+    margin-top: 4px;
+    min-width: 1px;
 }
