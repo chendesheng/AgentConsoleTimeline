@@ -737,6 +737,21 @@ formatTime tz time =
         ++ toIntPad3 (Time.toMillis tz time)
 
 
+formatSize : Int -> String
+formatSize size =
+    if size < 0 then
+        "―"
+
+    else
+        if size < 1000 then
+            String.fromInt size ++ " B"
+
+        else if size < 1000000 then
+            String.fromFloat (toFixed 2 (toFloat size / 1000)) ++ " KB"
+
+        else
+            String.fromFloat (toFixed 2 (toFloat size / 1000000)) ++ " MB"
+
 tableCellContentView : Time.Zone -> String -> Time.Posix -> Har.Entry -> Html msg
 tableCellContentView tz column startTime entry =
     case column of
@@ -769,18 +784,10 @@ tableCellContentView tz column startTime entry =
                             entry.request.url
 
                 else
-                    "-"
+                    "―"
 
         "size" ->
-            let
-                size =
-                    entry.response.bodySize + entry.request.bodySize
-            in
-            if size < 0 then
-                text "-"
-
-            else
-                text <| String.fromInt (entry.response.bodySize + entry.request.bodySize)
+            text <| formatSize (entry.response.bodySize + entry.request.bodySize)
 
         "method" ->
             text entry.request.method
