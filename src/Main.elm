@@ -9,7 +9,7 @@ import HarDecoder exposing (harDecoder)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Html.Lazy exposing (lazy, lazy2, lazy3, lazy5)
+import Html.Lazy exposing (lazy, lazy3, lazy7)
 import Icons
 import Iso8601
 import Json.Decode as D
@@ -256,7 +256,7 @@ update msg model =
                                                 , { id = "time", label = "Time" }
                                                 , { id = "domain", label = "Domain" }
                                                 , { id = "size", label = "Size" }
-                                                , { id = "waterfall", label = "Waterfall" }
+                                                , { id = "waterfall", label = "" }
                                                 ]
                                             , entries = log.entries
                                             , selected = -1
@@ -742,15 +742,21 @@ formatSize size =
     if size < 0 then
         "―"
 
+    else if size < 1000 then
+        String.fromInt size ++ " B"
+
+    else if size < 1000000 then
+        String.fromFloat (toFixed 2 (toFloat size / 1000)) ++ " KB"
+
     else
-        if size < 1000 then
-            String.fromInt size ++ " B"
+        String.fromFloat (toFixed 2 (toFloat size / 1000000)) ++ " MB"
 
-        else if size < 1000000 then
-            String.fromFloat (toFixed 2 (toFloat size / 1000)) ++ " KB"
 
-        else
-            String.fromFloat (toFixed 2 (toFloat size / 1000000)) ++ " MB"
+msPerPx : Float
+msPerPx =
+    -- each pixel represents 100ms
+    100.0
+
 
 tableCellContentView : Time.Zone -> String -> Time.Posix -> Har.Entry -> Html msg
 tableCellContentView tz column startTime entry =
@@ -798,10 +804,6 @@ tableCellContentView tz column startTime entry =
 
             else
                 let
-                    -- each pixel represents 100ms
-                    msPerPx =
-                        100.0
-
                     left =
                         (toFloat <| Time.posixToMillis entry.startedDateTime - Time.posixToMillis startTime) / msPerPx
 
@@ -872,6 +874,7 @@ tableHeaderCell : SortBy -> TableColumn -> Html TableMsg
 tableHeaderCell ( sortColumn, sortOrder ) column =
     div
         [ class "table-header-cell"
+        , class ("table-header-cell-" ++ column.id)
         , onClick (FlipSort column.id)
         , style "width" <| cssVar <| tableColumnWidthVariableName column.id
         , class <|
@@ -881,13 +884,13 @@ tableHeaderCell ( sortColumn, sortOrder ) column =
             else
                 ""
         ]
-        [ text column.label
-        , if column.id == sortColumn then
+        ([ text column.label
+         , if column.id == sortColumn then
             tableSortIcon sortOrder
 
-          else
+           else
             div [] []
-        , Html.node "resize-divider"
+         , Html.node "resize-divider"
             [ Html.Events.on
                 "resize"
                 (D.at [ "detail", "dx" ] D.int
@@ -895,7 +898,14 @@ tableHeaderCell ( sortColumn, sortOrder ) column =
                 )
             ]
             []
-        ]
+         ]
+            ++ (if column.id == "waterfall" then
+                    [ div [ style "height" "100%" ] [] ]
+
+                else
+                    []
+               )
+        )
 
 
 keyDecoder : D.Decoder KeyCode
@@ -965,8 +975,8 @@ getFirstEntryStartTime entries startIndex =
             Time.millisToPosix 0
 
 
-tableBodyView : Time.Zone -> List TableColumn -> Int -> List Har.Entry -> Int -> Html TableMsg
-tableBodyView tz columns selected entries scrollTop =
+tableBodyView : Time.Zone -> Time.Posix -> List TableColumn -> Int -> Int -> List Har.Entry -> Int -> Html TableMsg
+tableBodyView tz startTime columns guidelineLeft selected entries scrollTop =
     let
         visibleColumns =
             if selected >= 0 then
@@ -975,8 +985,20 @@ tableBodyView tz columns selected entries scrollTop =
             else
                 columns
 
-        startTime =
+        firstEntryStartTime =
             getFirstEntryStartTime entries (floor <| toFloat scrollTop / 20)
+
+        guidelineAlignOffset =
+            100
+                - (Debug.log "modBy" <|
+                    modBy 100
+                        (Debug.log "floor" <|
+                            floor
+                                ((toFloat <| Time.posixToMillis firstEntryStartTime - Time.posixToMillis startTime)
+                                    / msPerPx
+                                )
+                        )
+                  )
     in
     div
         [ class "table-body"
@@ -985,7 +1007,22 @@ tableBodyView tz columns selected entries scrollTop =
         , on "scroll" (D.map Scroll (D.field "target" (D.field "scrollTop" D.int)))
         ]
     <|
-        List.indexedMap (entryView tz visibleColumns selected startTime) entries
+        (if selected >= 0 then
+            text ""
+
+         else
+            div
+                [ class "waterfall-guideline-container"
+                , style "left" (String.fromInt (guidelineLeft + Debug.log "guidelineAlignOffset" guidelineAlignOffset) ++ "px")
+                ]
+                [ div
+                    [ class "waterfall-guideline"
+                    , style "left" (String.fromInt -guidelineAlignOffset ++ "px")
+                    ]
+                    []
+                ]
+        )
+            :: List.indexedMap (entryView tz visibleColumns selected firstEntryStartTime) entries
 
 
 tableHeadersView : SortBy -> List TableColumn -> Int -> Html TableMsg
@@ -1002,8 +1039,8 @@ tableHeadersView sortBy columns selected =
         List.map (tableHeaderCell sortBy) visibleColumns
 
 
-tableView : Time.Zone -> TableModel -> Html TableMsg
-tableView tz { entries, sortBy, columns, columnWidths, selected, scrollTop } =
+tableView : Time.Zone -> Time.Posix -> TableModel -> Html TableMsg
+tableView tz startTime { entries, sortBy, columns, columnWidths, selected, scrollTop } =
     let
         -- hide columns except first column when selected
         visibleColumns =
@@ -1012,6 +1049,9 @@ tableView tz { entries, sortBy, columns, columnWidths, selected, scrollTop } =
 
             else
                 columns
+
+        guidelineLeft =
+            totalWidth columnWidths visibleColumns
     in
     section
         [ class "table"
@@ -1035,25 +1075,22 @@ tableView tz { entries, sortBy, columns, columnWidths, selected, scrollTop } =
             )
         ]
         [ lazy3 tableHeadersView sortBy columns selected
-        , lazy5 tableBodyView tz columns selected entries scrollTop
+        , lazy7 tableBodyView tz startTime columns guidelineLeft selected entries scrollTop
         ]
 
 
-totalWidth : Dict String Int -> List TableColumn -> String
-totalWidth columnWidths columns =
-    columns
-        |> List.foldl
-            (\column acc ->
-                acc
-                    + (columnWidths
-                        |> Dict.get column.id
-                        |> Maybe.map (Basics.max 80)
-                        |> Maybe.withDefault 0
-                      )
-            )
-            0
-        |> String.fromInt
-        |> (\w -> w ++ "px")
+totalWidth : Dict String Int -> List TableColumn -> Int
+totalWidth columnWidths =
+    List.foldl
+        (\column acc ->
+            acc
+                + (columnWidths
+                    |> Dict.get column.id
+                    |> Maybe.map (Basics.max 80)
+                    |> Maybe.withDefault 0
+                  )
+        )
+        0
 
 
 isReduxStateEntry : Har.Entry -> Bool
@@ -1263,10 +1300,17 @@ viewOpened : OpenedModel -> Html OpenedMsg
 viewOpened model =
     case model.timezone of
         Just tz ->
+            let
+                startTime =
+                    model.log.entries
+                        |> List.head
+                        |> Maybe.map .startedDateTime
+                        |> Maybe.withDefault (Time.millisToPosix 0)
+            in
             div
                 [ class "app" ]
                 [ Html.map TableAction (lazy tableFilterView model.table.filter)
-                , Html.map TableAction (lazy2 tableView tz model.table)
+                , Html.map TableAction (lazy3 tableView tz startTime model.table)
                 , if model.table.selected >= 0 then
                     case List.head <| List.drop model.table.selected model.table.entries of
                         Just entry ->

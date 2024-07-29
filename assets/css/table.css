@@ -7,12 +7,18 @@
     flex-flow: column;
     width: 100%;
     height: 100%;
+    position: relative;
+}
+section.table {
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .table-header {
     height: 30px;
     line-height: 30px;
     border-bottom: solid 1px var(--border-color);
+    box-sizing: border-box;
     background-color: var(--background-color);
     display: flex;
     width: 100%;
@@ -20,7 +26,8 @@
 }
 
 .table-body {
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 .table-body:focus-visible {
     outline: none;
@@ -57,10 +64,16 @@
 .table-header-cell resize-divider {
     position: absolute;
     right: 0;
-    top: 0;
-    height: 100%;
+    top: 4px;
+    height: calc(100% - 8px);
     width: 10px;
     cursor: col-resize;
+    border-right: solid 1px var(--border-color);
+    box-sizing: border-box;
+}
+
+.table-header-cell:last-child resize-divider {
+    border-right: none;
 }
 
 .table-header-cell:active {
@@ -114,8 +127,30 @@
 
 .table-body-cell-waterfall-item {
     background-color: skyblue;
-    border-radius: 2px;
+    border-radius: 1px;
     height: 12px;
     margin-top: 4px;
     min-width: 1px;
+}
+
+.waterfall-guideline-container {
+    position:absolute;
+    height: calc(100% - 30px);
+    /*background: linear-gradient(to right, rgba(255, 255, 255, .1) 0, rgba(255, 255, 255, .1) 1px, transparent 1px, transparent 100%);*/
+    background: linear-gradient(to right, rgba(255, 255, 255, .1) 1px, transparent 1px);
+    background-size: 100px;
+    width: 20000px;
+    pointer-events: none;
+}
+
+.waterfall-guideline {
+    position: absolute;
+    height: 100%;
+    border-left: solid 1px rgba(255, 255, 255, .1);
+    pointer-events: none;
+}
+
+.table-header-cell-waterfall {
+    width: auto;
+    flex-grow: 1;
 }
