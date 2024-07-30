@@ -9,7 +9,7 @@ import Time
 
 {-| returns token payload
 -}
-parseToken : String -> Maybe String
+parseToken : String -> Result String String
 parseToken token =
     if String.startsWith "Bearer " token then
         case
@@ -20,15 +20,18 @@ parseToken token =
             [ _, payload, _ ] ->
                 payload
                     |> Base64.decode
-                    |> Result.toMaybe
-                    |> Maybe.andThen (\decoded -> Decode.decodeString tokenPayloadDecoder decoded |> Result.toMaybe)
-                    |> Maybe.map encodeTokenPayload
+                    |> Result.andThen
+                        (\decoded ->
+                            Decode.decodeString tokenPayloadDecoder decoded
+                                |> Result.mapError Decode.errorToString
+                        )
+                    |> Result.map encodeTokenPayload
 
             _ ->
-                Nothing
+                Result.Err "Invalid token format"
 
     else
-        Nothing
+        Result.Err "Invalid token format"
 
 
 type alias TokenPayload =

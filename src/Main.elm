@@ -959,7 +959,7 @@ tableHeaderCellWaterfallScales msPerPx startTime firstEntryStartTime =
                     div
                         [ class "waterfall-scale", style "left" (intPx <| i * 100) ]
                         [ div [ class "triangle-scale" ] []
-                        , label [] [ text (toMillis i)]
+                        , label [] [ text (toMillis i) ]
                         ]
                 )
         )
@@ -1266,7 +1266,7 @@ requestHeaderKeyValue { name, value } =
                         [ text value
                         , jsonViewer <|
                             "{\"payload\":"
-                                ++ (Maybe.withDefault "" <| parseToken value)
+                                ++ (Result.withDefault "" <| parseToken value)
                                 ++ "}"
                         ]
                 }
