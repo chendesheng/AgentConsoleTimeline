@@ -1152,12 +1152,7 @@ detailPreviewView clientInfo entry =
                 Html.node "agent-console-snapshot"
                     [ src <| clientInfo.href ++ "&snapshot=true"
                     , attribute "state" s
-                    , attribute "time" <|
-                        (entry.time
-                            |> round
-                            |> Time.millisToPosix
-                            |> Iso8601.fromTime
-                        )
+                    , attribute "time" <| Iso8601.fromTime entry.startedDateTime
                     ]
                     []
 
