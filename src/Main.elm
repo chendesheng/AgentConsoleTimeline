@@ -9,11 +9,12 @@ import HarDecoder exposing (harDecoder)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Html.Lazy exposing (lazy, lazy3, lazy7)
+import Html.Lazy exposing (lazy, lazy3, lazy6, lazy8)
 import Icons
 import Iso8601
 import Json.Decode as D
 import List exposing (sortBy)
+import String exposing (fromFloat, fromInt)
 import Task
 import Time
 import TokenDecoder exposing (parseToken)
@@ -175,6 +176,7 @@ type alias TableModel =
     , selected : Int
     , filter : TableFilter
     , scrollTop : Int
+    , waterfallMsPerPx : Float
     }
 
 
@@ -265,6 +267,7 @@ update msg model =
                                                 , kind = Nothing
                                                 }
                                             , scrollTop = 0
+                                            , waterfallMsPerPx = 10.0
                                             }
                                         , timezone = Nothing
                                         , detail =
@@ -752,14 +755,8 @@ formatSize size =
         String.fromFloat (toFixed 2 (toFloat size / 1000000)) ++ " MB"
 
 
-msPerPx : Float
-msPerPx =
-    -- each pixel represents 100ms
-    100.0
-
-
-tableCellContentView : Time.Zone -> String -> Time.Posix -> Har.Entry -> Html msg
-tableCellContentView tz column startTime entry =
+tableCellContentView : Time.Zone -> Float -> String -> Time.Posix -> Har.Entry -> Html msg
+tableCellContentView tz msPerPx column startTime entry =
     case column of
         "name" ->
             div [ class "table-body-cell-url" ]
@@ -812,8 +809,8 @@ tableCellContentView tz column startTime entry =
                 in
                 div
                     [ class "table-body-cell-waterfall-item"
-                    , style "width" (String.fromFloat width ++ "px")
-                    , style "margin-left" (String.fromFloat left ++ "px")
+                    , style "width" (floatPx width)
+                    , style "margin-left" (floatPx left)
                     , title <|
                         (String.fromInt <| round entry.time)
                             ++ " ms; "
@@ -835,17 +832,37 @@ toFixed n f =
     (toFloat <| round (f * factor)) / factor
 
 
-tableCellView : Time.Zone -> TableColumn -> Time.Posix -> Har.Entry -> Html msg
-tableCellView tz column startTime entry =
+floatToString : Int -> Float -> String
+floatToString fixed f =
+    let
+        s =
+            fromFloat (toFixed fixed f)
+
+        parts =
+            String.split "." s
+    in
+    case parts of
+        [ n ] ->
+            n ++ "." ++ String.repeat fixed "0"
+
+        [ n, fraction ] ->
+            n ++ "." ++ fraction ++ String.repeat (fixed - String.length fraction) "0"
+
+        _ ->
+            ""
+
+
+tableCellView : Time.Zone -> Float -> TableColumn -> Time.Posix -> Har.Entry -> Html msg
+tableCellView tz msPerPx column startTime entry =
     div
         [ class "table-body-cell"
         , style "width" <| cssVar <| tableColumnWidthVariableName column.id
         ]
-        [ tableCellContentView tz column.id startTime entry ]
+        [ tableCellContentView tz msPerPx column.id startTime entry ]
 
 
-entryView : Time.Zone -> List TableColumn -> Int -> Time.Posix -> Int -> Har.Entry -> Html TableMsg
-entryView tz columns selected startTime index entry =
+entryView : Time.Zone -> Float -> List TableColumn -> Int -> Time.Posix -> Int -> Har.Entry -> Html TableMsg
+entryView tz msPerPx columns selected startTime index entry =
     div
         [ class
             (if selected == index then
@@ -857,7 +874,7 @@ entryView tz columns selected startTime index entry =
         , class "table-body-row"
         , onClick (Select index)
         ]
-        (List.map (\column -> tableCellView tz column startTime entry) columns)
+        (List.map (\column -> tableCellView tz msPerPx column startTime entry) columns)
 
 
 tableSortIcon : SortOrder -> Html msg
@@ -870,8 +887,8 @@ tableSortIcon sortOrder =
             Icons.sortDesc
 
 
-tableHeaderCell : SortBy -> TableColumn -> Html TableMsg
-tableHeaderCell ( sortColumn, sortOrder ) column =
+tableHeaderCell : Float -> Time.Posix -> Time.Posix -> SortBy -> TableColumn -> Html TableMsg
+tableHeaderCell waterfallMsPerPx startTime firstEntryStartTime ( sortColumn, sortOrder ) column =
     div
         [ class "table-header-cell"
         , class ("table-header-cell-" ++ column.id)
@@ -900,12 +917,62 @@ tableHeaderCell ( sortColumn, sortOrder ) column =
             []
          ]
             ++ (if column.id == "waterfall" then
-                    [ div [ style "height" "100%" ] [] ]
+                    [ tableHeaderCellWaterfallScales waterfallMsPerPx startTime firstEntryStartTime ]
 
                 else
                     []
                )
         )
+
+
+tableHeaderCellWaterfallScales : Float -> Time.Posix -> Time.Posix -> Html TableMsg
+tableHeaderCellWaterfallScales msPerPx startTime firstEntryStartTime =
+    let
+        alignOffset =
+            100
+                - modBy 100
+                    (floor
+                        ((toFloat <| Time.posixToMillis firstEntryStartTime - Time.posixToMillis startTime)
+                            / msPerPx
+                        )
+                    )
+
+        toMillis : Int -> String
+        toMillis i =
+            let
+                px =
+                    alignOffset + i * 100
+            in
+            floatToString 2
+                (((toFloat <| Time.posixToMillis firstEntryStartTime - Time.posixToMillis startTime) + toFloat px * msPerPx)
+                    / 1000
+                )
+                ++ "s"
+    in
+    div
+        [ class "waterfall-scale-container"
+        , style "margin-left" (intPx alignOffset)
+        ]
+        (List.range 0 20
+            |> List.map
+                (\i ->
+                    div
+                        [ class "waterfall-scale", style "left" (intPx <| i * 100) ]
+                        [ div [ class "triangle-scale" ] []
+                        , label [] [ text (toMillis i)]
+                        ]
+                )
+        )
+
+
+intPx : Int -> String
+intPx n =
+    fromInt n ++ "px"
+
+
+floatPx : Float -> String
+floatPx f =
+    fromFloat f ++ "px"
 
 
 keyDecoder : D.Decoder KeyCode
@@ -975,8 +1042,8 @@ getFirstEntryStartTime entries startIndex =
             Time.millisToPosix 0
 
 
-tableBodyView : Time.Zone -> Time.Posix -> List TableColumn -> Int -> Int -> List Har.Entry -> Int -> Html TableMsg
-tableBodyView tz startTime columns guidelineLeft selected entries scrollTop =
+tableBodyView : Time.Zone -> Float -> Time.Posix -> List TableColumn -> Int -> Int -> List Har.Entry -> Int -> Html TableMsg
+tableBodyView tz msPerPx startTime columns guidelineLeft selected entries scrollTop =
     let
         visibleColumns =
             if selected >= 0 then
@@ -990,15 +1057,12 @@ tableBodyView tz startTime columns guidelineLeft selected entries scrollTop =
 
         guidelineAlignOffset =
             100
-                - (Debug.log "modBy" <|
-                    modBy 100
-                        (Debug.log "floor" <|
-                            floor
-                                ((toFloat <| Time.posixToMillis firstEntryStartTime - Time.posixToMillis startTime)
-                                    / msPerPx
-                                )
+                - modBy 100
+                    (floor
+                        ((toFloat <| Time.posixToMillis firstEntryStartTime - Time.posixToMillis startTime)
+                            / msPerPx
                         )
-                  )
+                    )
     in
     div
         [ class "table-body"
@@ -1013,20 +1077,20 @@ tableBodyView tz startTime columns guidelineLeft selected entries scrollTop =
          else
             div
                 [ class "waterfall-guideline-container"
-                , style "left" (String.fromInt (guidelineLeft + Debug.log "guidelineAlignOffset" guidelineAlignOffset) ++ "px")
+                , style "left" (intPx (guidelineLeft + guidelineAlignOffset))
                 ]
                 [ div
                     [ class "waterfall-guideline"
-                    , style "left" (String.fromInt -guidelineAlignOffset ++ "px")
+                    , style "left" (intPx -guidelineAlignOffset)
                     ]
                     []
                 ]
         )
-            :: List.indexedMap (entryView tz visibleColumns selected firstEntryStartTime) entries
+            :: List.indexedMap (entryView tz msPerPx visibleColumns selected firstEntryStartTime) entries
 
 
-tableHeadersView : SortBy -> List TableColumn -> Int -> Html TableMsg
-tableHeadersView sortBy columns selected =
+tableHeadersView : Float -> Time.Posix -> Time.Posix -> SortBy -> List TableColumn -> Int -> Html TableMsg
+tableHeadersView waterfallMsPerPx startTime firstEntryStartTime sortBy columns selected =
     let
         visibleColumns =
             if selected >= 0 then
@@ -1036,11 +1100,11 @@ tableHeadersView sortBy columns selected =
                 columns
     in
     div [ class "table-header" ] <|
-        List.map (tableHeaderCell sortBy) visibleColumns
+        List.map (tableHeaderCell waterfallMsPerPx startTime firstEntryStartTime sortBy) visibleColumns
 
 
 tableView : Time.Zone -> Time.Posix -> TableModel -> Html TableMsg
-tableView tz startTime { entries, sortBy, columns, columnWidths, selected, scrollTop } =
+tableView tz startTime { entries, sortBy, columns, columnWidths, selected, scrollTop, waterfallMsPerPx } =
     let
         -- hide columns except first column when selected
         visibleColumns =
@@ -1052,6 +1116,9 @@ tableView tz startTime { entries, sortBy, columns, columnWidths, selected, scrol
 
         guidelineLeft =
             totalWidth columnWidths visibleColumns
+
+        firstEntryStartTime =
+            getFirstEntryStartTime entries (floor <| toFloat scrollTop / 20)
     in
     section
         [ class "table"
@@ -1067,15 +1134,15 @@ tableView tz startTime { entries, sortBy, columns, columnWidths, selected, scrol
                 (\c ->
                     ( tableColumnWidthVariableName c.id
                     , Dict.get c.id columnWidths
-                        |> Maybe.map (\w -> String.fromInt w ++ "px")
+                        |> Maybe.map intPx
                         |> Maybe.withDefault "auto"
                     )
                 )
                 visibleColumns
             )
         ]
-        [ lazy3 tableHeadersView sortBy columns selected
-        , lazy7 tableBodyView tz startTime columns guidelineLeft selected entries scrollTop
+        [ lazy6 tableHeadersView waterfallMsPerPx startTime firstEntryStartTime sortBy columns selected
+        , lazy8 tableBodyView tz waterfallMsPerPx startTime columns guidelineLeft selected entries scrollTop
         ]
 
 

@@ -73,7 +73,7 @@ section.table {
 }
 
 .table-header-cell:last-child resize-divider {
-    border-right: none;
+    display: none;
 }
 
 .table-header-cell:active {
@@ -153,4 +153,42 @@ section.table {
 .table-header-cell-waterfall {
     width: auto;
     flex-grow: 1;
+    padding: 0;
+}
+.table-header-cell-waterfall .icon {
+    position: absolute;
+    right: 10px;
+    top: 9px;
+    z-index: 1;
+}
+
+.waterfall-scale-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.waterfall-scale {
+    display: flex;
+    width: 100px;
+    height: 100%;
+    box-sizing: border-box;
+    position: absolute;
+    color:rgba(255, 255, 255, .5);
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.waterfall-scale label {
+    font-size: smaller;
+    line-height: 20px;
+}
+
+.triangle-scale {
+    background-image: linear-gradient(var(--background-color), rgba(255, 255, 255, 1));
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+    width: 1.2px;
+    height: 24px;
+    flex: none;
+    transform: translate(-50%, 0);
 }
