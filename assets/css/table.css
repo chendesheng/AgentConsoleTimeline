@@ -101,7 +101,6 @@ section.table {
 }
 
 .table-body-cell {
-    cursor: pointer;
     vertical-align: top;
     height: 20px;
     line-height: 20px;
@@ -117,12 +116,14 @@ section.table {
     min-width: 80px;
 }
 .table-body-cell-url {
+    cursor: pointer;
     display: flex;
     align-items: center;
     gap: 4px;
 }
 .table-body-cell-url .icon {
     font-size: 14px;
+    pointer-events: none;
 }
 
 .table-body-cell-waterfall-item {
@@ -131,6 +132,9 @@ section.table {
     height: 12px;
     margin-top: 4px;
     min-width: 1px;
+}
+.table-body-cell-waterfall-item:hover {
+    background-color: lightblue;
 }
 
 .waterfall-guideline-container {

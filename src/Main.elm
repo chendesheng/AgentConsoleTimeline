@@ -132,6 +132,8 @@ type TableMsg
     = FlipSort String
     | ResizeColumn String Int
     | Select Int
+    | ShowDetail Int
+    | HideDetail
     | KeyDown KeyCode
     | Scroll Int
     | InputFilter String
@@ -174,6 +176,7 @@ type alias TableModel =
     , columns : List TableColumn
     , entries : List Har.Entry
     , selected : Int
+    , showDetail : Bool
     , filter : TableFilter
     , scrollTop : Int
     , waterfallMsPerPx : Float
@@ -262,6 +265,7 @@ update msg model =
                                                 ]
                                             , entries = log.entries
                                             , selected = -1
+                                            , showDetail = False
                                             , filter =
                                                 { match = Nothing
                                                 , kind = Nothing
@@ -478,6 +482,20 @@ updateOpened msg model =
                             model.table
                     in
                     { model | table = { table | selected = i } }
+
+                HideDetail ->
+                    let
+                        table =
+                            model.table
+                    in
+                    { model | table = { table | showDetail = False } }
+
+                ShowDetail i ->
+                    let
+                        table =
+                            model.table
+                    in
+                    { model | table = { table | selected = i, showDetail = True } }
 
                 KeyDown key ->
                     case key of
@@ -872,7 +890,17 @@ entryView tz msPerPx columns selected startTime index entry =
                 ""
             )
         , class "table-body-row"
-        , onClick (Select index)
+        , on "click"
+            (D.at [ "target", "className" ] D.string
+                |> D.map
+                    (\className ->
+                        if String.contains "table-body-cell-url" className then
+                            ShowDetail index
+
+                        else
+                            Select index
+                    )
+            )
         ]
         (List.map (\column -> tableCellView tz msPerPx column startTime entry) columns)
 
@@ -1042,11 +1070,11 @@ getFirstEntryStartTime entries startIndex =
             Time.millisToPosix 0
 
 
-tableBodyView : Time.Zone -> Float -> Time.Posix -> List TableColumn -> Int -> Int -> List Har.Entry -> Int -> Html TableMsg
-tableBodyView tz msPerPx startTime columns guidelineLeft selected entries scrollTop =
+tableBodyView : Time.Zone -> Time.Posix -> List TableColumn -> Int -> Int -> Bool -> List Har.Entry -> Int -> Html TableMsg
+tableBodyView tz startTime columns guidelineLeft selected showDetail entries scrollTop =
     let
         visibleColumns =
-            if selected >= 0 then
+            if showDetail then
                 List.take 1 columns
 
             else
@@ -1060,7 +1088,7 @@ tableBodyView tz msPerPx startTime columns guidelineLeft selected entries scroll
                 - modBy 100
                     (floor
                         ((toFloat <| Time.posixToMillis firstEntryStartTime - Time.posixToMillis startTime)
-                            / msPerPx
+                            / 10.0
                         )
                     )
     in
@@ -1071,7 +1099,7 @@ tableBodyView tz msPerPx startTime columns guidelineLeft selected entries scroll
         , on "scroll" (D.map Scroll (D.field "target" (D.field "scrollTop" D.int)))
         ]
     <|
-        (if selected >= 0 then
+        (if showDetail then
             text ""
 
          else
@@ -1086,14 +1114,14 @@ tableBodyView tz msPerPx startTime columns guidelineLeft selected entries scroll
                     []
                 ]
         )
-            :: List.indexedMap (entryView tz msPerPx visibleColumns selected firstEntryStartTime) entries
+            :: List.indexedMap (entryView tz 10.0 visibleColumns selected firstEntryStartTime) entries
 
 
-tableHeadersView : Float -> Time.Posix -> Time.Posix -> SortBy -> List TableColumn -> Int -> Html TableMsg
-tableHeadersView waterfallMsPerPx startTime firstEntryStartTime sortBy columns selected =
+tableHeadersView : Float -> Time.Posix -> Time.Posix -> SortBy -> List TableColumn -> Bool -> Html TableMsg
+tableHeadersView waterfallMsPerPx startTime firstEntryStartTime sortBy columns showDetail =
     let
         visibleColumns =
-            if selected >= 0 then
+            if showDetail then
                 List.take 1 columns
 
             else
@@ -1104,11 +1132,11 @@ tableHeadersView waterfallMsPerPx startTime firstEntryStartTime sortBy columns s
 
 
 tableView : Time.Zone -> Time.Posix -> TableModel -> Html TableMsg
-tableView tz startTime { entries, sortBy, columns, columnWidths, selected, scrollTop, waterfallMsPerPx } =
+tableView tz startTime { entries, sortBy, columns, columnWidths, selected, showDetail, scrollTop, waterfallMsPerPx } =
     let
         -- hide columns except first column when selected
         visibleColumns =
-            if selected >= 0 then
+            if showDetail then
                 List.take 1 columns
 
             else
@@ -1141,8 +1169,8 @@ tableView tz startTime { entries, sortBy, columns, columnWidths, selected, scrol
                 visibleColumns
             )
         ]
-        [ lazy6 tableHeadersView waterfallMsPerPx startTime firstEntryStartTime sortBy columns selected
-        , lazy8 tableBodyView tz waterfallMsPerPx startTime columns guidelineLeft selected entries scrollTop
+        [ lazy6 tableHeadersView waterfallMsPerPx startTime firstEntryStartTime sortBy columns showDetail
+        , lazy8 tableBodyView tz startTime columns guidelineLeft selected showDetail entries scrollTop
         ]
 
 
@@ -1290,7 +1318,7 @@ detailView : DetailModel -> ClientInfo -> Har.Entry -> Html OpenedMsg
 detailView detail clientInfo entry =
     section [ class "detail" ]
         [ div [ class "detail-header" ]
-            [ button [ class "detail-close", onClick (TableAction <| Select -1) ] [ Icons.close ]
+            [ button [ class "detail-close", onClick (TableAction HideDetail) ] [ Icons.close ]
             , detailTabs detail.tab entry
             ]
         , case detail.tab of
@@ -1373,7 +1401,7 @@ viewOpened model =
                 [ class "app" ]
                 [ Html.map TableAction (lazy tableFilterView model.table.filter)
                 , Html.map TableAction (lazy3 tableView tz startTime model.table)
-                , if model.table.selected >= 0 then
+                , if model.table.showDetail then
                     case List.head <| List.drop model.table.selected model.table.entries of
                         Just entry ->
                             lazy3 detailView model.detail model.clientInfo entry
