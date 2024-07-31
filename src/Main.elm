@@ -153,7 +153,22 @@ cssVar name =
 type alias TableColumn =
     { label : String
     , id : String
+    , minWidth : Int
     }
+
+
+getMinWidth : List TableColumn -> String -> Int
+getMinWidth columns columnId =
+    case columns of
+        [] ->
+            80
+
+        column :: rest ->
+            if column.id == columnId then
+                column.minWidth
+
+            else
+                getMinWidth rest columnId
 
 
 type EntryKind
@@ -255,13 +270,13 @@ update msg model =
                                                     , ( "size", 150 )
                                                     ]
                                             , columns =
-                                                [ { id = "name", label = "Name" }
-                                                , { id = "method", label = "Method" }
-                                                , { id = "status", label = "Status" }
-                                                , { id = "time", label = "Time" }
-                                                , { id = "domain", label = "Domain" }
-                                                , { id = "size", label = "Size" }
-                                                , { id = "waterfall", label = "" }
+                                                [ { id = "name", label = "Name", minWidth = 80 }
+                                                , { id = "method", label = "Method", minWidth = 50 }
+                                                , { id = "status", label = "Status", minWidth = 50 }
+                                                , { id = "time", label = "Time", minWidth = 80 }
+                                                , { id = "domain", label = "Domain", minWidth = 80 }
+                                                , { id = "size", label = "Size", minWidth = 80 }
+                                                , { id = "waterfall", label = "", minWidth = 0 }
                                                 ]
                                             , entries = log.entries
                                             , selected = -1
@@ -512,7 +527,17 @@ updateOpened msg model =
 
                         columnWidths =
                             Dict.update column
-                                (\width -> Maybe.map (\w -> Basics.max (dx + w) 0) width)
+                                (\width ->
+                                    Maybe.map
+                                        (\w ->
+                                            let
+                                                minWidth =
+                                                    getMinWidth table.columns column
+                                            in
+                                            Basics.max (dx + w) minWidth
+                                        )
+                                        width
+                                )
                                 table.columnWidths
                     in
                     { model | table = { table | columnWidths = columnWidths } }
@@ -777,7 +802,7 @@ tableCellContentView : Time.Zone -> Float -> String -> Time.Posix -> Har.Entry -
 tableCellContentView tz msPerPx column startTime entry =
     case column of
         "name" ->
-            div [ class "table-body-cell-url" ]
+            div [ style "display" "contents" ]
                 [ getEntryIcon entry
                 , text <|
                     case List.head <| List.reverse <| String.indexes "/" entry.request.url of
@@ -874,6 +899,7 @@ tableCellView : Time.Zone -> Float -> TableColumn -> Time.Posix -> Har.Entry -> 
 tableCellView tz msPerPx column startTime entry =
     div
         [ class "table-body-cell"
+        , class <| "table-body-cell-" ++ column.id
         , style "width" <| cssVar <| tableColumnWidthVariableName column.id
         ]
         [ tableCellContentView tz msPerPx column.id startTime entry ]
@@ -1181,7 +1207,7 @@ totalWidth columnWidths =
             acc
                 + (columnWidths
                     |> Dict.get column.id
-                    |> Maybe.map (Basics.max 80)
+                    |> Maybe.map (Basics.max column.minWidth)
                     |> Maybe.withDefault 0
                   )
         )

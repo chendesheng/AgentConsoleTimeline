@@ -9,6 +9,7 @@
     height: 100%;
     position: relative;
 }
+
 section.table {
     overflow-y: auto;
     overflow-x: hidden;
@@ -29,6 +30,7 @@ section.table {
     overflow-y: auto;
     overflow-x: hidden;
 }
+
 .table-body:focus-visible {
     outline: none;
 }
@@ -47,6 +49,11 @@ section.table {
     align-items: center;
     position: relative;
     flex: none;
+}
+
+.table-header-cell.table-header-cell-method,
+.table-header-cell.table-header-cell-status {
+    min-width: 50px;
 }
 
 .table-header-cell.sorted {
@@ -70,10 +77,6 @@ section.table {
     cursor: col-resize;
     border-right: solid 1px var(--border-color);
     box-sizing: border-box;
-}
-
-.table-header-cell:last-child resize-divider {
-    display: none;
 }
 
 .table-header-cell:active {
@@ -113,17 +116,17 @@ section.table {
     box-sizing: border-box;
     flex: none;
     font-size: 11px;
-    min-width: 80px;
+    cursor: default;
 }
-.table-body-cell-url {
+
+.table-body-cell.table-body-cell-name {
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 4px;
 }
-.table-body-cell-url .icon {
+
+.table-body-cell.table-body-cell-name .icon {
     font-size: 14px;
     pointer-events: none;
+    margin-right: 4px;
 }
 
 .table-body-cell-waterfall-item {
@@ -133,12 +136,13 @@ section.table {
     margin-top: 4px;
     min-width: 1px;
 }
+
 .table-body-cell-waterfall-item:hover {
     background-color: lightblue;
 }
 
 .waterfall-guideline-container {
-    position:absolute;
+    position: absolute;
     height: calc(100% - 30px);
     /*background: linear-gradient(to right, rgba(255, 255, 255, .1) 0, rgba(255, 255, 255, .1) 1px, transparent 1px, transparent 100%);*/
     background: linear-gradient(to right, rgba(255, 255, 255, .1) 1px, transparent 1px);
@@ -159,11 +163,16 @@ section.table {
     flex-grow: 1;
     padding: 0;
 }
+
 .table-header-cell-waterfall .icon {
     position: absolute;
     right: 10px;
     top: 9px;
     z-index: 1;
+}
+
+.table-header-cell-waterfall resize-divider {
+    display: none;
 }
 
 .waterfall-scale-container {
@@ -178,7 +187,7 @@ section.table {
     height: 100%;
     box-sizing: border-box;
     position: absolute;
-    color:rgba(255, 255, 255, .5);
+    color: rgba(255, 255, 255, .5);
     align-items: flex-end;
     gap: 4px;
 }
