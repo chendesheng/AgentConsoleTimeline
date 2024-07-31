@@ -5,7 +5,10 @@
   "source": "select.html",
   "scripts": {
     "start": "parcel index.html",
+    "clean": "rm -rf dist",
+    "prerelease": "npm run clean",
     "release": "parcel build ./index.html --public-url replacethislinewithadot && sed -i '' 's/replacethislinewithadot/./g' dist/index.html",
+    "postrelease": "zip -r app.zip ./dist/**",
     "build": "tsc && elm make src/Main.elm --debug --output=dist/elm.js",
     "build:components": "tsc"
   },

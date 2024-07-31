@@ -4,3 +4,4 @@ node_modules/
 components/*.js
 dist/
 .parcel-cache
+app.zip

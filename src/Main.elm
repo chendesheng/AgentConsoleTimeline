@@ -920,7 +920,7 @@ entryView tz msPerPx columns selected startTime index entry =
             (D.at [ "target", "className" ] D.string
                 |> D.map
                     (\className ->
-                        if String.contains "table-body-cell-url" className then
+                        if String.contains "table-body-cell-name" className then
                             ShowDetail index
 
                         else
