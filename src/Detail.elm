@@ -1,4 +1,4 @@
-module Detail exposing (..)
+module Detail exposing (DetailModel, DetailMsg(..), defaultDetailModel, detailViewContainer, updateDetail)
 
 import Har
 import Html exposing (..)
@@ -11,9 +11,8 @@ import String
 import TokenDecoder exposing (parseToken)
 
 
-type DetailMsg
-    = ChangeDetailTab DetailTabName
-    | HideDetail
+
+-- MODEL
 
 
 type DetailTabName
@@ -39,6 +38,10 @@ defaultDetailModel =
     { tab = Preview
     , show = False
     }
+
+
+
+-- VIEW
 
 
 detailTab : DetailTabName -> DetailTab -> Html DetailMsg
@@ -75,8 +78,8 @@ jsonViewer json =
 
 detailPreviewView : String -> Har.Entry -> Html DetailMsg
 detailPreviewView href entry =
-    if isReduxStateEntry entry && not (String.isEmpty href) then
-        case getReduxState entry of
+    if Har.isReduxStateEntry entry && not (String.isEmpty href) then
+        case Har.getReduxState entry of
             Just s ->
                 Html.node "agent-console-snapshot"
                     [ src <| href ++ "&snapshot=true"
@@ -146,6 +149,20 @@ noContent =
 styleVar : String -> String -> Attribute msg
 styleVar name value =
     attribute "style" (name ++ ": " ++ value)
+
+
+detailViewContainer : String -> Int -> List Har.Entry -> DetailModel -> Html DetailMsg
+detailViewContainer href selected entries detail =
+    if detail.show then
+        case List.head <| List.drop selected entries of
+            Just entry ->
+                detailView detail href entry
+
+            _ ->
+                text ""
+
+    else
+        text ""
 
 
 detailView : DetailModel -> String -> Har.Entry -> Html DetailMsg
@@ -220,23 +237,13 @@ detailView detail href entry =
         ]
 
 
-isReduxStateEntry : Har.Entry -> Bool
-isReduxStateEntry entry =
-    entry.request.url == "/redux/state"
+
+-- UPDATE
 
 
-getReduxState : Har.Entry -> Maybe String
-getReduxState entry =
-    if isReduxStateEntry entry then
-        case entry.response.content.text of
-            Just text ->
-                Just text
-
-            _ ->
-                Nothing
-
-    else
-        Nothing
+type DetailMsg
+    = ChangeDetailTab DetailTabName
+    | HideDetail
 
 
 updateDetail : DetailModel -> DetailMsg -> DetailModel

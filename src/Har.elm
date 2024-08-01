@@ -2,6 +2,7 @@ module Har exposing (..)
 
 import Json.Decode as D
 import Time
+import Utils
 
 
 
@@ -226,57 +227,28 @@ compareEntry : String -> Entry -> Entry -> Order
 compareEntry column a b =
     case column of
         "name" ->
-            compareString a.request.url b.request.url
+            Utils.compareString a.request.url b.request.url
 
         "status" ->
-            compareInt a.response.status b.response.status
+            Utils.compareInt a.response.status b.response.status
 
         "time" ->
-            comparePosix a.startedDateTime b.startedDateTime
+            Utils.comparePosix a.startedDateTime b.startedDateTime
 
         "domain" ->
-            compareString a.request.url b.request.url
+            Utils.compareString a.request.url b.request.url
 
         "size" ->
-            compareInt (a.response.bodySize + a.request.bodySize) (b.response.bodySize + b.request.bodySize)
+            Utils.compareInt (a.response.bodySize + a.request.bodySize) (b.response.bodySize + b.request.bodySize)
 
         "method" ->
-            compareString a.request.method b.request.method
+            Utils.compareString a.request.method b.request.method
 
         "waterfall" ->
-            comparePosix a.startedDateTime b.startedDateTime
+            Utils.comparePosix a.startedDateTime b.startedDateTime
 
         _ ->
             EQ
-
-
-compareInt : Int -> Int -> Order
-compareInt a b =
-    if a < b then
-        LT
-
-    else if a > b then
-        GT
-
-    else
-        EQ
-
-
-comparePosix : Time.Posix -> Time.Posix -> Order
-comparePosix a b =
-    compareInt (Time.posixToMillis a) (Time.posixToMillis b)
-
-
-compareString : String -> String -> Order
-compareString a b =
-    if a < b then
-        LT
-
-    else if a > b then
-        GT
-
-    else
-        EQ
 
 
 type SortOrder
@@ -472,3 +444,21 @@ getClientInfo { entries } =
 
         _ ->
             emptyClientInfo
+
+isReduxStateEntry : Entry -> Bool
+isReduxStateEntry entry =
+    entry.request.url == "/redux/state"
+
+
+getReduxState : Entry -> Maybe String
+getReduxState entry =
+    if isReduxStateEntry entry then
+        case entry.response.content.text of
+            Just text ->
+                Just text
+
+            _ ->
+                Nothing
+
+    else
+        Nothing

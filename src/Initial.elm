@@ -1,6 +1,5 @@
 module Initial exposing (..)
 
-import Detail exposing (DetailMsg(..), DetailTabName(..))
 import File exposing (File)
 import File.Select as Select
 import Har
@@ -12,6 +11,11 @@ import Json.Decode as D
 import List
 import Task
 import Time
+import Utils
+
+
+
+-- MODEL
 
 
 type alias InitialModel =
@@ -29,12 +33,8 @@ defaultInitialModel =
     }
 
 
-type InitialMsg
-    = Pick
-    | DragEnter
-    | DragLeave
-    | GotFile File
-    | GotFileContent String
+
+-- VIEW
 
 
 initialView : InitialModel -> Html InitialMsg
@@ -56,10 +56,10 @@ initialView model =
         , style "flex-direction" "column"
         , style "justify-content" "center"
         , style "align-items" "center"
-        , hijackOn "dragenter" (D.succeed DragEnter)
-        , hijackOn "dragover" (D.succeed DragEnter)
-        , hijackOn "dragleave" (D.succeed DragLeave)
-        , hijackOn "drop" dropDecoder
+        , Utils.hijackOn "dragenter" (D.succeed DragEnter)
+        , Utils.hijackOn "dragover" (D.succeed DragEnter)
+        , Utils.hijackOn "dragleave" (D.succeed DragLeave)
+        , Utils.hijackOn "drop" dropDecoder
         ]
         [ button [ onClick Pick ] [ text "Open Dump File" ]
         , span [ style "color" "red" ] [ text <| Maybe.withDefault "" model.error ]
@@ -71,14 +71,16 @@ dropDecoder =
     D.at [ "dataTransfer", "files" ] (D.oneOrMore (\f _ -> GotFile f) File.decoder)
 
 
-hijackOn : String -> D.Decoder msg -> Attribute msg
-hijackOn event decoder =
-    preventDefaultOn event (D.map hijack decoder)
+
+-- UPDATE
 
 
-hijack : msg -> ( msg, Bool )
-hijack msg =
-    ( msg, True )
+type InitialMsg
+    = Pick
+    | DragEnter
+    | DragLeave
+    | GotFile File
+    | GotFileContent String
 
 
 updateInitial : InitialMsg -> InitialModel -> ( InitialModel, Cmd InitialMsg )
