@@ -1,5 +1,6 @@
 module Har exposing (..)
 
+import Json.Decode as D
 import Time
 
 
@@ -209,3 +210,265 @@ type alias Timings =
     , ssl : Maybe Float -- Time taken for SSL/TLS negotiation.
     , comment : Maybe String -- Additional information about the timings.
     }
+
+
+getFirstEntryStartTime : List Entry -> Int -> Time.Posix
+getFirstEntryStartTime entries startIndex =
+    case List.drop startIndex entries of
+        entry :: _ ->
+            entry.startedDateTime
+
+        _ ->
+            Time.millisToPosix 0
+
+
+compareEntry : String -> Entry -> Entry -> Order
+compareEntry column a b =
+    case column of
+        "name" ->
+            compareString a.request.url b.request.url
+
+        "status" ->
+            compareInt a.response.status b.response.status
+
+        "time" ->
+            comparePosix a.startedDateTime b.startedDateTime
+
+        "domain" ->
+            compareString a.request.url b.request.url
+
+        "size" ->
+            compareInt (a.response.bodySize + a.request.bodySize) (b.response.bodySize + b.request.bodySize)
+
+        "method" ->
+            compareString a.request.method b.request.method
+
+        "waterfall" ->
+            comparePosix a.startedDateTime b.startedDateTime
+
+        _ ->
+            EQ
+
+
+compareInt : Int -> Int -> Order
+compareInt a b =
+    if a < b then
+        LT
+
+    else if a > b then
+        GT
+
+    else
+        EQ
+
+
+comparePosix : Time.Posix -> Time.Posix -> Order
+comparePosix a b =
+    compareInt (Time.posixToMillis a) (Time.posixToMillis b)
+
+
+compareString : String -> String -> Order
+compareString a b =
+    if a < b then
+        LT
+
+    else if a > b then
+        GT
+
+    else
+        EQ
+
+
+type SortOrder
+    = Asc
+    | Desc
+
+
+type alias SortBy =
+    ( String, SortOrder )
+
+
+flipSortOrder : SortOrder -> SortOrder
+flipSortOrder sortOrder =
+    case sortOrder of
+        Asc ->
+            Desc
+
+        Desc ->
+            Asc
+
+
+sortEntries : SortBy -> List Entry -> List Entry
+sortEntries ( column, sortOrder ) =
+    List.sortWith
+        (\a b ->
+            let
+                order =
+                    compareEntry column a b
+            in
+            case order of
+                EQ ->
+                    EQ
+
+                LT ->
+                    case sortOrder of
+                        Asc ->
+                            LT
+
+                        Desc ->
+                            GT
+
+                GT ->
+                    case sortOrder of
+                        Asc ->
+                            GT
+
+                        Desc ->
+                            LT
+        )
+
+
+type EntryKind
+    = ReduxState
+    | NetworkHttp
+    | LogMessage
+    | ReduxAction
+    | Others
+
+
+getEntryKind : Entry -> EntryKind
+getEntryKind entry =
+    if entry.request.url == "/redux/state" then
+        ReduxState
+
+    else if String.startsWith "/redux/" entry.request.url then
+        ReduxAction
+
+    else if String.startsWith "/log/" entry.request.url then
+        LogMessage
+
+    else if
+        String.startsWith "https://" entry.request.url
+            || String.startsWith "http://" entry.request.url
+            || String.startsWith "/api/" entry.request.url
+    then
+        NetworkHttp
+
+    else
+        Others
+
+
+entryKindLabel : Maybe EntryKind -> String
+entryKindLabel kind =
+    case kind of
+        Nothing ->
+            "All"
+
+        Just ReduxState ->
+            "Redux State"
+
+        Just ReduxAction ->
+            "Redux Action"
+
+        Just LogMessage ->
+            "Log"
+
+        Just NetworkHttp ->
+            "Network HTTP"
+
+        Just Others ->
+            "Others"
+
+
+stringToEntryKind : String -> Maybe EntryKind
+stringToEntryKind s =
+    case s of
+        "0" ->
+            Just ReduxState
+
+        "1" ->
+            Just ReduxAction
+
+        "2" ->
+            Just LogMessage
+
+        "3" ->
+            Just NetworkHttp
+
+        "4" ->
+            Just Others
+
+        _ ->
+            Nothing
+
+
+filterByKind : Maybe EntryKind -> List Entry -> List Entry
+filterByKind kind entries =
+    case kind of
+        Just kd ->
+            entries
+                |> List.filter (\entry -> getEntryKind entry == kd)
+
+        Nothing ->
+            entries
+
+
+filterByMatch : Maybe String -> List Entry -> List Entry
+filterByMatch match entries =
+    case match of
+        Just filter ->
+            let
+                loweredFilter =
+                    String.toLower filter
+            in
+            entries
+                |> List.filter (\entry -> String.contains loweredFilter (String.toLower entry.request.url))
+
+        Nothing ->
+            entries
+
+
+filterEntries : Maybe String -> Maybe EntryKind -> List Entry -> List Entry
+filterEntries match kind entries =
+    entries
+        |> filterByMatch match
+        |> filterByKind kind
+
+
+type alias ClientInfo =
+    { href : String
+    , userAgent : String
+    , version : String
+    , commit : String
+    }
+
+
+getClientInfo : Log -> ClientInfo
+getClientInfo { entries } =
+    let
+        clientInfoDecoder =
+            D.map4 ClientInfo
+                (D.field "href" D.string)
+                (D.field "userAgent" D.string)
+                (D.field "version" D.string)
+                (D.field "commit" D.string)
+
+        emptyClientInfo =
+            ClientInfo "" "" "" ""
+    in
+    case List.filter (\entry -> entry.request.url == "/log/message") entries of
+        entry :: _ ->
+            case entry.response.content.text of
+                Just text ->
+                    case D.decodeString clientInfoDecoder text of
+                        Ok clientInfo ->
+                            clientInfo
+
+                        Err _ ->
+                            emptyClientInfo
+
+                _ ->
+                    emptyClientInfo
+
+        _ ->
+            emptyClientInfo

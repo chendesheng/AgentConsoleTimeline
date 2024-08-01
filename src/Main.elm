@@ -1,23 +1,20 @@
 module Main exposing (main)
 
 import Browser
+import Detail exposing (DetailModel, DetailMsg(..), DetailTabName(..), detailView)
 import Dict exposing (Dict)
-import File exposing (File)
-import File.Select as Select
-import Har
-import HarDecoder exposing (harDecoder)
+import Har exposing (EntryKind(..), SortBy, SortOrder(..))
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Html.Lazy exposing (lazy, lazy3, lazy6, lazy8)
+import Html.Lazy exposing (lazy, lazy3, lazy4, lazy6, lazy8)
 import Icons
-import Iso8601
+import Initial exposing (InitialModel, InitialMsg(..), defaultInitialModel, initialView, updateInitial)
 import Json.Decode as D
 import List exposing (sortBy)
 import String exposing (fromFloat, fromInt)
 import Task
 import Time
-import TokenDecoder exposing (parseToken)
 
 
 
@@ -36,21 +33,6 @@ main =
 
 
 -- MODEL
-
-
-type alias InitialModel =
-    { hover : Bool
-    , error : Maybe String
-    , fileContent : Maybe Har.Log
-    }
-
-
-defaultInitialModel : InitialModel
-defaultInitialModel =
-    { hover = False
-    , error = Nothing
-    , fileContent = Nothing
-    }
 
 
 type Model
@@ -89,37 +71,10 @@ type Msg
     | OpenedMsg OpenedMsg
 
 
-type InitialMsg
-    = Pick
-    | DragEnter
-    | DragLeave
-    | GotFile File
-    | GotFileContent String
-
-
 type OpenedMsg
     = TableAction TableMsg
     | GotTimezone Time.Zone
-    | ChangeDetailTab DetailTabName
-
-
-type SortOrder
-    = Asc
-    | Desc
-
-
-type alias SortBy =
-    ( String, SortOrder )
-
-
-flipSortOrder : SortOrder -> SortOrder
-flipSortOrder sortOrder =
-    case sortOrder of
-        Asc ->
-            Desc
-
-        Desc ->
-            Asc
+    | DetailAction DetailMsg
 
 
 type KeyCode
@@ -133,7 +88,6 @@ type TableMsg
     | ResizeColumn String Int
     | Select Int
     | ShowDetail Int
-    | HideDetail
     | KeyDown KeyCode
     | Scroll Int
     | InputFilter String
@@ -171,14 +125,6 @@ getMinWidth columns columnId =
                 getMinWidth rest columnId
 
 
-type EntryKind
-    = ReduxState
-    | NetworkHttp
-    | Log
-    | ReduxAction
-    | Others
-
-
 type alias TableFilter =
     { match : Maybe String
     , kind : Maybe EntryKind
@@ -191,59 +137,42 @@ type alias TableModel =
     , columns : List TableColumn
     , entries : List Har.Entry
     , selected : Int
-    , showDetail : Bool
     , filter : TableFilter
     , scrollTop : Int
     , waterfallMsPerPx : Float
     }
 
 
-type DetailTabName
-    = Preview
-    | Headers
-    | Request
-    | Response
-    | Raw
-
-
-type alias DetailTab =
-    { name : DetailTabName, label : String }
-
-
-type alias DetailModel =
-    { tab : DetailTabName
+defaultTableModel : TableModel
+defaultTableModel =
+    { sortBy = ( "time", Asc )
+    , columnWidths =
+        Dict.fromList
+            [ ( "name", 250 )
+            , ( "method", 80 )
+            , ( "status", 80 )
+            , ( "time", 150 )
+            , ( "domain", 150 )
+            , ( "size", 150 )
+            ]
+    , columns =
+        [ { id = "name", label = "Name", minWidth = 80 }
+        , { id = "method", label = "Method", minWidth = 50 }
+        , { id = "status", label = "Status", minWidth = 50 }
+        , { id = "time", label = "Time", minWidth = 80 }
+        , { id = "domain", label = "Domain", minWidth = 80 }
+        , { id = "size", label = "Size", minWidth = 80 }
+        , { id = "waterfall", label = "", minWidth = 0 }
+        ]
+    , entries = []
+    , selected = -1
+    , filter =
+        { match = Nothing
+        , kind = Nothing
+        }
+    , scrollTop = 0
+    , waterfallMsPerPx = 10.0
     }
-
-
-getClientInfo : Har.Log -> ClientInfo
-getClientInfo { entries } =
-    let
-        clientInfoDecoder =
-            D.map4 ClientInfo
-                (D.field "href" D.string)
-                (D.field "userAgent" D.string)
-                (D.field "version" D.string)
-                (D.field "commit" D.string)
-
-        emptyClientInfo =
-            ClientInfo "" "" "" ""
-    in
-    case List.filter (\entry -> entry.request.url == "/log/message") entries of
-        entry :: _ ->
-            case entry.response.content.text of
-                Just text ->
-                    case D.decodeString clientInfoDecoder text of
-                        Ok clientInfo ->
-                            clientInfo
-
-                        Err _ ->
-                            emptyClientInfo
-
-                _ ->
-                    emptyClientInfo
-
-        _ ->
-            emptyClientInfo
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -258,41 +187,10 @@ update msg model =
                                 Just log ->
                                     ( Opened
                                         { log = log
-                                        , table =
-                                            { sortBy = ( "time", Asc )
-                                            , columnWidths =
-                                                Dict.fromList
-                                                    [ ( "name", 250 )
-                                                    , ( "method", 80 )
-                                                    , ( "status", 80 )
-                                                    , ( "time", 150 )
-                                                    , ( "domain", 150 )
-                                                    , ( "size", 150 )
-                                                    ]
-                                            , columns =
-                                                [ { id = "name", label = "Name", minWidth = 80 }
-                                                , { id = "method", label = "Method", minWidth = 50 }
-                                                , { id = "status", label = "Status", minWidth = 50 }
-                                                , { id = "time", label = "Time", minWidth = 80 }
-                                                , { id = "domain", label = "Domain", minWidth = 80 }
-                                                , { id = "size", label = "Size", minWidth = 80 }
-                                                , { id = "waterfall", label = "", minWidth = 0 }
-                                                ]
-                                            , entries = log.entries
-                                            , selected = -1
-                                            , showDetail = False
-                                            , filter =
-                                                { match = Nothing
-                                                , kind = Nothing
-                                                }
-                                            , scrollTop = 0
-                                            , waterfallMsPerPx = 10.0
-                                            }
+                                        , table = { defaultTableModel | entries = log.entries }
                                         , timezone = Nothing
-                                        , detail =
-                                            { tab = Preview
-                                            }
-                                        , clientInfo = getClientInfo log
+                                        , detail = Detail.defaultDetailModel
+                                        , clientInfo = Har.getClientInfo log
                                         }
                                     , Task.perform (\zone -> OpenedMsg <| GotTimezone zone) Time.here
                                     )
@@ -346,126 +244,6 @@ updateSelectNextEntry model isUp =
     { model | table = tableSelectNextEntry model.table isUp }
 
 
-compareEntry : String -> Har.Entry -> Har.Entry -> Order
-compareEntry column a b =
-    case column of
-        "name" ->
-            compareString a.request.url b.request.url
-
-        "status" ->
-            compareInt a.response.status b.response.status
-
-        "time" ->
-            comparePosix a.startedDateTime b.startedDateTime
-
-        "domain" ->
-            compareString a.request.url b.request.url
-
-        "size" ->
-            compareInt (a.response.bodySize + a.request.bodySize) (b.response.bodySize + b.request.bodySize)
-
-        "method" ->
-            compareString a.request.method b.request.method
-
-        "waterfall" ->
-            comparePosix a.startedDateTime b.startedDateTime
-
-        _ ->
-            EQ
-
-
-compareInt : Int -> Int -> Order
-compareInt a b =
-    if a < b then
-        LT
-
-    else if a > b then
-        GT
-
-    else
-        EQ
-
-
-comparePosix : Time.Posix -> Time.Posix -> Order
-comparePosix a b =
-    compareInt (Time.posixToMillis a) (Time.posixToMillis b)
-
-
-compareString : String -> String -> Order
-compareString a b =
-    if a < b then
-        LT
-
-    else if a > b then
-        GT
-
-    else
-        EQ
-
-
-sortEntries : SortBy -> List Har.Entry -> List Har.Entry
-sortEntries ( column, sortOrder ) =
-    List.sortWith
-        (\a b ->
-            let
-                order =
-                    compareEntry column a b
-            in
-            case order of
-                EQ ->
-                    EQ
-
-                LT ->
-                    case sortOrder of
-                        Asc ->
-                            LT
-
-                        Desc ->
-                            GT
-
-                GT ->
-                    case sortOrder of
-                        Asc ->
-                            GT
-
-                        Desc ->
-                            LT
-        )
-
-
-filterByKind : Maybe EntryKind -> List Har.Entry -> List Har.Entry
-filterByKind kind entries =
-    case kind of
-        Just kd ->
-            entries
-                |> List.filter (\entry -> getEntryKind entry == kd)
-
-        Nothing ->
-            entries
-
-
-filterByMatch : Maybe String -> List Har.Entry -> List Har.Entry
-filterByMatch match entries =
-    case match of
-        Just filter ->
-            let
-                loweredFilter =
-                    String.toLower filter
-            in
-            entries
-                |> List.filter (\entry -> String.contains loweredFilter (String.toLower entry.request.url))
-
-        Nothing ->
-            entries
-
-
-filterEntries : Maybe String -> Maybe EntryKind -> List Har.Entry -> List Har.Entry
-filterEntries match kind entries =
-    entries
-        |> filterByMatch match
-        |> filterByKind kind
-
-
 updateOpened : OpenedMsg -> OpenedModel -> OpenedModel
 updateOpened msg model =
     case msg of
@@ -481,13 +259,13 @@ updateOpened msg model =
 
                         newSortBy =
                             if currentSortColumn == column then
-                                ( column, flipSortOrder currentSortOrder )
+                                ( column, Har.flipSortOrder currentSortOrder )
 
                             else
                                 ( column, Asc )
 
                         newEntries =
-                            sortEntries newSortBy table.entries
+                            Har.sortEntries newSortBy table.entries
                     in
                     { model | table = { table | sortBy = newSortBy, entries = newEntries } }
 
@@ -498,19 +276,15 @@ updateOpened msg model =
                     in
                     { model | table = { table | selected = i } }
 
-                HideDetail ->
-                    let
-                        table =
-                            model.table
-                    in
-                    { model | table = { table | showDetail = False } }
-
                 ShowDetail i ->
                     let
                         table =
                             model.table
+
+                        detail =
+                            model.detail
                     in
-                    { model | table = { table | selected = i, showDetail = True } }
+                    { model | table = { table | selected = i }, detail = { detail | show = True } }
 
                 KeyDown key ->
                     case key of
@@ -548,7 +322,7 @@ updateOpened msg model =
                             model.table
 
                         newEntries =
-                            filterEntries (Just match) table.filter.kind model.log.entries
+                            Har.filterEntries (Just match) table.filter.kind model.log.entries
 
                         filter =
                             table.filter
@@ -568,7 +342,7 @@ updateOpened msg model =
                             model.table
 
                         newEntries =
-                            filterEntries table.filter.match kind model.log.entries
+                            Har.filterEntries table.filter.match kind model.log.entries
 
                         filter =
                             table.filter
@@ -578,50 +352,8 @@ updateOpened msg model =
         GotTimezone tz ->
             { model | timezone = Just tz }
 
-        ChangeDetailTab tab ->
-            let
-                detail =
-                    model.detail
-            in
-            { model | detail = { detail | tab = tab } }
-
-
-updateInitial : InitialMsg -> InitialModel -> ( InitialModel, Cmd InitialMsg )
-updateInitial msg model =
-    case msg of
-        Pick ->
-            ( model
-            , Select.file [ "*" ] GotFile
-            )
-
-        DragEnter ->
-            ( { model | hover = True }
-            , Cmd.none
-            )
-
-        DragLeave ->
-            ( { model | hover = False }
-            , Cmd.none
-            )
-
-        GotFile file ->
-            ( { model | hover = False }
-            , Task.perform GotFileContent (File.toString file)
-            )
-
-        GotFileContent content ->
-            ( case D.decodeString harDecoder content of
-                Ok { log } ->
-                    let
-                        entries =
-                            List.sortBy (\entry -> Time.posixToMillis entry.startedDateTime) log.entries
-                    in
-                    { model | fileContent = Just { log | entries = entries } }
-
-                Err err ->
-                    { model | error = Just <| D.errorToString err }
-            , Cmd.none
-            )
+        DetailAction detailMsg ->
+            { model | detail = Detail.updateDetail model.detail detailMsg }
 
 
 
@@ -635,35 +367,6 @@ subscriptions _ =
 
 
 -- VIEW
-
-
-initialView : InitialModel -> Html InitialMsg
-initialView model =
-    div
-        [ style "border"
-            (if model.hover then
-                "6px dashed purple"
-
-             else
-                "6px dashed #ccc"
-            )
-        , style "border-radius" "20px"
-        , style "width" "480px"
-        , style "height" "100px"
-        , style "margin" "100px auto"
-        , style "padding" "20px"
-        , style "display" "flex"
-        , style "flex-direction" "column"
-        , style "justify-content" "center"
-        , style "align-items" "center"
-        , hijackOn "dragenter" (D.succeed DragEnter)
-        , hijackOn "dragover" (D.succeed DragEnter)
-        , hijackOn "dragleave" (D.succeed DragLeave)
-        , hijackOn "drop" dropDecoder
-        ]
-        [ button [ onClick Pick ] [ text "Open Dump File" ]
-        , span [ style "color" "red" ] [ text <| Maybe.withDefault "" model.error ]
-        ]
 
 
 toIntPad2 : Int -> String
@@ -687,82 +390,16 @@ toIntPad3 n =
         String.fromInt n
 
 
-getEntryKind : Har.Entry -> EntryKind
-getEntryKind entry =
-    if entry.request.url == "/redux/state" then
-        ReduxState
-
-    else if String.startsWith "/redux/" entry.request.url then
-        ReduxAction
-
-    else if String.startsWith "/log/" entry.request.url then
-        Log
-
-    else if
-        String.startsWith "https://" entry.request.url
-            || String.startsWith "http://" entry.request.url
-            || String.startsWith "/api/" entry.request.url
-    then
-        NetworkHttp
-
-    else
-        Others
-
-
-entryKindLabel : Maybe EntryKind -> String
-entryKindLabel kind =
-    case kind of
-        Nothing ->
-            "All"
-
-        Just ReduxState ->
-            "Redux State"
-
-        Just ReduxAction ->
-            "Redux Action"
-
-        Just Log ->
-            "Log"
-
-        Just NetworkHttp ->
-            "Network HTTP"
-
-        Just Others ->
-            "Others"
-
-
-stringToEntryKind : String -> Maybe EntryKind
-stringToEntryKind s =
-    case s of
-        "0" ->
-            Just ReduxState
-
-        "1" ->
-            Just ReduxAction
-
-        "2" ->
-            Just Log
-
-        "3" ->
-            Just NetworkHttp
-
-        "4" ->
-            Just Others
-
-        _ ->
-            Nothing
-
-
 getEntryIcon : Har.Entry -> Html msg
 getEntryIcon entry =
-    case getEntryKind entry of
+    case Har.getEntryKind entry of
         ReduxState ->
             Icons.snapshotDoc
 
         ReduxAction ->
             Icons.actionDoc
 
-        Log ->
+        LogMessage ->
             Icons.logDoc
 
         NetworkHttp ->
@@ -842,7 +479,7 @@ tableCellContentView tz msPerPx column startTime entry =
             text entry.request.method
 
         "waterfall" ->
-            if comparePosix startTime entry.startedDateTime == GT then
+            if Har.comparePosix startTime entry.startedDateTime == GT then
                 text ""
 
             else
@@ -1062,8 +699,8 @@ tableFilterView filter =
             ]
             []
         , label [ class "table-filter-select" ]
-            [ div [] [ text <| entryKindLabel filter.kind ]
-            , select [ onInput (stringToEntryKind >> SelectKind) ]
+            [ div [] [ text <| Har.entryKindLabel filter.kind ]
+            , select [ onInput (Har.stringToEntryKind >> SelectKind) ]
                 [ option [ value "" ] [ text "All" ]
                 , option [ value "0" ] [ text "Redux State" ]
                 , option [ value "1" ] [ text "Redux Action" ]
@@ -1089,16 +726,6 @@ styles ss =
     attribute "style" css
 
 
-getFirstEntryStartTime : List Har.Entry -> Int -> Time.Posix
-getFirstEntryStartTime entries startIndex =
-    case List.drop startIndex entries of
-        entry :: _ ->
-            entry.startedDateTime
-
-        _ ->
-            Time.millisToPosix 0
-
-
 tableBodyView : Time.Zone -> Time.Posix -> List TableColumn -> Int -> Int -> Bool -> List Har.Entry -> Int -> Html TableMsg
 tableBodyView tz startTime columns guidelineLeft selected showDetail entries scrollTop =
     let
@@ -1110,7 +737,7 @@ tableBodyView tz startTime columns guidelineLeft selected showDetail entries scr
                 columns
 
         firstEntryStartTime =
-            getFirstEntryStartTime entries (floor <| toFloat scrollTop / 20)
+            Har.getFirstEntryStartTime entries (floor <| toFloat scrollTop / 20)
 
         guidelineAlignOffset =
             100
@@ -1160,8 +787,8 @@ tableHeadersView waterfallMsPerPx startTime firstEntryStartTime sortBy columns s
         List.map (tableHeaderCell waterfallMsPerPx startTime firstEntryStartTime sortBy) visibleColumns
 
 
-tableView : Time.Zone -> Time.Posix -> TableModel -> Html TableMsg
-tableView tz startTime { entries, sortBy, columns, columnWidths, selected, showDetail, scrollTop, waterfallMsPerPx } =
+tableView : Time.Zone -> Time.Posix -> TableModel -> Bool -> Html TableMsg
+tableView tz startTime { entries, sortBy, columns, columnWidths, selected, scrollTop, waterfallMsPerPx } showDetail =
     let
         -- hide columns except first column when selected
         visibleColumns =
@@ -1175,7 +802,7 @@ tableView tz startTime { entries, sortBy, columns, columnWidths, selected, showD
             totalWidth columnWidths visibleColumns
 
         firstEntryStartTime =
-            getFirstEntryStartTime entries (floor <| toFloat scrollTop / 20)
+            Har.getFirstEntryStartTime entries (floor <| toFloat scrollTop / 20)
     in
     section
         [ class "table"
@@ -1217,204 +844,6 @@ totalWidth columnWidths =
         0
 
 
-isReduxStateEntry : Har.Entry -> Bool
-isReduxStateEntry entry =
-    entry.request.url == "/redux/state"
-
-
-getReduxState : Har.Entry -> Maybe String
-getReduxState entry =
-    if isReduxStateEntry entry then
-        case entry.response.content.text of
-            Just text ->
-                Just text
-
-            _ ->
-                Nothing
-
-    else
-        Nothing
-
-
-detailTab : DetailTabName -> DetailTab -> Html OpenedMsg
-detailTab selected { name, label } =
-    button
-        [ class "detail-header-tab"
-        , class <|
-            if name == selected then
-                "selected"
-
-            else
-                ""
-        , onClick (ChangeDetailTab name)
-        ]
-        [ text label ]
-
-
-detailTabs : DetailTabName -> Har.Entry -> Html OpenedMsg
-detailTabs tab _ =
-    div [ class "detail-header-tabs" ] <|
-        List.map (detailTab tab)
-            [ { name = Preview, label = "Preview" }
-            , { name = Headers, label = "Headers" }
-            , { name = Request, label = "Request" }
-            , { name = Response, label = "Response" }
-            , { name = Raw, label = "Raw" }
-            ]
-
-
-jsonViewer : String -> Html msg
-jsonViewer json =
-    Html.node "json-viewer" [ attribute "data" json ] []
-
-
-detailPreviewView : ClientInfo -> Har.Entry -> Html OpenedMsg
-detailPreviewView clientInfo entry =
-    if isReduxStateEntry entry && not (String.isEmpty clientInfo.href) then
-        case getReduxState entry of
-            Just s ->
-                Html.node "agent-console-snapshot"
-                    [ src <| clientInfo.href ++ "&snapshot=true"
-                    , attribute "state" s
-                    , attribute "time" <| Iso8601.fromTime entry.startedDateTime
-                    ]
-                    []
-
-            _ ->
-                text "No redux state found"
-
-    else
-        jsonViewer <| Maybe.withDefault "" entry.response.content.text
-
-
-keyValue : { x | name : String, value : Html msg } -> Html msg
-keyValue { name, value } =
-    let
-        name1 =
-            if String.endsWith ":" name then
-                name
-
-            else
-                name ++ ":"
-    in
-    div [ class "detail-body-header-item" ]
-        [ span
-            [ style "color" "var(--color)"
-            , class "detail-body-header-key"
-            ]
-            [ text name1 ]
-        , span [ class "detail-body-header-value" ] [ value ]
-        ]
-
-
-keyValueText : { x | name : String, value : String } -> Html msg
-keyValueText { name, value } =
-    keyValue { name = name, value = text value }
-
-
-requestHeaderKeyValue : { x | name : String, value : String } -> Html msg
-requestHeaderKeyValue { name, value } =
-    if name == "Authorization" then
-        div []
-            [ keyValue
-                { name = name
-                , value =
-                    div []
-                        [ text value
-                        , jsonViewer <|
-                            "{\"payload\":"
-                                ++ (Result.withDefault "" <| parseToken value)
-                                ++ "}"
-                        ]
-                }
-            ]
-
-    else
-        keyValueText { name = name, value = value }
-
-
-noContent : Html msg
-noContent =
-    div [ class "detail-body", class "detail-body-empty" ] [ text "No content" ]
-
-
-styleVar : String -> String -> Attribute msg
-styleVar name value =
-    attribute "style" (name ++ ": " ++ value)
-
-
-detailView : DetailModel -> ClientInfo -> Har.Entry -> Html OpenedMsg
-detailView detail clientInfo entry =
-    section [ class "detail" ]
-        [ div [ class "detail-header" ]
-            [ button [ class "detail-close", onClick (TableAction HideDetail) ] [ Icons.close ]
-            , detailTabs detail.tab entry
-            ]
-        , case detail.tab of
-            Preview ->
-                div [ class "detail-body" ] [ detailPreviewView clientInfo entry ]
-
-            Headers ->
-                div
-                    [ class "detail-body", class "detail-body-headers-container" ]
-                    [ h3 [] [ text "Summary" ]
-                    , div [ styleVar "--color" "var(--network-system-color)", class "detail-body-headers" ]
-                        [ keyValueText { name = "URL", value = entry.request.url }
-                        , keyValueText { name = "Method", value = String.toUpper entry.request.method }
-                        , keyValueText { name = "Status", value = String.fromInt entry.response.status }
-                        , keyValueText { name = "Address", value = Maybe.withDefault "" entry.serverIPAddress }
-                        ]
-                    , h3 [] [ text "Request Headers" ]
-                    , div
-                        [ styleVar "--color" "var(--network-header-color)"
-                        , class "detail-body-headers"
-                        ]
-                        (List.map requestHeaderKeyValue entry.request.headers)
-                    , h3 [] [ text "Response Headers" ]
-                    , div
-                        [ styleVar "--color" "var(--network-header-color)"
-                        , class "detail-body-headers"
-                        ]
-                        (List.map keyValueText entry.response.headers)
-                    , h3 [] [ text "Query String Parameters" ]
-                    , div
-                        [ styleVar "--color" "var(--text-color-tertiary)"
-                        , class "detail-body-headers"
-                        ]
-                        (List.map keyValueText entry.request.queryString)
-                    ]
-
-            Request ->
-                case entry.request.postData of
-                    Just postData ->
-                        case postData.text of
-                            Just t ->
-                                div [ class "detail-body" ] [ jsonViewer t ]
-
-                            _ ->
-                                noContent
-
-                    _ ->
-                        noContent
-
-            Response ->
-                case entry.response.content.text of
-                    Just t ->
-                        div [ class "detail-body" ] [ jsonViewer t ]
-
-                    _ ->
-                        noContent
-
-            Raw ->
-                case entry.response.content.text of
-                    Just t ->
-                        Html.node "code-editor" [ class "detail-body", attribute "content" t ] []
-
-                    _ ->
-                        noContent
-        ]
-
-
 viewOpened : OpenedModel -> Html OpenedMsg
 viewOpened model =
     case model.timezone of
@@ -1429,11 +858,11 @@ viewOpened model =
             div
                 [ class "app" ]
                 [ Html.map TableAction (lazy tableFilterView model.table.filter)
-                , Html.map TableAction (lazy3 tableView tz startTime model.table)
-                , if model.table.showDetail then
+                , Html.map TableAction (lazy4 tableView tz startTime model.table model.detail.show)
+                , if model.detail.show then
                     case List.head <| List.drop model.table.selected model.table.entries of
                         Just entry ->
-                            lazy3 detailView model.detail model.clientInfo entry
+                            Html.map DetailAction <| lazy3 detailView model.detail model.clientInfo.href entry
 
                         _ ->
                             text ""
@@ -1454,11 +883,6 @@ view model =
 
         Opened log ->
             Html.map OpenedMsg (viewOpened log)
-
-
-dropDecoder : D.Decoder InitialMsg
-dropDecoder =
-    D.at [ "dataTransfer", "files" ] (D.oneOrMore (\f _ -> GotFile f) File.decoder)
 
 
 hijackOn : String -> D.Decoder msg -> Attribute msg
