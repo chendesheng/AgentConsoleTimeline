@@ -125,7 +125,6 @@ section.table {
 
 .table-body-cell.table-body-cell-name .icon {
     font-size: 14px;
-    pointer-events: none;
     margin-right: 4px;
 }
 

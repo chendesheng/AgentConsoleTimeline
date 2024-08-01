@@ -802,7 +802,10 @@ tableCellContentView : Time.Zone -> Float -> String -> Time.Posix -> Har.Entry -
 tableCellContentView tz msPerPx column startTime entry =
     case column of
         "name" ->
-            div [ style "display" "contents" ]
+            div
+                [ style "display" "contents"
+                , style "pointer-events" "none"
+                ]
                 [ getEntryIcon entry
                 , text <|
                     case List.head <| List.reverse <| String.indexes "/" entry.request.url of
