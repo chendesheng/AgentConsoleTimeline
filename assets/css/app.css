@@ -38,7 +38,6 @@
 
 .table-filter-select {
     position: relative;
-    height: 30px;
 }
 
 .table-filter-select:hover > div {
@@ -71,7 +70,7 @@
     appearance: none;
     background: none;
     width: fit-content;
-    height: 30px;
+    height: 29px;
 }
 
 .app section.table {

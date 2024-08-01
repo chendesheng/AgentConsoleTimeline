@@ -6,6 +6,7 @@
     width: 100%;
     align-items: center;
     flex: none;
+    box-sizing: border-box;
 }
 
 .detail-header-tabs {
@@ -98,7 +99,7 @@
     flex: auto;
     overflow: auto;
     overflow-wrap: break-word;
-    line-height: 1;
+    line-height: 1.3;
 }
 
 .detail-body-header-token-value {
