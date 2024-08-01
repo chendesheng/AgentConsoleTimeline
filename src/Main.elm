@@ -86,8 +86,7 @@ type KeyCode
 type TableMsg
     = FlipSort String
     | ResizeColumn String Int
-    | Select Int
-    | ShowDetail Int
+    | Select Int Bool -- index, showDetail
     | KeyDown KeyCode
     | Scroll Int
     | InputFilter String
@@ -239,115 +238,98 @@ tableSelectNextEntry table isUp =
         table
 
 
-updateSelectNextEntry : OpenedModel -> Bool -> OpenedModel
-updateSelectNextEntry model isUp =
-    { model | table = tableSelectNextEntry model.table isUp }
+updateTable : TableMsg -> Har.Log -> TableModel -> TableModel
+updateTable action log table =
+    case action of
+        FlipSort column ->
+            let
+                ( currentSortColumn, currentSortOrder ) =
+                    table.sortBy
+
+                newSortBy =
+                    if currentSortColumn == column then
+                        ( column, Har.flipSortOrder currentSortOrder )
+
+                    else
+                        ( column, Asc )
+
+                newEntries =
+                    Har.sortEntries newSortBy table.entries
+            in
+            { table | sortBy = newSortBy, entries = newEntries }
+
+        Select i _ ->
+            { table | selected = i }
+
+        KeyDown key ->
+            case key of
+                NoKey ->
+                    table
+
+                arrow ->
+                    tableSelectNextEntry table (arrow == ArrowUp)
+
+        ResizeColumn column dx ->
+            let
+                columnWidths =
+                    Dict.update column
+                        (\width ->
+                            Maybe.map
+                                (\w ->
+                                    let
+                                        minWidth =
+                                            getMinWidth table.columns column
+                                    in
+                                    Basics.max (dx + w) minWidth
+                                )
+                                width
+                        )
+                        table.columnWidths
+            in
+            { table | columnWidths = columnWidths }
+
+        InputFilter match ->
+            let
+                newEntries =
+                    Har.filterEntries (Just match) table.filter.kind log.entries
+
+                filter =
+                    table.filter
+            in
+            { table | entries = newEntries, filter = { filter | match = Just match } }
+
+        Scroll top ->
+            { table | scrollTop = top }
+
+        SelectKind kind ->
+            let
+                newEntries =
+                    Har.filterEntries table.filter.match kind log.entries
+
+                filter =
+                    table.filter
+            in
+            { table | entries = newEntries, filter = { filter | kind = kind } }
 
 
 updateOpened : OpenedMsg -> OpenedModel -> OpenedModel
 updateOpened msg model =
     case msg of
         TableAction action ->
-            case action of
-                FlipSort column ->
-                    let
-                        table =
-                            model.table
+            let
+                model2 =
+                    case action of
+                        Select _ True ->
+                            let
+                                detailModel =
+                                    model.detail
+                            in
+                            { model | detail = { detailModel | show = True } }
 
-                        ( currentSortColumn, currentSortOrder ) =
-                            table.sortBy
-
-                        newSortBy =
-                            if currentSortColumn == column then
-                                ( column, Har.flipSortOrder currentSortOrder )
-
-                            else
-                                ( column, Asc )
-
-                        newEntries =
-                            Har.sortEntries newSortBy table.entries
-                    in
-                    { model | table = { table | sortBy = newSortBy, entries = newEntries } }
-
-                Select i ->
-                    let
-                        table =
-                            model.table
-                    in
-                    { model | table = { table | selected = i } }
-
-                ShowDetail i ->
-                    let
-                        table =
-                            model.table
-
-                        detail =
-                            model.detail
-                    in
-                    { model | table = { table | selected = i }, detail = { detail | show = True } }
-
-                KeyDown key ->
-                    case key of
-                        NoKey ->
+                        _ ->
                             model
-
-                        arrow ->
-                            updateSelectNextEntry model (arrow == ArrowUp)
-
-                ResizeColumn column dx ->
-                    let
-                        table =
-                            model.table
-
-                        columnWidths =
-                            Dict.update column
-                                (\width ->
-                                    Maybe.map
-                                        (\w ->
-                                            let
-                                                minWidth =
-                                                    getMinWidth table.columns column
-                                            in
-                                            Basics.max (dx + w) minWidth
-                                        )
-                                        width
-                                )
-                                table.columnWidths
-                    in
-                    { model | table = { table | columnWidths = columnWidths } }
-
-                InputFilter match ->
-                    let
-                        table =
-                            model.table
-
-                        newEntries =
-                            Har.filterEntries (Just match) table.filter.kind model.log.entries
-
-                        filter =
-                            table.filter
-                    in
-                    { model | table = { table | entries = newEntries, filter = { filter | match = Just match } } }
-
-                Scroll top ->
-                    let
-                        table =
-                            model.table
-                    in
-                    { model | table = { table | scrollTop = top } }
-
-                SelectKind kind ->
-                    let
-                        table =
-                            model.table
-
-                        newEntries =
-                            Har.filterEntries table.filter.match kind model.log.entries
-
-                        filter =
-                            table.filter
-                    in
-                    { model | table = { table | entries = newEntries, filter = { filter | kind = kind } } }
+            in
+            { model2 | table = updateTable action model2.log model2.table }
 
         GotTimezone tz ->
             { model | timezone = Just tz }
@@ -560,11 +542,7 @@ entryView tz msPerPx columns selected startTime index entry =
             (D.at [ "target", "className" ] D.string
                 |> D.map
                     (\className ->
-                        if String.contains "table-body-cell-name" className then
-                            ShowDetail index
-
-                        else
-                            Select index
+                        Select index <| String.contains "table-body-cell-name" className
                     )
             )
         ]
