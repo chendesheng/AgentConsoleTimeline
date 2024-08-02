@@ -66,7 +66,7 @@ viewOpened model =
                     (lazy4 detailViewContainer
                         model.clientInfo.href
                         table.selected
-                        model.log.entries
+                        table.entries
                         model.detail
                     )
                 ]
