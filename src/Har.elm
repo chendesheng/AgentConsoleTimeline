@@ -445,6 +445,7 @@ getClientInfo { entries } =
         _ ->
             emptyClientInfo
 
+
 isReduxStateEntry : Entry -> Bool
 isReduxStateEntry entry =
     entry.request.url == "/redux/state"
@@ -462,3 +463,32 @@ getReduxState entry =
 
     else
         Nothing
+
+
+findEntryAndPrevStateEntryHelper : List Entry -> Int -> Maybe Entry -> ( Maybe Entry, Maybe Entry )
+findEntryAndPrevStateEntryHelper entries index prevStateEntry =
+    if index == 0 then
+        case entries of
+            entry :: _ ->
+                ( Just entry, prevStateEntry )
+
+            [] ->
+                ( Nothing, Nothing )
+
+    else
+        case entries of
+            entry :: rest ->
+                findEntryAndPrevStateEntryHelper rest (index - 1) <|
+                    if isReduxStateEntry entry then
+                        Just entry
+
+                    else
+                        prevStateEntry
+
+            [] ->
+                ( Nothing, Nothing )
+
+
+findEntryAndPrevStateEntry : List Entry -> Int -> ( Maybe Entry, Maybe Entry )
+findEntryAndPrevStateEntry entries index =
+    findEntryAndPrevStateEntryHelper entries index Nothing

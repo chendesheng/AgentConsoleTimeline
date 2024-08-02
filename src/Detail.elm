@@ -20,6 +20,7 @@ type DetailTabName
     | Headers
     | Request
     | Response
+    | StateChanges
     | Raw
 
 
@@ -67,6 +68,7 @@ detailTabs tab _ =
             , { name = Headers, label = "Headers" }
             , { name = Request, label = "Request" }
             , { name = Response, label = "Response" }
+            , { name = StateChanges, label = "Changes" }
             , { name = Raw, label = "Raw" }
             ]
 
@@ -154,9 +156,9 @@ styleVar name value =
 detailViewContainer : String -> Int -> List Har.Entry -> DetailModel -> Html DetailMsg
 detailViewContainer href selected entries detail =
     if detail.show then
-        case List.head <| List.drop selected entries of
-            Just entry ->
-                detailView detail href entry
+        case Har.findEntryAndPrevStateEntry entries selected of
+            ( Just entry, prevStateEntry ) ->
+                detailView detail href entry prevStateEntry
 
             _ ->
                 text ""
@@ -165,8 +167,8 @@ detailViewContainer href selected entries detail =
         text ""
 
 
-detailView : DetailModel -> String -> Har.Entry -> Html DetailMsg
-detailView detail href entry =
+detailView : DetailModel -> String -> Har.Entry -> Maybe Har.Entry -> Html DetailMsg
+detailView detail href entry prevStateEntry =
     section [ class "detail" ]
         [ div [ class "detail-header" ]
             [ button [ class "detail-close", onClick HideDetail ] [ Icons.close ]
@@ -226,6 +228,28 @@ detailView detail href entry =
 
                     _ ->
                         noContent
+
+            StateChanges ->
+                case Har.getReduxState entry of
+                    Just source ->
+                        case prevStateEntry of
+                            Just prevEntry ->
+                                case Har.getReduxState prevEntry of
+                                    Just target ->
+                                        Html.node "json-diff"
+                                            [ attribute "source" source
+                                            , attribute "target" target
+                                            ]
+                                            []
+
+                                    _ ->
+                                        text ""
+
+                            _ ->
+                                text ""
+
+                    _ ->
+                        text ""
 
             Raw ->
                 case entry.response.content.text of
