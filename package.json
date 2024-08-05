@@ -5,7 +5,7 @@
   "source": "select.html",
   "scripts": {
     "start": "parcel index.html",
-    "clean": "rm -rf dist",
+    "clean": "rm -rf dist && rm -rf .parcel-cache",
     "prerelease": "npm run clean",
     "release": "parcel build ./index.html",
     "postrelease": "zip -r app.zip ./dist/**",
