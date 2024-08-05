@@ -34,6 +34,7 @@ html {
     "Helvetica Neue",
     sans-serif;
   font-size: 12px;
+  background-color: var(--background-color);
 }
 
 html,
