@@ -7,7 +7,7 @@
     "start": "parcel index.html",
     "clean": "rm -rf dist && rm -rf .parcel-cache",
     "prerelease": "npm run clean",
-    "release": "parcel build ./index.html",
+    "release": "parcel build ./index.html --public-url ./",
     "postrelease": "zip -r app.zip ./dist/**",
     "build": "tsc && elm make src/Main.elm --debug --output=dist/elm.js",
     "build:components": "tsc"
