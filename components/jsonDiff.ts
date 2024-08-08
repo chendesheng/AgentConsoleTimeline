@@ -1,25 +1,46 @@
-import { LitElement, html, css } from "lit";
+import { LitElement, html, css, PropertyValues } from "lit";
 import { customElement, property } from "lit/decorators";
-import { diffString } from "json-diff";
 
 @customElement("json-diff")
 export class JsonDiff extends LitElement {
   render() {
-    // console.log(JSON.parse(this.source), JSON.parse(this.target));
-    const t = JSON.parse(this.target);
-    const s = JSON.parse(this.source);
-
-    // config.salesforce is too large
-    // if (t.config.salesforce) delete t.config.salesforce;
-    // if (s.config.salesforce) delete s.config.salesforce;
-
-    // TODO: use worker to diff
-    const diff = diffString(t, s, {
-      color: false,
-    });
-    return html`<pre class="json">${diff || "No Changes"}</pre>`;
+    if (this.diffResult) {
+      return html`<pre class="json">${this.diffResult}</pre>`;
+    } else if (this.showWaiting) {
+      return html`<pre class="json">Waiting...</pre>`;
+    }
   }
 
+  protected updated(changedProperties: PropertyValues): void {
+    if (changedProperties.has("source") || changedProperties.has("target")) {
+      if (this.worker) {
+        this.worker.terminate();
+      }
+
+      this.diffResult = "";
+
+      this.showWaiting = false;
+      setTimeout(() => {
+        this.showWaiting = true;
+      }, 1000);
+
+      this.worker = new Worker(
+        new URL("./jsonDiffWorker.ts", import.meta.url),
+        { type: "module" }
+      );
+      this.worker.postMessage({
+        type: "diff",
+        source: this.source,
+        target: this.target
+      });
+      this.worker.onmessage = (e) => {
+        if (e.data.type === "diffResult") {
+          this.diffResult = e.data.payload;
+          this.showWaiting = false;
+        }
+      };
+    }
+  }
 
   static styles = css`
     pre.json {
@@ -33,5 +54,12 @@ export class JsonDiff extends LitElement {
 
   @property()
   target: string = "";
-}
 
+  @property({ state: true })
+  diffResult: string = "";
+
+  @property({ state: true })
+  showWaiting: boolean = false;
+
+  private worker: Worker | null = null;
+}
