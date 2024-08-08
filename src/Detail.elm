@@ -236,8 +236,9 @@ detailView detail href entry prevStateEntry =
                             Just prevEntry ->
                                 case Har.getReduxState prevEntry of
                                     Just target ->
-                                        Html.node "json-diff"
-                                            [ attribute "source" source
+                                        Html.node "monaco-diff-editor"
+                                            [ class "detail-body"
+                                            , attribute "source" source
                                             , attribute "target" target
                                             ]
                                             []
@@ -254,7 +255,7 @@ detailView detail href entry prevStateEntry =
             Raw ->
                 case entry.response.content.text of
                     Just t ->
-                        Html.node "code-editor" [ class "detail-body", attribute "content" t ] []
+                        Html.node "monaco-editor" [ class "detail-body", attribute "content" t ] []
 
                     _ ->
                         noContent

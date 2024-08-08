@@ -8,7 +8,7 @@
     "clean": "rm -rf dist && rm -rf .parcel-cache",
     "prerelease": "npm run clean",
     "release": "parcel build ./index.html --public-url ./",
-    "postrelease": "zip -r app.zip ./dist/**",
+    "postrelease": "cp -r ./node_modules/monaco-editor/min/vs ./dist && zip -r app.zip ./dist/**",
     "build": "tsc && elm make src/Main.elm --debug --output=dist/elm.js",
     "build:components": "tsc"
   },
@@ -17,11 +17,7 @@
   "license": "ISC",
   "dependencies": {
     "@alenaksu/json-viewer": "^2.0.1",
-    "@codemirror/lang-json": "^6.0.1",
-    "@replit/codemirror-vim": "^6.2.1",
-    "@uiw/codemirror-theme-xcode": "^4.21.25",
-    "codemirror": "^6.0.1",
-    "json-diff": "^1.0.6",
+    "@monaco-editor/loader": "^1.4.0",
     "lit": "^3.1.2"
   },
   "devDependencies": {
