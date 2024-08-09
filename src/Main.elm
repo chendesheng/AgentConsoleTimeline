@@ -1,6 +1,7 @@
 module Main exposing (main)
 
 import Browser
+import Browser.Navigation as Nav
 import Detail exposing (DetailModel, DetailMsg(..), detailViewContainer)
 import Har exposing (ClientInfo, EntryKind(..), SortOrder(..))
 import Html exposing (..)
@@ -29,12 +30,13 @@ type alias OpenedModel =
     , timezone : Maybe Time.Zone
     , detail : DetailModel
     , clientInfo : ClientInfo
+    , navKey : Nav.Key
     }
 
 
-init : () -> ( Model, Cmd Msg )
-init _ =
-    ( Initial defaultInitialModel, Cmd.none )
+init : Nav.Key -> ( Model, Cmd Msg )
+init navKey =
+    ( Initial <| defaultInitialModel navKey, Cmd.none )
 
 
 
@@ -92,6 +94,7 @@ view model =
 type Msg
     = InitialMsg InitialMsg
     | OpenedMsg OpenedMsg
+    | NoOp
 
 
 type OpenedMsg
@@ -116,6 +119,7 @@ update msg model =
                                         , timezone = Nothing
                                         , detail = Detail.defaultDetailModel
                                         , clientInfo = Har.getClientInfo log
+                                        , navKey = initialModel.navKey
                                         }
                                     , Task.perform (\zone -> OpenedMsg <| GotTimezone zone) Time.here
                                     )
@@ -130,21 +134,24 @@ update msg model =
             case model of
                 Opened openedModel ->
                     case updateOpened openedMsg openedModel of
-                        newOpenedModel ->
-                            ( Opened newOpenedModel, Cmd.none )
+                        ( newOpenedModel, cmd ) ->
+                            ( Opened newOpenedModel, Cmd.map OpenedMsg cmd )
 
                 _ ->
                     ( model, Cmd.none )
 
+        NoOp ->
+            ( model, Cmd.none )
 
-updateOpened : OpenedMsg -> OpenedModel -> OpenedModel
+
+updateOpened : OpenedMsg -> OpenedModel -> ( OpenedModel, Cmd OpenedMsg )
 updateOpened msg model =
     case msg of
         TableAction action ->
             let
                 model2 =
                     case action of
-                        Select _ True ->
+                        Select _ True _ ->
                             let
                                 detailModel =
                                     model.detail
@@ -153,14 +160,17 @@ updateOpened msg model =
 
                         _ ->
                             model
+
+                ( table, cmd ) =
+                    updateTable model.navKey action model2.log model2.table
             in
-            { model2 | table = updateTable action model2.log model2.table }
+            ( { model2 | table = table }, Cmd.map TableAction cmd )
 
         GotTimezone tz ->
-            { model | timezone = Just tz }
+            ( { model | timezone = Just tz }, Cmd.none )
 
         DetailAction detailMsg ->
-            { model | detail = Detail.updateDetail model.detail detailMsg }
+            ( { model | detail = Detail.updateDetail model.detail detailMsg }, Cmd.none )
 
 
 
@@ -178,9 +188,23 @@ subscriptions _ =
 
 main : Program () Model Msg
 main =
-    Browser.element
-        { init = init
-        , view = view
+    Browser.application
+        { init = \_ _ key -> init key
+        , view = \model -> { title = "", body = [ view model ] }
         , update = update
         , subscriptions = subscriptions
+        , onUrlRequest = \_ -> NoOp
+        , onUrlChange =
+            \url ->
+                case url.fragment of
+                    Just fragment ->
+                        case String.split "entry" fragment of
+                            [ "", entryId ] ->
+                                OpenedMsg <| TableAction (Select entryId False False)
+
+                            _ ->
+                                NoOp
+
+                    _ ->
+                        NoOp
         }

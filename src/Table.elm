@@ -1,5 +1,6 @@
 module Table exposing (TableModel, TableMsg(..), defaultTableModel, tableFilterView, tableView, updateTable)
 
+import Browser.Navigation as Nav
 import Detail exposing (DetailMsg(..))
 import Dict exposing (Dict)
 import Har exposing (EntryKind(..), SortBy, SortOrder(..))
@@ -101,8 +102,8 @@ defaultTableModel =
     }
 
 
-tableSelectNextEntry : TableModel -> Bool -> TableModel
-tableSelectNextEntry table isUp =
+tableSelectNextEntry : Nav.Key -> TableModel -> Bool -> ( TableModel, Cmd TableMsg )
+tableSelectNextEntry navKey table isUp =
     if table.selected /= "" then
         let
             index =
@@ -123,18 +124,27 @@ tableSelectNextEntry table isUp =
 
                 else
                     0
-        in
-        { table
-            | selected =
+
+            newSelected =
                 table.entries
                     |> List.drop nextIndex
                     |> List.head
                     |> Maybe.map .id
                     |> Maybe.withDefault ""
-        }
+        in
+        ( { table | selected = newSelected }
+        , if newSelected == "" then
+            Cmd.none
+
+          else
+            Cmd.batch
+                [ Utils.scrollIntoView ("entry" ++ newSelected)
+                , Nav.replaceUrl navKey ("#entry" ++ newSelected)
+                ]
+        )
 
     else
-        table
+        ( table, Cmd.none )
 
 
 
@@ -151,12 +161,13 @@ entryView tz msPerPx columns selected startTime entry =
              else
                 ""
             )
+        , id <| "entry" ++ entry.id
         , class "table-body-row"
         , on "click"
             (D.at [ "target", "className" ] D.string
                 |> D.map
                     (\className ->
-                        Select entry.id <| String.contains "table-body-cell-name" className
+                        Select entry.id (String.contains "table-body-cell-name" className) True
                     )
             )
         ]
@@ -531,15 +542,16 @@ type KeyCode
 type TableMsg
     = FlipSort String
     | ResizeColumn String Int
-    | Select String Bool -- id, showDetail
+      -- id, True means show detail, False means keep detail shown/hidden as is, is pushUrl
+    | Select String Bool Bool
     | KeyDown KeyCode
     | Scroll Int
     | InputFilter String
     | SelectKind (Maybe EntryKind)
 
 
-updateTable : TableMsg -> Har.Log -> TableModel -> TableModel
-updateTable action log table =
+updateTable : Nav.Key -> TableMsg -> Har.Log -> TableModel -> ( TableModel, Cmd TableMsg )
+updateTable navKey action log table =
     case action of
         FlipSort column ->
             let
@@ -556,18 +568,28 @@ updateTable action log table =
                 newEntries =
                     Har.sortEntries newSortBy table.entries
             in
-            { table | sortBy = newSortBy, entries = newEntries }
+            ( { table | sortBy = newSortBy, entries = newEntries }, Cmd.none )
 
-        Select i _ ->
-            { table | selected = i }
+        Select id _ isPushUrl ->
+            if table.selected == id then
+                ( table, Cmd.none )
+
+            else
+                ( { table | selected = id }
+                , if isPushUrl then
+                    Nav.pushUrl navKey ("#entry" ++ id)
+
+                  else
+                    Cmd.none
+                )
 
         KeyDown key ->
             case key of
                 NoKey ->
-                    table
+                    ( table, Cmd.none )
 
                 arrow ->
-                    tableSelectNextEntry table (arrow == ArrowUp)
+                    tableSelectNextEntry navKey table (arrow == ArrowUp)
 
         ResizeColumn column dx ->
             let
@@ -586,7 +608,7 @@ updateTable action log table =
                         )
                         table.columnWidths
             in
-            { table | columnWidths = columnWidths }
+            ( { table | columnWidths = columnWidths }, Cmd.none )
 
         InputFilter match ->
             let
@@ -596,10 +618,10 @@ updateTable action log table =
                 filter =
                     table.filter
             in
-            { table | entries = newEntries, filter = { filter | match = Just match } }
+            ( { table | entries = newEntries, filter = { filter | match = Just match } }, Cmd.none )
 
         Scroll top ->
-            { table | scrollTop = top }
+            ( { table | scrollTop = top }, Cmd.none )
 
         SelectKind kind ->
             let
@@ -609,4 +631,4 @@ updateTable action log table =
                 filter =
                     table.filter
             in
-            { table | entries = newEntries, filter = { filter | kind = kind } }
+            ( { table | entries = newEntries, filter = { filter | kind = kind } }, Cmd.none )

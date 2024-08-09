@@ -1,5 +1,6 @@
 module Initial exposing (..)
 
+import Browser.Navigation as Nav
 import File exposing (File)
 import File.Select as Select
 import Har
@@ -22,14 +23,16 @@ type alias InitialModel =
     { hover : Bool
     , error : Maybe String
     , fileContent : Maybe Har.Log
+    , navKey : Nav.Key
     }
 
 
-defaultInitialModel : InitialModel
-defaultInitialModel =
+defaultInitialModel : Nav.Key -> InitialModel
+defaultInitialModel navKey =
     { hover = False
     , error = Nothing
     , fileContent = Nothing
+    , navKey = navKey
     }
 
 
@@ -50,8 +53,9 @@ initialView model =
         , style "border-radius" "20px"
         , style "width" "480px"
         , style "height" "100px"
-        , style "margin" "100px auto"
+        , style "margin" "0 auto"
         , style "padding" "20px"
+        , style "transform" "translate(0, 50%)"
         , style "display" "flex"
         , style "flex-direction" "column"
         , style "justify-content" "center"
