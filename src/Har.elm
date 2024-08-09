@@ -67,7 +67,8 @@ type alias PageTimings =
 {-| Represents an individual request/response pair in the HAR log.
 -}
 type alias Entry =
-    { pageref : Maybe String -- Reference to the parent page.
+    { id : String -- Unique identifier (index) for the entry.
+    , pageref : Maybe String -- Reference to the parent page.
     , startedDateTime : Time.Posix -- The date and time the request started.
     , time : Float -- Total time for the request in milliseconds.
     , request : Request -- The request information.
@@ -489,6 +490,10 @@ findEntryAndPrevStateEntryHelper entries index prevStateEntry =
                 ( Nothing, Nothing )
 
 
-findEntryAndPrevStateEntry : List Entry -> Int -> ( Maybe Entry, Maybe Entry )
-findEntryAndPrevStateEntry entries index =
-    findEntryAndPrevStateEntryHelper entries index Nothing
+findEntryAndPrevStateEntry : List Entry -> String -> ( Maybe Entry, Maybe Entry )
+findEntryAndPrevStateEntry entries id =
+    case Utils.indexOf (\entry -> entry.id == id) entries of
+        Just index ->
+            findEntryAndPrevStateEntryHelper entries index Nothing
+        _ ->
+            ( Nothing, Nothing )

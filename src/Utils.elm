@@ -123,6 +123,25 @@ floatToString fixed f =
             ""
 
 
+indexOfHelper : Int -> (a -> Bool) -> List a -> Maybe Int
+indexOfHelper i predicate list =
+    case list of
+        [] ->
+            Nothing
+
+        x :: xs ->
+            if predicate x then
+                Just i
+
+            else
+                indexOfHelper (i + 1) predicate xs
+
+
+indexOf : (a -> Bool) -> List a -> Maybe Int
+indexOf =
+    indexOfHelper 0
+
+
 
 -- ATTRIBUTES
 

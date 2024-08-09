@@ -153,7 +153,7 @@ styleVar name value =
     attribute "style" (name ++ ": " ++ value)
 
 
-detailViewContainer : String -> Int -> List Har.Entry -> DetailModel -> Html DetailMsg
+detailViewContainer : String -> String -> List Har.Entry -> DetailModel -> Html DetailMsg
 detailViewContainer href selected entries detail =
     if detail.show then
         case Har.findEntryAndPrevStateEntry entries selected of

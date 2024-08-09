@@ -19,8 +19,17 @@ logDecoder =
         (field "creator" creatorDecoder)
         (maybe <| field "browser" browserDecoder)
         (field "pages" (list pageDecoder))
-        (field "entries" (list entryDecoder))
+        (field "entries" entriesDecoder)
         (maybe <| field "comment" string)
+
+
+entriesDecoder : Decoder (List Entry)
+entriesDecoder =
+    Decode.map
+        (\entries ->
+            List.indexedMap (\i entry -> { entry | id = String.fromInt i }) entries
+        )
+        (list entryDecoder)
 
 
 creatorDecoder : Decoder Creator
@@ -59,7 +68,7 @@ pageTimingsDecoder =
 
 entryDecoder : Decoder Entry
 entryDecoder =
-    map10 Entry
+    map10 (Entry "")
         (maybe <| field "pageref" string)
         (field "startedDateTime" Iso8601.decoder)
         (field "time" float)

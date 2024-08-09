@@ -61,7 +61,7 @@ type alias TableModel =
     , columnWidths : Dict String Int
     , columns : List TableColumn
     , entries : List Har.Entry
-    , selected : Int
+    , selected : String
     , filter : TableFilter
     , scrollTop : Int
     , waterfallMsPerPx : Float
@@ -90,7 +90,7 @@ defaultTableModel =
         , { id = "waterfall", label = "", minWidth = 0 }
         ]
     , entries = []
-    , selected = -1
+    , selected = ""
     , filter =
         { match = Nothing
         , kind = Nothing
@@ -102,10 +102,12 @@ defaultTableModel =
 
 tableSelectNextEntry : TableModel -> Bool -> TableModel
 tableSelectNextEntry table isUp =
-    if table.selected >= 0 then
+    if table.selected /= "" then
         let
             index =
-                table.selected
+                table.entries
+                    |> Utils.indexOf (\entry -> entry.id == table.selected)
+                    |> Maybe.withDefault -1
 
             nextIndex =
                 if isUp then
@@ -121,7 +123,14 @@ tableSelectNextEntry table isUp =
                 else
                     0
         in
-        { table | selected = nextIndex }
+        { table
+            | selected =
+                table.entries
+                    |> List.drop nextIndex
+                    |> List.head
+                    |> Maybe.map .id
+                    |> Maybe.withDefault ""
+        }
 
     else
         table
@@ -131,11 +140,11 @@ tableSelectNextEntry table isUp =
 -- VIEW
 
 
-entryView : Time.Zone -> Float -> List TableColumn -> Int -> Time.Posix -> Int -> Har.Entry -> Html TableMsg
-entryView tz msPerPx columns selected startTime index entry =
+entryView : Time.Zone -> Float -> List TableColumn -> String -> Time.Posix -> Har.Entry -> Html TableMsg
+entryView tz msPerPx columns selected startTime entry =
     div
         [ class
-            (if selected == index then
+            (if selected == entry.id then
                 "selected"
 
              else
@@ -146,12 +155,11 @@ entryView tz msPerPx columns selected startTime index entry =
             (D.at [ "target", "className" ] D.string
                 |> D.map
                     (\className ->
-                        Select index <| String.contains "table-body-cell-name" className
+                        Select entry.id <| String.contains "table-body-cell-name" className
                     )
             )
         ]
         (List.map (\column -> tableCellView tz msPerPx column startTime entry) columns)
-
 
 
 getEntryIcon : Har.Entry -> Html msg
@@ -385,7 +393,7 @@ tableFilterView filter =
         ]
 
 
-tableBodyView : Time.Zone -> Time.Posix -> List TableColumn -> Int -> Int -> Bool -> List Har.Entry -> Int -> Html TableMsg
+tableBodyView : Time.Zone -> Time.Posix -> List TableColumn -> Int -> String -> Bool -> List Har.Entry -> Int -> Html TableMsg
 tableBodyView tz startTime columns guidelineLeft selected showDetail entries scrollTop =
     let
         visibleColumns =
@@ -429,7 +437,7 @@ tableBodyView tz startTime columns guidelineLeft selected showDetail entries scr
                     []
                 ]
         )
-            :: List.indexedMap (entryView tz 10.0 visibleColumns selected firstEntryStartTime) entries
+            :: List.map (entryView tz 10.0 visibleColumns selected firstEntryStartTime) entries
 
 
 tableHeadersView : Float -> Time.Posix -> Time.Posix -> SortBy -> List TableColumn -> Bool -> Html TableMsg
@@ -466,7 +474,7 @@ tableView tz startTime { entries, sortBy, columns, columnWidths, selected, scrol
     section
         [ class "table"
         , class
-            (if selected >= 0 then
+            (if selected /= "" then
                 "table--selected"
 
              else
@@ -504,7 +512,6 @@ totalWidth columnWidths =
 
 
 
-
 -- UPDATE
 
 
@@ -517,7 +524,7 @@ type KeyCode
 type TableMsg
     = FlipSort String
     | ResizeColumn String Int
-    | Select Int Bool -- index, showDetail
+    | Select String Bool -- id, showDetail
     | KeyDown KeyCode
     | Scroll Int
     | InputFilter String
