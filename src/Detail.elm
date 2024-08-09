@@ -231,15 +231,15 @@ detailView detail href entry prevStateEntry =
 
             StateChanges ->
                 case Har.getReduxState entry of
-                    Just source ->
+                    Just selected ->
                         case prevStateEntry of
                             Just prevEntry ->
                                 case Har.getReduxState prevEntry of
-                                    Just target ->
+                                    Just prev ->
                                         Html.node "monaco-diff-editor"
                                             [ class "detail-body"
-                                            , attribute "source" source
-                                            , attribute "target" target
+                                            , attribute "original" prev
+                                            , attribute "modified" selected
                                             ]
                                             []
 

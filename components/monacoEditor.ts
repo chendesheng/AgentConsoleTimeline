@@ -70,9 +70,9 @@ export class MonacoDiffEditor extends LitElement {
   @property()
   language = "json";
   @property()
-  source: string = "";
+  original: string = "";
   @property()
-  target: string = "";
+  modified: string = "";
 
   private readonly containerRef = createRef<HTMLDivElement>();
 
@@ -124,11 +124,11 @@ export class MonacoDiffEditor extends LitElement {
 
     this.editor.setModel({
       original: this.monaco.editor.createModel(
-        formatJson(this.source),
+        formatJson(this.original),
         this.language
       ),
       modified: this.monaco.editor.createModel(
-        formatJson(this.target),
+        formatJson(this.modified),
         this.language
       )
     });
@@ -136,7 +136,7 @@ export class MonacoDiffEditor extends LitElement {
 
   protected updated(changedProperties: PropertyValues): void {
     if (
-      (changedProperties.has("source") || changedProperties.has("target")) &&
+      (changedProperties.has("original") || changedProperties.has("modified")) &&
       this.editor
     ) {
       this.setModels();
