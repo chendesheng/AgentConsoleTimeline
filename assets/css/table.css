@@ -30,6 +30,10 @@ section.table {
     overflow-y: auto;
     overflow-x: hidden;
 }
+ol.table-body {
+    margin: 0;
+    padding: 0;
+}
 
 .table-body:focus-visible {
     outline: none;

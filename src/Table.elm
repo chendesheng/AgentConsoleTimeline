@@ -6,6 +6,7 @@ import Har exposing (EntryKind(..), SortBy, SortOrder(..))
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import Html.Keyed as Keyed
 import Html.Lazy exposing (lazy6, lazy8)
 import Icons
 import Initial exposing (InitialMsg(..))
@@ -415,7 +416,7 @@ tableBodyView tz startTime columns guidelineLeft selected showDetail entries scr
                         )
                     )
     in
-    div
+    Keyed.ol
         [ class "table-body"
         , tabindex 0
         , Utils.hijackOn "keydown" (D.map KeyDown keyDecoder)
@@ -423,10 +424,11 @@ tableBodyView tz startTime columns guidelineLeft selected showDetail entries scr
         ]
     <|
         (if showDetail then
-            text ""
+            ( "waterfall", text "" )
 
          else
-            div
+            ( "waterfall"
+            , div
                 [ class "waterfall-guideline-container"
                 , style "left" (intPx (guidelineLeft + guidelineAlignOffset))
                 ]
@@ -436,8 +438,13 @@ tableBodyView tz startTime columns guidelineLeft selected showDetail entries scr
                     ]
                     []
                 ]
+            )
         )
-            :: List.map (entryView tz 10.0 visibleColumns selected firstEntryStartTime) entries
+            :: List.map
+                (\entry ->
+                    ( entry.id, entryView tz 10.0 visibleColumns selected firstEntryStartTime entry )
+                )
+                entries
 
 
 tableHeadersView : Float -> Time.Posix -> Time.Posix -> SortBy -> List TableColumn -> Bool -> Html TableMsg
