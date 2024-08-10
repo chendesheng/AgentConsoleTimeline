@@ -25,6 +25,7 @@
 }
 
 .table-filter input[type="search"] {
+    color: var(--text-color);
     position: relative;
     padding-left: 18px;
     border: solid 1px var(--border-color);
