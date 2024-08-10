@@ -203,12 +203,26 @@ tableCellContentView tz msPerPx column startTime entry =
                 ]
                 [ getEntryIcon entry
                 , text <|
-                    case List.head <| List.reverse <| String.indexes "/" entry.request.url of
-                        Just i ->
-                            String.dropLeft (i + 1) entry.request.url
+                    let
+                        slashIndexes =
+                            List.reverse <| String.indexes "/" entry.request.url
+                    in
+                    case Har.getEntryKind entry of
+                        ReduxAction ->
+                            case slashIndexes of
+                                _ :: j :: _ ->
+                                    String.dropLeft (j + 1) entry.request.url
+
+                                _ ->
+                                    entry.request.url
 
                         _ ->
-                            entry.request.url
+                            case slashIndexes of
+                                i :: _ ->
+                                    String.dropLeft (i + 1) entry.request.url
+
+                                _ ->
+                                    entry.request.url
                 ]
 
         "status" ->
@@ -270,6 +284,12 @@ tableCellView tz msPerPx column startTime entry =
         [ class "table-body-cell"
         , class <| "table-body-cell-" ++ column.id
         , style "width" <| cssVar <| tableColumnWidthVariableName column.id
+        , title <|
+            if column.id == "name" then
+                entry.request.url
+
+            else
+                ""
         ]
         [ tableCellContentView tz msPerPx column.id startTime entry ]
 
