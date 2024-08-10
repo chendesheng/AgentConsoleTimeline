@@ -53,7 +53,7 @@ getMinWidth columns columnId =
 
 
 type alias TableFilter =
-    { match : Maybe String
+    { match : String
     , kind : Maybe EntryKind
     }
 
@@ -94,7 +94,7 @@ defaultTableModel =
     , entries = []
     , selected = ""
     , filter =
-        { match = Nothing
+        { match = ""
         , kind = Nothing
         }
     , scrollTop = 0
@@ -384,7 +384,7 @@ tableFilterView filter =
     section [ class "table-filter" ]
         [ input
             [ class "table-filter-input"
-            , value (Maybe.withDefault "" filter.match)
+            , value filter.match
             , onInput InputFilter
             , type_ "search"
             , autofocus True
@@ -614,12 +614,18 @@ updateTable navKey action log table =
         InputFilter match ->
             let
                 newEntries =
-                    Har.filterEntries (Just match) table.filter.kind log.entries
+                    Har.filterEntries match table.filter.kind log.entries
 
                 filter =
                     table.filter
             in
-            ( { table | entries = newEntries, filter = { filter | match = Just match } }, Cmd.none )
+            ( { table | entries = newEntries, filter = { filter | match = match } }
+            , if match == "" && table.selected /= "" then
+                Utils.scrollIntoView ("entry" ++ table.selected)
+
+              else
+                Cmd.none
+            )
 
         Scroll top ->
             ( { table | scrollTop = top }, Cmd.none )
@@ -632,4 +638,10 @@ updateTable navKey action log table =
                 filter =
                     table.filter
             in
-            ( { table | entries = newEntries, filter = { filter | kind = kind } }, Cmd.none )
+            ( { table | entries = newEntries, filter = { filter | kind = kind } }
+            , if table.selected /= "" then
+                Utils.scrollIntoView ("entry" ++ table.selected)
+
+              else
+                Cmd.none
+            )

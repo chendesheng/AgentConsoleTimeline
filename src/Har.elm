@@ -386,10 +386,13 @@ filterByKind kind entries =
             entries
 
 
-filterByMatch : Maybe String -> List Entry -> List Entry
+filterByMatch : String -> List Entry -> List Entry
 filterByMatch match entries =
     case match of
-        Just filter ->
+        "" ->
+            entries
+
+        filter ->
             let
                 loweredFilter =
                     String.toLower filter
@@ -397,11 +400,8 @@ filterByMatch match entries =
             entries
                 |> List.filter (\entry -> String.contains loweredFilter (String.toLower entry.request.url))
 
-        Nothing ->
-            entries
 
-
-filterEntries : Maybe String -> Maybe EntryKind -> List Entry -> List Entry
+filterEntries : String -> Maybe EntryKind -> List Entry -> List Entry
 filterEntries match kind entries =
     entries
         |> filterByMatch match
@@ -495,5 +495,6 @@ findEntryAndPrevStateEntry entries id =
     case Utils.indexOf (\entry -> entry.id == id) entries of
         Just index ->
             findEntryAndPrevStateEntryHelper entries index Nothing
+
         _ ->
             ( Nothing, Nothing )
