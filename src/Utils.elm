@@ -145,6 +145,20 @@ indexOf =
     indexOfHelper 0
 
 
+isMember : (a -> Bool) -> List a -> Bool
+isMember predicate list =
+    case list of
+        [] ->
+            False
+
+        x :: xs ->
+            if predicate x then
+                True
+
+            else
+                isMember predicate xs
+
+
 
 -- ATTRIBUTES
 

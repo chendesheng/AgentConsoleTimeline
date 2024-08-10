@@ -96,8 +96,13 @@ ol.table-body {
 
 .table-body-row:nth-child(odd).selected,
 .table-body-row:nth-child(even).selected {
-    background-color: var(--selected-background-color);
+    background-color: var(--selected-background-color-unfocused);
     color: var(--selected-foreground-color);
+}
+
+.table-body:focus-within .table-body-row:nth-child(odd).selected,
+.table-body:focus-within .table-body-row:nth-child(even).selected {
+    background-color: var(--selected-background-color);
 }
 
 .table-body-row:nth-child(odd) {

@@ -313,6 +313,9 @@ type DetailMsg
 updateDetail : DetailModel -> DetailMsg -> ( DetailModel, Cmd DetailMsg )
 updateDetail model detailMsg =
     case detailMsg of
+        NoOp ->
+            ( model, Cmd.none )
+
         ChangeDetailTab tab ->
             ( { model | tab = tab }, Cmd.none )
 
@@ -320,6 +323,3 @@ updateDetail model detailMsg =
             ( { model | show = False }
             , Task.attempt (\_ -> NoOp) <| Dom.focus "table-body"
             )
-
-        NoOp ->
-            ( model, Cmd.none )

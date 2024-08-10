@@ -1,7 +1,7 @@
 module Table exposing (TableModel, TableMsg(..), defaultTableModel, tableFilterView, tableView, updateTable)
 
+import Browser.Dom as Dom
 import Browser.Navigation as Nav
-import Detail exposing (DetailMsg(..))
 import Dict exposing (Dict)
 import Har exposing (EntryKind(..), SortBy, SortOrder(..))
 import Html exposing (..)
@@ -13,6 +13,7 @@ import Icons
 import Initial exposing (InitialMsg(..))
 import Json.Decode as D
 import List exposing (sortBy)
+import Task
 import Time
 import Utils exposing (floatPx, intPx)
 
@@ -493,12 +494,27 @@ tableHeadersView waterfallMsPerPx startTime firstEntryStartTime sortBy columns s
         List.map (tableHeaderCell waterfallMsPerPx startTime firstEntryStartTime sortBy) visibleColumns
 
 
+resolveSelected : String -> List Har.Entry -> String
+resolveSelected selected entries =
+    if Utils.isMember (\{ id } -> selected == id) entries then
+        selected
+
+    else
+        ""
+
+
 tableView : Time.Zone -> Time.Posix -> TableModel -> Bool -> Html TableMsg
 tableView tz startTime { entries, sortBy, columns, columnWidths, selected, scrollTop, waterfallMsPerPx } showDetail =
     let
+        selected2 =
+            resolveSelected selected entries
+
+        showDetail2 =
+            selected2 /= "" && showDetail
+
         -- hide columns except first column when selected
         visibleColumns =
-            if showDetail then
+            if showDetail2 then
                 List.take 1 columns
 
             else
@@ -513,7 +529,7 @@ tableView tz startTime { entries, sortBy, columns, columnWidths, selected, scrol
     section
         [ class "table"
         , class
-            (if selected /= "" then
+            (if selected2 /= "" then
                 "table--selected"
 
              else
@@ -531,8 +547,8 @@ tableView tz startTime { entries, sortBy, columns, columnWidths, selected, scrol
                 visibleColumns
             )
         ]
-        [ lazy6 tableHeadersView waterfallMsPerPx startTime firstEntryStartTime sortBy columns showDetail
-        , lazy8 tableBodyView tz startTime columns guidelineLeft selected showDetail entries scrollTop
+        [ lazy6 tableHeadersView waterfallMsPerPx startTime firstEntryStartTime sortBy columns showDetail2
+        , lazy8 tableBodyView tz startTime columns guidelineLeft selected2 showDetail2 entries scrollTop
         ]
 
 
@@ -569,11 +585,15 @@ type TableMsg
     | Scroll Int
     | InputFilter String
     | SelectKind (Maybe EntryKind)
+    | NoOp
 
 
 updateTable : Nav.Key -> TableMsg -> Har.Log -> TableModel -> ( TableModel, Cmd TableMsg )
 updateTable navKey action log table =
     case action of
+        NoOp ->
+            ( table, Cmd.none )
+
         FlipSort column ->
             let
                 ( currentSortColumn, currentSortOrder ) =
@@ -660,7 +680,10 @@ updateTable navKey action log table =
             in
             ( { table | entries = newEntries, filter = { filter | kind = kind } }
             , if table.selected /= "" then
-                Utils.scrollIntoView ("entry" ++ table.selected)
+                Cmd.batch
+                    [ Utils.scrollIntoView ("entry" ++ table.selected)
+                    , Task.attempt (\_ -> NoOp) <| Dom.focus "table-body"
+                    ]
 
               else
                 Cmd.none
