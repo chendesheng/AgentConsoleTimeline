@@ -4,6 +4,7 @@ import Har
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import Html.Lazy exposing (lazy2)
 import Icons
 import Iso8601
 import List
@@ -61,16 +62,22 @@ detailTab selected { name, label } =
 
 
 detailTabs : DetailTabName -> Har.Entry -> Html DetailMsg
-detailTabs tab _ =
+detailTabs selected entry =
     div [ class "detail-header-tabs" ] <|
-        List.map (detailTab tab)
-            [ { name = Preview, label = "Preview" }
-            , { name = Headers, label = "Headers" }
-            , { name = Request, label = "Request" }
-            , { name = Response, label = "Response" }
-            , { name = StateChanges, label = "Changes" }
-            , { name = Raw, label = "Raw" }
-            ]
+        List.map (detailTab selected) <|
+            if Har.isReduxStateEntry entry then
+                [ { name = Preview, label = "Preview" }
+                , { name = StateChanges, label = "Changes" }
+                , { name = Raw, label = "Raw" }
+                ]
+
+            else
+                [ { name = Preview, label = "Preview" }
+                , { name = Headers, label = "Headers" }
+                , { name = Request, label = "Request" }
+                , { name = Response, label = "Response" }
+                , { name = Raw, label = "Raw" }
+                ]
 
 
 jsonViewer : String -> Html msg
@@ -167,14 +174,43 @@ detailViewContainer href selected entries detail =
         text ""
 
 
+resolveSelectedTab : DetailTabName -> Har.Entry -> DetailTabName
+resolveSelectedTab tab entry =
+    if Har.isReduxStateEntry entry then
+        case tab of
+            Request ->
+                Preview
+
+            Response ->
+                Preview
+
+            Headers ->
+                Preview
+
+            _ ->
+                tab
+
+    else
+        case tab of
+            StateChanges ->
+                Preview
+
+            _ ->
+                tab
+
+
 detailView : DetailModel -> String -> Har.Entry -> Maybe Har.Entry -> Html DetailMsg
 detailView detail href entry prevStateEntry =
+    let
+        selected =
+            resolveSelectedTab detail.tab entry
+    in
     section [ class "detail" ]
         [ div [ class "detail-header" ]
             [ button [ class "detail-close", onClick HideDetail ] [ Icons.close ]
-            , detailTabs detail.tab entry
+            , lazy2 detailTabs selected entry
             ]
-        , case detail.tab of
+        , case selected of
             Preview ->
                 div [ class "detail-body" ] [ detailPreviewView href entry ]
 
@@ -231,15 +267,15 @@ detailView detail href entry prevStateEntry =
 
             StateChanges ->
                 case Har.getReduxState entry of
-                    Just selected ->
+                    Just modified ->
                         case prevStateEntry of
                             Just prevEntry ->
                                 case Har.getReduxState prevEntry of
-                                    Just prev ->
+                                    Just original ->
                                         Html.node "monaco-diff-editor"
                                             [ class "detail-body"
-                                            , attribute "original" prev
-                                            , attribute "modified" selected
+                                            , attribute "original" original
+                                            , attribute "modified" modified
                                             ]
                                             []
 
