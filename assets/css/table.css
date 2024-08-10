@@ -29,6 +29,7 @@ section.table {
 .table-body {
     overflow-y: auto;
     overflow-x: hidden;
+    overscroll-behavior: none;
 }
 ol.table-body {
     margin: 0;

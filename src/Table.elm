@@ -429,6 +429,7 @@ tableBodyView tz startTime columns guidelineLeft selected showDetail entries scr
     in
     Keyed.ol
         [ class "table-body"
+        , id "table-body"
         , tabindex 0
         , Utils.hijackOn "keydown" (D.map KeyDown keyDecoder)
         , on "scroll" (D.map Scroll (D.field "target" (D.field "scrollTop" D.int)))

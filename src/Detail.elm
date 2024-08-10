@@ -1,5 +1,6 @@
 module Detail exposing (DetailModel, DetailMsg(..), defaultDetailModel, detailViewContainer, updateDetail)
 
+import Browser.Dom as Dom
 import Har
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -9,6 +10,7 @@ import Icons
 import Iso8601
 import List
 import String
+import Task
 import TokenDecoder exposing (parseToken)
 
 
@@ -305,13 +307,19 @@ detailView detail href entry prevStateEntry =
 type DetailMsg
     = ChangeDetailTab DetailTabName
     | HideDetail
+    | NoOp
 
 
-updateDetail : DetailModel -> DetailMsg -> DetailModel
+updateDetail : DetailModel -> DetailMsg -> ( DetailModel, Cmd DetailMsg )
 updateDetail model detailMsg =
     case detailMsg of
         ChangeDetailTab tab ->
-            { model | tab = tab }
+            ( { model | tab = tab }, Cmd.none )
 
         HideDetail ->
-            { model | show = False }
+            ( { model | show = False }
+            , Task.attempt (\_ -> NoOp) <| Dom.focus "table-body"
+            )
+
+        NoOp ->
+            ( model, Cmd.none )

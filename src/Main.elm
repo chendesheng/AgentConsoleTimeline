@@ -170,7 +170,11 @@ updateOpened msg model =
             ( { model | timezone = Just tz }, Cmd.none )
 
         DetailAction detailMsg ->
-            ( { model | detail = Detail.updateDetail model.detail detailMsg }, Cmd.none )
+            let
+                ( detail, cmd ) =
+                    Detail.updateDetail model.detail detailMsg
+            in
+            ( { model | detail = detail }, Cmd.map DetailAction cmd )
 
 
 
