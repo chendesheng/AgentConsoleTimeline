@@ -3,15 +3,17 @@ module Detail exposing (DetailModel, DetailMsg(..), defaultDetailModel, detailVi
 import Browser.Dom as Dom
 import Har
 import Html exposing (..)
-import Html.Attributes exposing (..)
+import Html.Attributes as Attr exposing (..)
 import Html.Events exposing (..)
 import Html.Lazy exposing (lazy2)
 import Icons
 import Iso8601
 import List
+import Process
 import String
 import Task
 import TokenDecoder exposing (parseToken)
+import Utils
 
 
 
@@ -31,9 +33,14 @@ type alias DetailTab =
     { name : DetailTabName, label : String }
 
 
+type alias PlaybackState =
+    { isPlaying : Bool, time : Int }
+
+
 type alias DetailModel =
     { tab : DetailTabName
     , show : Bool
+    , playbackState : PlaybackState
     }
 
 
@@ -41,6 +48,10 @@ defaultDetailModel : DetailModel
 defaultDetailModel =
     { tab = Preview
     , show = False
+    , playbackState =
+        { isPlaying = False
+        , time = 0
+        }
     }
 
 
@@ -84,26 +95,61 @@ detailTabs selected entry =
 
 jsonViewer : String -> Html msg
 jsonViewer json =
-    Html.node "json-viewer" [ attribute "data" json ] []
+    Html.node "json-viewer" [ class "detail-body", attribute "data" json ] []
 
 
-detailPreviewView : String -> Har.Entry -> Html DetailMsg
-detailPreviewView href entry =
-    if Har.isReduxStateEntry entry && not (String.isEmpty href) then
-        case Har.getReduxState entry of
-            Just s ->
-                Html.node "agent-console-snapshot"
-                    [ src <| href ++ "&snapshot=true"
-                    , attribute "state" s
-                    , attribute "time" <| Iso8601.fromTime entry.startedDateTime
-                    ]
-                    []
+agentConsoleSnapshot : List Har.Entry -> PlaybackState -> String -> Har.Entry -> Html PlaybackMsg
+agentConsoleSnapshot entries playbackState href entry =
+    let
+        stateEntries =
+            entries
+                |> Har.filterEntries "" (Just Har.ReduxState)
+                |> Har.sortEntries ( "time", Har.Asc )
 
-            _ ->
-                text "No redux state found"
+        firstEntryStartTime =
+            Har.getFirstEntryStartTime entries 0
 
-    else
-        jsonViewer <| Maybe.withDefault "" entry.response.content.text
+        lastEntry =
+            Utils.getLast stateEntries
+                |> Maybe.withDefault entry
+
+        lastEntryStartTime =
+            lastEntry.startedDateTime
+
+        entry1 =
+            stateEntries
+                |> List.filter (\e -> Utils.timespanMillis entry.startedDateTime e.startedDateTime <= playbackState.time)
+                |> Utils.getLast
+                |> Maybe.withDefault lastEntry
+
+        state =
+            Har.getReduxState entry1
+                |> Maybe.withDefault ""
+    in
+    div [ class "detail-body", class "agent-console-snapshot-container" ]
+        [ Html.node "agent-console-snapshot"
+            [ src <| href ++ "&snapshot=true"
+            , attribute "state" state
+            , attribute "time" <| Iso8601.fromTime entry1.startedDateTime
+            ]
+            []
+        , div [ class "agent-console-snapshot-player" ]
+            [ if playbackState.isPlaying then
+                button [ onClick Pause ] [ text "❚❚" ]
+
+              else
+                button [ onClick Play ] [ text "▶" ]
+            , input
+                [ type_ "range"
+                , Attr.min <| String.fromInt <| Utils.timespanMillis entry.startedDateTime firstEntryStartTime
+                , Attr.max <| String.fromInt <| Utils.timespanMillis entry.startedDateTime lastEntryStartTime
+                , Attr.value <| String.fromInt playbackState.time
+                , Attr.step "1"
+                , onInput (Seek << Maybe.withDefault 0 << String.toInt)
+                ]
+                []
+            ]
+        ]
 
 
 keyValue : { x | name : String, value : Html msg } -> Html msg
@@ -167,7 +213,7 @@ detailViewContainer href selected entries detail =
     if detail.show then
         case Har.findEntryAndPrevStateEntry entries selected of
             ( Just entry, prevStateEntry ) ->
-                detailView detail href entry prevStateEntry
+                detailView entries detail href entry prevStateEntry
 
             _ ->
                 text ""
@@ -201,11 +247,11 @@ resolveSelectedTab tab entry =
                 tab
 
 
-detailView : DetailModel -> String -> Har.Entry -> Maybe Har.Entry -> Html DetailMsg
-detailView detail href entry prevStateEntry =
+detailView : List Har.Entry -> DetailModel -> String -> Har.Entry -> Maybe Har.Entry -> Html DetailMsg
+detailView entries model href entry prevStateEntry =
     let
         selected =
-            resolveSelectedTab detail.tab entry
+            resolveSelectedTab model.tab entry
     in
     section [ class "detail" ]
         [ div [ class "detail-header" ]
@@ -214,7 +260,11 @@ detailView detail href entry prevStateEntry =
             ]
         , case selected of
             Preview ->
-                div [ class "detail-body" ] [ detailPreviewView href entry ]
+                if Har.isReduxStateEntry entry then
+                    Html.map Player <| agentConsoleSnapshot entries model.playbackState href entry
+
+                else
+                    jsonViewer <| Maybe.withDefault "" entry.response.content.text
 
             Headers ->
                 div
@@ -305,9 +355,17 @@ detailView detail href entry prevStateEntry =
 
 
 type DetailMsg
-    = ChangeDetailTab DetailTabName
+    = NoOp
+    | ChangeDetailTab DetailTabName
     | HideDetail
-    | NoOp
+    | Player PlaybackMsg
+
+
+type PlaybackMsg
+    = Play
+    | Pause
+    | Tick
+    | Seek Int
 
 
 updateDetail : DetailModel -> DetailMsg -> ( DetailModel, Cmd DetailMsg )
@@ -323,3 +381,38 @@ updateDetail model detailMsg =
             ( { model | show = False }
             , Task.attempt (\_ -> NoOp) <| Dom.focus "table-body"
             )
+
+        Player playbackMsg ->
+            let
+                ( state, cmd ) =
+                    updatePlaybackState playbackMsg model.playbackState
+            in
+            ( { model | playbackState = state }, Cmd.map Player cmd )
+
+
+updatePlaybackState : PlaybackMsg -> PlaybackState -> ( PlaybackState, Cmd PlaybackMsg )
+updatePlaybackState msg playbackState =
+    case msg of
+        Play ->
+            if playbackState.isPlaying then
+                ( playbackState, Cmd.none )
+
+            else
+                ( { playbackState | isPlaying = True }, Task.perform (\_ -> Tick) (Process.sleep 20) )
+
+        Pause ->
+            if playbackState.isPlaying then
+                ( { playbackState | isPlaying = False }, Cmd.none )
+
+            else
+                ( playbackState, Cmd.none )
+
+        Tick ->
+            if playbackState.isPlaying then
+                ( { playbackState | time = playbackState.time + 20 }, Task.perform (\_ -> Tick) (Process.sleep 20) )
+
+            else
+                ( playbackState, Cmd.none )
+
+        Seek time ->
+            ( { playbackState | time = time }, Cmd.none )

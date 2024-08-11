@@ -15,25 +15,23 @@ export class AgentConsoleSnapshot extends LitElement {
 
   static styles = css`
     iframe {
-      width: calc(100% - 28px);
-      height: calc(100% - 40px);
-      margin: 20px 20px 20px 8px;
       border-radius: 4px;
       box-shadow: 0 0 10px 0 rgba(0, 0, 0, 0.1);
       border: none;
-      display: block;
+      height: 100%;
+      width: 100%;
     }
   `;
 
   render() {
-    return html`<iframe src="${this.src}" />`;
+    return html`<iframe src="${this.src}"></iframe>`;
   }
 
   sendToIframe() {
     if (this.iframe?.contentWindow) {
       this.iframe.contentWindow.postMessage(
         { type: "restoreReduxState", payload: this.state, time: this.time },
-        "*",
+        "*"
       );
     }
   }

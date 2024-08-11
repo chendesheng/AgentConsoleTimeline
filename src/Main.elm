@@ -156,7 +156,21 @@ updateOpened msg model =
                                 detailModel =
                                     model.detail
                             in
-                            { model | detail = { detailModel | show = True } }
+                            { model
+                                | detail =
+                                    let
+                                        playbackState =
+                                            detailModel.playbackState
+                                    in
+                                    { detailModel
+                                        | show = True
+                                        , playbackState =
+                                            { playbackState
+                                                | isPlaying = False
+                                                , time = 0
+                                            }
+                                    }
+                            }
 
                         _ ->
                             model

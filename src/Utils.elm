@@ -159,6 +159,55 @@ isMember predicate list =
                 isMember predicate xs
 
 
+findItem : (a -> Bool) -> List a -> Maybe a
+findItem predicate list =
+    case list of
+        [] ->
+            Nothing
+
+        x :: xs ->
+            if predicate x then
+                Just x
+
+            else
+                findItem predicate xs
+
+
+dropWhileBefore : (a -> Bool) -> List a -> List a
+dropWhileBefore predicate list =
+    case list of
+        [] ->
+            []
+
+        x :: x1 :: xs ->
+            if predicate x && (not <| predicate x1) then
+                list
+
+            else
+                dropWhileBefore predicate (x1 :: xs)
+
+        _ ->
+            list
+
+
+timespanMillis : Time.Posix -> Time.Posix -> Int
+timespanMillis start end =
+    Time.posixToMillis end - Time.posixToMillis start
+
+
+getLast : List a -> Maybe a
+getLast list =
+    case list of
+        [] ->
+            Nothing
+
+        [ x ] ->
+            Just x
+
+        _ :: xs ->
+            getLast xs
+
+
 
 -- ATTRIBUTES
 

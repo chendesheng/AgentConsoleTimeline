@@ -60,7 +60,6 @@
 .detail-body {
     flex: auto;
     overflow: auto;
-    padding-left: 12px;
 }
 .detail-body-empty {
     padding-top: 12px;
@@ -116,8 +115,36 @@ json-viewer {
     line-height: 1.5;
     --font-family: inherit;
     overflow-wrap: break-word;
+    padding-left: 12px;
 }
 
 code-editor.detail-body {
     padding: 0;
+}
+
+.agent-console-snapshot-container {
+    height: 100%;
+    display: flex;
+    flex-flow: column;
+    padding: 0 20px;
+}
+
+.agent-console-snapshot-container agent-console-snapshot {
+    flex: auto;
+    margin-top: 20px;
+}
+.agent-console-snapshot-container .agent-console-snapshot-player {
+    flex: none;
+    height: 30px;
+    margin: 0;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+.agent-console-snapshot-container .agent-console-snapshot-player > button {
+    flex: none;
+    height: 20px;
+}
+.agent-console-snapshot-container .agent-console-snapshot-player > input {
+    flex: auto;
 }
