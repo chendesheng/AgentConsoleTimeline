@@ -106,6 +106,17 @@ agentConsoleSnapshot entries playbackState href entry =
                 |> Har.filterEntries "" (Just Har.ReduxState)
                 |> Har.sortEntries ( "time", Har.Asc )
 
+        showPlayback =
+            case stateEntries of
+                [] ->
+                    False
+
+                [ _ ] ->
+                    False
+
+                _ ->
+                    True
+
         firstEntryStartTime =
             Har.getFirstEntryStartTime entries 0
 
@@ -126,30 +137,35 @@ agentConsoleSnapshot entries playbackState href entry =
             Har.getReduxState entry1
                 |> Maybe.withDefault ""
     in
-    div [ class "detail-body", class "agent-console-snapshot-container" ]
-        [ Html.node "agent-console-snapshot"
+    div [ class "detail-body", class "agent-console-snapshot-container" ] <|
+        Html.node "agent-console-snapshot"
             [ src <| href ++ "&snapshot=true"
             , attribute "state" state
             , attribute "time" <| Iso8601.fromTime entry1.startedDateTime
             ]
             []
-        , div [ class "agent-console-snapshot-player" ]
-            [ if playbackState.isPlaying then
-                button [ onClick Pause ] [ text "❚❚" ]
+            :: (if showPlayback then
+                    [ div [ class "agent-console-snapshot-player" ]
+                        [ if playbackState.isPlaying then
+                            button [ onClick Pause ] [ text "❚❚" ]
 
-              else
-                button [ onClick Play ] [ text "▶" ]
-            , input
-                [ type_ "range"
-                , Attr.min <| String.fromInt <| Utils.timespanMillis entry.startedDateTime firstEntryStartTime
-                , Attr.max <| String.fromInt <| Utils.timespanMillis entry.startedDateTime lastEntryStartTime
-                , Attr.value <| String.fromInt playbackState.time
-                , Attr.step "1"
-                , onInput (Seek << Maybe.withDefault 0 << String.toInt)
-                ]
-                []
-            ]
-        ]
+                          else
+                            button [ onClick Play ] [ text "▶" ]
+                        , input
+                            [ type_ "range"
+                            , Attr.min <| String.fromInt <| Utils.timespanMillis entry.startedDateTime firstEntryStartTime
+                            , Attr.max <| String.fromInt <| Utils.timespanMillis entry.startedDateTime lastEntryStartTime
+                            , Attr.value <| String.fromInt playbackState.time
+                            , Attr.step "1"
+                            , onInput (Seek << Maybe.withDefault 0 << String.toInt)
+                            ]
+                            []
+                        ]
+                    ]
+
+                else
+                    []
+               )
 
 
 keyValue : { x | name : String, value : Html msg } -> Html msg
