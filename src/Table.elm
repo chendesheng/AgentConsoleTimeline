@@ -577,7 +577,8 @@ type KeyCode
 
 
 type TableMsg
-    = FlipSort String
+    = NoOp
+    | FlipSort String
     | ResizeColumn String Int
       -- id, True means show detail, False means keep detail shown/hidden as is, is pushUrl
     | Select String Bool Bool
@@ -585,7 +586,6 @@ type TableMsg
     | Scroll Int
     | InputFilter String
     | SelectKind (Maybe EntryKind)
-    | NoOp
 
 
 updateTable : Nav.Key -> TableMsg -> Har.Log -> TableModel -> ( TableModel, Cmd TableMsg )

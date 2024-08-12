@@ -5,3 +5,4 @@ components/*.js
 dist/
 .parcel-cache
 app.zip
+app*.zip
