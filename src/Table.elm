@@ -77,11 +77,11 @@ defaultTableModel =
     , columnWidths =
         Dict.fromList
             [ ( "name", 250 )
-            , ( "method", 80 )
-            , ( "status", 80 )
-            , ( "time", 150 )
-            , ( "domain", 150 )
-            , ( "size", 150 )
+            , ( "method", 50 )
+            , ( "status", 50 )
+            , ( "time", 80 )
+            , ( "domain", 80 )
+            , ( "size", 80 )
             ]
     , columns =
         [ { id = "name", label = "Name", minWidth = 80 }

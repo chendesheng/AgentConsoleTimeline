@@ -3,6 +3,7 @@ module Main exposing (main)
 import Browser
 import Browser.Navigation as Nav
 import Detail exposing (DetailModel, DetailMsg(..), detailViewContainer)
+import DropFile exposing (DropFileModel, DropFileMsg(..), defaultDropFileModel, dropFileView)
 import Har exposing (ClientInfo, EntryKind(..), SortOrder(..))
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -25,12 +26,13 @@ type Model
 
 
 type alias OpenedModel =
-    { log : Har.Log
-    , table : TableModel
+    { table : TableModel
     , timezone : Maybe Time.Zone
     , detail : DetailModel
     , clientInfo : ClientInfo
     , navKey : Nav.Key
+    , log : Har.Log
+    , dropFile : DropFileModel
     }
 
 
@@ -60,8 +62,10 @@ viewOpened model =
                 detail =
                     model.detail
             in
-            div
-                [ class "app" ]
+            dropFileView
+                "app"
+                model.dropFile
+                DropFile
                 [ Html.map TableAction (lazy tableFilterView table.filter)
                 , Html.map TableAction (lazy4 tableView tz startTime table detail.show)
                 , Html.map DetailAction
@@ -101,6 +105,21 @@ type OpenedMsg
     = TableAction TableMsg
     | GotTimezone Time.Zone
     | DetailAction DetailMsg
+    | DropFile DropFileMsg
+
+
+initOpened : Har.Log -> Nav.Key -> ( OpenedModel, Cmd OpenedMsg )
+initOpened log navKey =
+    ( { table = { defaultTableModel | entries = log.entries }
+      , timezone = Nothing
+      , detail = Detail.defaultDetailModel
+      , clientInfo = Har.getClientInfo log.entries
+      , navKey = navKey
+      , log = log
+      , dropFile = defaultDropFileModel
+      }
+    , Task.perform GotTimezone Time.here
+    )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -111,18 +130,13 @@ update msg model =
                 Initial initialModel ->
                     case updateInitial initialMsg initialModel of
                         ( newModel, cmd ) ->
-                            case newModel.fileContent of
+                            case newModel.dropFile.fileContent of
                                 Just log ->
-                                    ( Opened
-                                        { log = log
-                                        , table = { defaultTableModel | entries = log.entries }
-                                        , timezone = Nothing
-                                        , detail = Detail.defaultDetailModel
-                                        , clientInfo = Har.getClientInfo log.entries
-                                        , navKey = initialModel.navKey
-                                        }
-                                    , Task.perform (\zone -> OpenedMsg <| GotTimezone zone) Time.here
-                                    )
+                                    let
+                                        ( m, cmd2 ) =
+                                            initOpened log newModel.navKey
+                                    in
+                                    ( Opened m, Cmd.map OpenedMsg cmd2 )
 
                                 _ ->
                                     ( Initial newModel, Cmd.map InitialMsg cmd )
@@ -189,6 +203,16 @@ updateOpened msg model =
                     Detail.updateDetail model.detail detailMsg
             in
             ( { model | detail = detail }, Cmd.map DetailAction cmd )
+
+        DropFile (GotFileContent log) ->
+            initOpened log model.navKey
+
+        DropFile dropMsg ->
+            let
+                ( dropFile, cmd ) =
+                    DropFile.dropFileUpdate dropMsg model.dropFile
+            in
+            ( { model | dropFile = dropFile }, Cmd.map DropFile cmd )
 
 
 
