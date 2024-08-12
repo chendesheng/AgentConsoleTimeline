@@ -118,7 +118,7 @@ update msg model =
                                         , table = { defaultTableModel | entries = log.entries }
                                         , timezone = Nothing
                                         , detail = Detail.defaultDetailModel
-                                        , clientInfo = Har.getClientInfo log
+                                        , clientInfo = Har.getClientInfo log.entries
                                         , navKey = initialModel.navKey
                                         }
                                     , Task.perform (\zone -> OpenedMsg <| GotTimezone zone) Time.here

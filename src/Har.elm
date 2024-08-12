@@ -416,8 +416,8 @@ type alias ClientInfo =
     }
 
 
-getClientInfo : Log -> ClientInfo
-getClientInfo { entries } =
+getClientInfo : List Entry -> ClientInfo
+getClientInfo entries =
     let
         clientInfoDecoder =
             D.map4 ClientInfo
@@ -430,7 +430,7 @@ getClientInfo { entries } =
             ClientInfo "" "" "" ""
     in
     case List.filter (\entry -> entry.request.url == "/log/message") entries of
-        entry :: _ ->
+        entry :: rest ->
             case entry.response.content.text of
                 Just text ->
                     case D.decodeString clientInfoDecoder text of
@@ -438,10 +438,10 @@ getClientInfo { entries } =
                             clientInfo
 
                         Err _ ->
-                            emptyClientInfo
+                            getClientInfo rest
 
                 _ ->
-                    emptyClientInfo
+                    getClientInfo rest
 
         _ ->
             emptyClientInfo
