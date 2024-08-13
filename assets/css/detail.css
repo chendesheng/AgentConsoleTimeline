@@ -134,7 +134,7 @@ code-editor.detail-body {
     flex: auto;
     margin-top: 20px;
 }
-.agent-console-snapshot-container .agent-console-snapshot-player {
+.agent-console-snapshot-container agent-console-snapshot-player {
     flex: none;
     height: 30px;
     margin: 0;
@@ -142,10 +142,7 @@ code-editor.detail-body {
     gap: 4px;
     align-items: center;
 }
-.agent-console-snapshot-container .agent-console-snapshot-player > button {
-    flex: none;
+
+agent-console-snapshot-player {
     height: 20px;
-}
-.agent-console-snapshot-container .agent-console-snapshot-player > input {
-    flex: auto;
 }

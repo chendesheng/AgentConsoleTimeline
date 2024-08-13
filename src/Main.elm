@@ -14,6 +14,7 @@ import List
 import Table exposing (TableModel, TableMsg(..), defaultTableModel, tableFilterView, tableView, updateTable)
 import Task
 import Time
+import Utils
 
 
 
@@ -172,18 +173,7 @@ updateOpened msg model =
                             in
                             { model
                                 | detail =
-                                    let
-                                        playbackState =
-                                            detailModel.playbackState
-                                    in
-                                    { detailModel
-                                        | show = True
-                                        , playbackState =
-                                            { playbackState
-                                                | isPlaying = False
-                                                , time = 0
-                                            }
-                                    }
+                                    { detailModel | show = True }
                             }
 
                         _ ->
@@ -201,8 +191,30 @@ updateOpened msg model =
             let
                 ( detail, cmd ) =
                     Detail.updateDetail model.detail detailMsg
+
+                ( table, cmd1 ) =
+                    case detailMsg of
+                        ScrollToCurrentId ->
+                            let
+                                ( table2, cmd2 ) =
+                                    updateTable model.navKey (Select model.detail.currentId False True) model.log model.table
+                            in
+                            ( table2
+                            , Cmd.batch
+                                [ cmd2
+                                , Utils.scrollIntoView <| "entry" ++ model.detail.currentId
+                                ]
+                            )
+
+                        _ ->
+                            ( model.table, Cmd.none )
             in
-            ( { model | detail = detail }, Cmd.map DetailAction cmd )
+            ( { model | detail = detail, table = table }
+            , Cmd.batch
+                [ Cmd.map DetailAction cmd
+                , Cmd.map TableAction cmd1
+                ]
+            )
 
         DropFile (GotFileContent log) ->
             initOpened log model.navKey

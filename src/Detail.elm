@@ -8,8 +8,9 @@ import Html.Events exposing (..)
 import Html.Lazy exposing (lazy2)
 import Icons
 import Iso8601
+import Json.Decode as Decode
+import Json.Encode as Encode
 import List
-import Process
 import String
 import Task
 import TokenDecoder exposing (parseToken)
@@ -33,14 +34,10 @@ type alias DetailTab =
     { name : DetailTabName, label : String }
 
 
-type alias PlaybackState =
-    { isPlaying : Bool, time : Int }
-
-
 type alias DetailModel =
     { tab : DetailTabName
     , show : Bool
-    , playbackState : PlaybackState
+    , currentId : String
     }
 
 
@@ -48,10 +45,7 @@ defaultDetailModel : DetailModel
 defaultDetailModel =
     { tab = Preview
     , show = False
-    , playbackState =
-        { isPlaying = False
-        , time = 0
-        }
+    , currentId = ""
     }
 
 
@@ -98,8 +92,8 @@ jsonViewer className json =
     Html.node "json-viewer" [ class className, attribute "data" json ] []
 
 
-agentConsoleSnapshot : List Har.Entry -> PlaybackState -> String -> Har.Entry -> Html PlaybackMsg
-agentConsoleSnapshot entries playbackState href entry =
+agentConsoleSnapshot : List Har.Entry -> String -> String -> Har.Entry -> Html DetailMsg
+agentConsoleSnapshot entries href currentId entry =
     let
         stateEntries =
             entries
@@ -129,8 +123,7 @@ agentConsoleSnapshot entries playbackState href entry =
 
         entry1 =
             stateEntries
-                |> List.filter (\e -> Utils.timespanMillis entry.startedDateTime e.startedDateTime <= playbackState.time)
-                |> Utils.getLast
+                |> Utils.findItem (\e -> e.id == currentId)
                 |> Maybe.withDefault lastEntry
 
         state =
@@ -145,22 +138,29 @@ agentConsoleSnapshot entries playbackState href entry =
             ]
             []
             :: (if showPlayback then
-                    [ div [ class "agent-console-snapshot-player" ]
-                        [ if playbackState.isPlaying then
-                            button [ onClick Pause ] [ text "❚❚" ]
-
-                          else
-                            button [ onClick Play ] [ text "▶" ]
-                        , input
-                            [ type_ "range"
-                            , Attr.min <| String.fromInt <| Utils.timespanMillis entry.startedDateTime firstEntryStartTime
-                            , Attr.max <| String.fromInt <| Utils.timespanMillis entry.startedDateTime lastEntryStartTime
-                            , Attr.value <| String.fromInt playbackState.time
-                            , Attr.step "1"
-                            , onInput (Seek << Maybe.withDefault 0 << String.toInt)
-                            ]
-                            []
+                    [ Html.node "agent-console-snapshot-player"
+                        [ stateEntries
+                            |> List.map
+                                (\{ id, startedDateTime } ->
+                                    Encode.object
+                                        [ ( "time", Encode.int <| Utils.timespanMillis firstEntryStartTime startedDateTime )
+                                        , ( "id", Encode.string id )
+                                        ]
+                                )
+                            |> Encode.list (\a -> a)
+                            |> Encode.encode 0
+                            |> attribute "items"
+                        , Attr.min <| String.fromInt 0
+                        , Attr.max <| String.fromInt <| Utils.timespanMillis firstEntryStartTime lastEntryStartTime
+                        , attribute "initialTime" <|
+                            String.fromInt <|
+                                Utils.timespanMillis firstEntryStartTime entry.startedDateTime
+                        , on "timeChange" <|
+                            Decode.map SetCurrentId <|
+                                Decode.at [ "detail", "id" ] Decode.string
+                        , on "scrollToCurrent" <| Decode.succeed ScrollToCurrentId
                         ]
+                        []
                     ]
 
                 else
@@ -277,7 +277,7 @@ detailView entries model href entry prevStateEntry =
         , case selected of
             Preview ->
                 if Har.isReduxStateEntry entry then
-                    Html.map Player <| agentConsoleSnapshot entries model.playbackState href entry
+                    agentConsoleSnapshot entries href model.currentId entry
 
                 else
                     jsonViewer "detail-body" <| Maybe.withDefault "" entry.response.content.text
@@ -374,14 +374,8 @@ type DetailMsg
     = NoOp
     | ChangeDetailTab DetailTabName
     | HideDetail
-    | Player PlaybackMsg
-
-
-type PlaybackMsg
-    = Play
-    | Pause
-    | Tick
-    | Seek Int
+    | SetCurrentId String
+    | ScrollToCurrentId
 
 
 updateDetail : DetailModel -> DetailMsg -> ( DetailModel, Cmd DetailMsg )
@@ -398,37 +392,8 @@ updateDetail model detailMsg =
             , Task.attempt (\_ -> NoOp) <| Dom.focus "table-body"
             )
 
-        Player playbackMsg ->
-            let
-                ( state, cmd ) =
-                    updatePlaybackState playbackMsg model.playbackState
-            in
-            ( { model | playbackState = state }, Cmd.map Player cmd )
+        SetCurrentId id ->
+            ( { model | currentId = id }, Cmd.none )
 
-
-updatePlaybackState : PlaybackMsg -> PlaybackState -> ( PlaybackState, Cmd PlaybackMsg )
-updatePlaybackState msg playbackState =
-    case msg of
-        Play ->
-            if playbackState.isPlaying then
-                ( playbackState, Cmd.none )
-
-            else
-                ( { playbackState | isPlaying = True }, Task.perform (\_ -> Tick) (Process.sleep 20) )
-
-        Pause ->
-            if playbackState.isPlaying then
-                ( { playbackState | isPlaying = False }, Cmd.none )
-
-            else
-                ( playbackState, Cmd.none )
-
-        Tick ->
-            if playbackState.isPlaying then
-                ( { playbackState | time = playbackState.time + 20 }, Task.perform (\_ -> Tick) (Process.sleep 20) )
-
-            else
-                ( playbackState, Cmd.none )
-
-        Seek time ->
-            ( { playbackState | time = time }, Cmd.none )
+        ScrollToCurrentId ->
+            ( model, Cmd.none )
