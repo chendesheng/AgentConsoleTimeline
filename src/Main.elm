@@ -166,14 +166,14 @@ updateOpened msg model =
             let
                 model2 =
                     case action of
-                        Select _ True _ ->
+                        Select id True _ ->
                             let
                                 detailModel =
                                     model.detail
                             in
                             { model
                                 | detail =
-                                    { detailModel | show = True }
+                                    { detailModel | show = True, currentId = id }
                             }
 
                         _ ->
