@@ -40,6 +40,7 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
       border: none;
       border-radius: 2px;
       width: 24px;
+      height: 18px;
     }
 
     .track {
@@ -64,7 +65,6 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
     .track > div.currentTime {
       background-color: red;
       z-index: 1;
-      wdith: 2px;
     }
     .track > div.currentTime::before {
       content: "";
@@ -83,6 +83,15 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
       width: 6px;
       height: 0px;
       border-top: 1px solid red;
+    }
+    button.reset,
+    button.reveal {
+      font-size: 22px;
+      line-height: 0px;
+      padding: 0;
+    }
+    .container > time {
+      width: 6ch;
     }
   `;
 
@@ -113,10 +122,11 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
     );
   }
 
-  private handleIsPlayingChange() {
-    if (this.isPlaying) {
+  private handleIsPlayingChanged() {
+    // console.log("handleIsPlayingChange", this.isPlaying, this.isSeeking);
+    if (this.isPlaying && !this.isSeeking) {
       this.timer = setInterval(() => {
-        this.time += 50;
+        this.updateTime(this.time + 50);
         this.fireTimeChange();
       }, 50);
     } else {
@@ -127,15 +137,26 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
 
   private handleClickPlay() {
     this.isPlaying = !this.isPlaying;
-    this.handleIsPlayingChange();
+    this.handleIsPlayingChanged();
   }
 
-  private updateTime(e: MouseEvent) {
+  private updateTime(time: number) {
+    time = clamp(time, +this.min, +this.max);
+    if (this.time === time) return;
+    this.time = time;
+    this.fireTimeChange();
+
+    if (this.time >= +this.max) {
+      this.isPlaying = false;
+      this.handleIsPlayingChanged();
+    }
+  }
+
+  private updateTimePx(e: MouseEvent) {
     const rect = (e.target as HTMLElement).getBoundingClientRect();
     const x = e.clientX - rect.left;
     const pos = x / rect.width;
-    this.time = Math.round(this.min + (this.max - this.min) * pos);
-    this.fireTimeChange();
+    this.updateTime(+this.min + (+this.max - this.min) * pos);
   }
 
   private getTimePosPercent(time: number) {
@@ -144,22 +165,25 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
   }
 
   private handleMouseDownTrack(e: MouseEvent) {
-    this.isSeeking = true;
-    clearInterval(this.timer);
-    this.timer = null;
+    if (this.isSeeking) return;
 
-    this.updateTime(e);
+    this.isSeeking = true;
+    this.handleIsPlayingChanged();
+
+    this.updateTimePx(e);
   }
 
   private handleMouseMoveTrack(e: MouseEvent) {
     if (e.buttons === 1) {
-      this.updateTime(e);
+      this.updateTimePx(e);
     }
   }
 
   private handleMouseUpTrack(e: MouseEvent) {
+    if (!this.isSeeking) return;
+
     this.isSeeking = false;
-    this.handleIsPlayingChange();
+    this.handleIsPlayingChanged();
   }
 
   render() {
@@ -167,8 +191,8 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
       <button @click=${this.handleClickPlay}>
         ${this.isPlaying && !this.isSeeking ? "❚❚" : "▶"}
       </button>
-      <button @click=${this.handleClickReset}>↶</button>
-      <button @click=${this.handleClickScroll}>📜</button>
+      <button class="reset" @click=${this.handleClickReset}>↺</button>
+      <button class="reveal" @click=${this.handleClickScroll}>⇱</button>
       <div
         class="track"
         @mousedown=${this.handleMouseDownTrack}
@@ -184,18 +208,24 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
             html`<div style="left: ${this.getTimePosPercent(item.time)}"></div>`
         )}
       </div>
+      <time>${((this.time - this.max) / 1000).toFixed(1)}s</time>
     </div>`;
   }
 
   connectedCallback(): void {
     super.connectedCallback();
-    this.time = this.initialTime;
+    this.time = +this.initialTime;
   }
 
   private getCurrentItem() {
     const i = this.items.findIndex((item) => this.time <= item.time);
-    if (i > 0) {
+
+    if (this.items[i].time === this.time) {
+      return this.items[i];
+    } else if (i > 0) {
       return this.items[i - 1];
+    } else if (this.items.length > 0) {
+      return this.items[0];
     }
   }
 
@@ -203,11 +233,13 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
     super.update(changedProperties);
     if (changedProperties.has("initialTime")) {
       this.isPlaying = false;
-      this.time = this.initialTime;
-      if (this.timer) {
-        clearInterval(this.timer);
-        this.timer = null;
-      }
+      this.isSeeking = false;
+      this.time = +this.initialTime;
+      this.handleIsPlayingChanged();
     }
   }
+}
+
+function clamp(number: number, min: number, max: number) {
+  return Math.max(min, Math.min(number, max));
 }
