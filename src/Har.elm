@@ -466,6 +466,21 @@ getReduxState entry =
         Nothing
 
 
+getRequestBody : Entry -> Maybe String
+getRequestBody entry =
+    case entry.request.postData of
+        Just postData ->
+            case postData.text of
+                Just text ->
+                    Just text
+
+                _ ->
+                    Nothing
+
+        _ ->
+            Nothing
+
+
 findEntryAndPrevStateEntryHelper : List Entry -> Int -> Maybe Entry -> ( Maybe Entry, Maybe Entry )
 findEntryAndPrevStateEntryHelper entries index prevStateEntry =
     if index == 0 then

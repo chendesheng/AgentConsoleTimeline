@@ -1,7 +1,7 @@
 module Detail exposing (DetailModel, DetailMsg(..), defaultDetailModel, detailViewContainer, updateDetail)
 
 import Browser.Dom as Dom
-import Har
+import Har exposing (EntryKind(..))
 import Html exposing (..)
 import Html.Attributes as Attr exposing (..)
 import Html.Events exposing (..)
@@ -72,19 +72,38 @@ detailTabs : DetailTabName -> Har.Entry -> Html DetailMsg
 detailTabs selected entry =
     div [ class "detail-header-tabs" ] <|
         List.map (detailTab selected) <|
-            if Har.isReduxStateEntry entry then
-                [ { name = Preview, label = "Preview" }
-                , { name = StateChanges, label = "Changes" }
-                , { name = Raw, label = "Raw" }
-                ]
+            case Har.getEntryKind entry of
+                ReduxState ->
+                    [ { name = Preview, label = "Preview" }
+                    , { name = StateChanges, label = "Changes" }
+                    , { name = Raw, label = "Raw" }
+                    ]
 
-            else
-                [ { name = Preview, label = "Preview" }
-                , { name = Headers, label = "Headers" }
-                , { name = Request, label = "Request" }
-                , { name = Response, label = "Response" }
-                , { name = Raw, label = "Raw" }
-                ]
+                ReduxAction ->
+                    [ { name = Preview, label = "Preview" }
+                    , { name = Response, label = "Trace" }
+                    , { name = Raw, label = "Raw" }
+                    ]
+
+                LogMessage ->
+                    [ { name = Preview, label = "Preview" }
+                    , { name = Response, label = "Message" }
+                    , { name = Raw, label = "Raw" }
+                    ]
+
+                Others ->
+                    [ { name = Preview, label = "Preview" }
+                    , { name = Response, label = "Content" }
+                    , { name = Raw, label = "Raw" }
+                    ]
+
+                _ ->
+                    [ { name = Preview, label = "Preview" }
+                    , { name = Headers, label = "Headers" }
+                    , { name = Request, label = "Request" }
+                    , { name = Response, label = "Response" }
+                    , { name = Raw, label = "Raw" }
+                    ]
 
 
 jsonViewer : String -> String -> Html msg
@@ -240,27 +259,28 @@ detailViewContainer href selected entries detail =
 
 resolveSelectedTab : DetailTabName -> Har.Entry -> DetailTabName
 resolveSelectedTab tab entry =
-    if Har.isReduxStateEntry entry then
-        case tab of
-            Request ->
-                Preview
+    case Har.getEntryKind entry of
+        ReduxState ->
+            case tab of
+                Request ->
+                    Preview
 
-            Response ->
-                Preview
+                Response ->
+                    Preview
 
-            Headers ->
-                Preview
+                Headers ->
+                    Preview
 
-            _ ->
-                tab
+                _ ->
+                    tab
 
-    else
-        case tab of
-            StateChanges ->
-                Preview
+        _ ->
+            case tab of
+                StateChanges ->
+                    Preview
 
-            _ ->
-                tab
+                _ ->
+                    tab
 
 
 detailView : List Har.Entry -> DetailModel -> String -> Har.Entry -> Maybe Har.Entry -> Html DetailMsg
@@ -268,6 +288,9 @@ detailView entries model href entry prevStateEntry =
     let
         selected =
             resolveSelectedTab model.tab entry
+
+        entryKind =
+            Har.getEntryKind entry
     in
     section [ class "detail" ]
         [ div [ class "detail-header" ]
@@ -276,11 +299,15 @@ detailView entries model href entry prevStateEntry =
             ]
         , case selected of
             Preview ->
-                if Har.isReduxStateEntry entry then
-                    agentConsoleSnapshot entries href model.currentId entry
+                case entryKind of
+                    ReduxState ->
+                        agentConsoleSnapshot entries href model.currentId entry
 
-                else
-                    jsonViewer "detail-body" <| Maybe.withDefault "" entry.response.content.text
+                    ReduxAction ->
+                        jsonViewer "detail-body" <| Maybe.withDefault "" <| Har.getRequestBody entry
+
+                    _ ->
+                        jsonViewer "detail-body" <| Maybe.withDefault "" entry.response.content.text
 
             Headers ->
                 div
@@ -357,7 +384,16 @@ detailView entries model href entry prevStateEntry =
                         text ""
 
             Raw ->
-                case entry.response.content.text of
+                let
+                    txt =
+                        case entryKind of
+                            ReduxAction ->
+                                Har.getRequestBody entry
+
+                            _ ->
+                                entry.response.content.text
+                in
+                case txt of
                     Just t ->
                         Html.node "monaco-editor" [ class "detail-body", attribute "content" t ] []
 
