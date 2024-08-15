@@ -145,4 +145,5 @@ code-editor.detail-body {
 
 agent-console-snapshot-player {
     height: 20px;
+    user-select: none;
 }
