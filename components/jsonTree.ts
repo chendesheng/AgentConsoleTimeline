@@ -135,14 +135,11 @@ export class JsonTree extends LitElement {
           : html`
               <div style="display: contents">
                 <button tabindex="0" @click=${this.handleCopy}>Copy</button
-                >&nbsp;
-                <button tabindex="0" @click=${this.handleCollapseAll}>
+                >&nbsp;<button tabindex="0" @click=${this.handleCollapseAll}>
                   Collapse</button
-                >&nbsp;
-                <button tabindex="0" @click=${this.handleExpandAll}>
+                >&nbsp;<button tabindex="0" @click=${this.handleExpandAll}>
                   Expand</button
-                >&nbsp;
-                <button tabindex="0" @click=${this.handleShowFilter}>
+                >&nbsp;<button tabindex="0" @click=${this.handleShowFilter}>
                   Filter
                 </button>
               </div>
