@@ -75,6 +75,7 @@ detailTabs selected entry =
             case Har.getEntryKind entry of
                 ReduxState ->
                     [ { name = Preview, label = "Preview" }
+                    , { name = Response, label = "State" }
                     , { name = StateChanges, label = "Changes" }
                     , { name = Raw, label = "Raw" }
                     ]
@@ -106,9 +107,20 @@ detailTabs selected entry =
                     ]
 
 
-jsonViewer : String -> String -> Html msg
-jsonViewer className json =
-    Html.node "json-viewer" [ class className, attribute "data" json ] []
+jsonViewer : Bool -> String -> String -> Html msg
+jsonViewer initialExpanded className json =
+    Html.node "json-tree"
+        ([ class className
+         , attribute "data" json
+         ]
+            ++ (if initialExpanded then
+                    [ attribute "initial-expanded" "" ]
+
+                else
+                    []
+               )
+        )
+        []
 
 
 agentConsoleSnapshot : List Har.Entry -> String -> String -> Har.Entry -> Html DetailMsg
@@ -221,7 +233,7 @@ requestHeaderKeyValue { name, value } =
                 , value =
                     div []
                         [ text value
-                        , jsonViewer "" <|
+                        , jsonViewer False "" <|
                             "{\"payload\":"
                                 ++ (Result.withDefault "" <| parseToken value)
                                 ++ "}"
@@ -265,7 +277,15 @@ resolveSelectedTab tab entry =
                 Request ->
                     Preview
 
-                Response ->
+                Headers ->
+                    Preview
+
+                _ ->
+                    tab
+
+        ReduxAction ->
+            case tab of
+                Request ->
                     Preview
 
                 Headers ->
@@ -304,10 +324,10 @@ detailView entries model href entry prevStateEntry =
                         agentConsoleSnapshot entries href model.currentId entry
 
                     ReduxAction ->
-                        jsonViewer "detail-body" <| Maybe.withDefault "" <| Har.getRequestBody entry
+                        jsonViewer True "detail-body" <| Maybe.withDefault "" <| Har.getRequestBody entry
 
                     _ ->
-                        jsonViewer "detail-body" <| Maybe.withDefault "" entry.response.content.text
+                        jsonViewer True "detail-body" <| Maybe.withDefault "" entry.response.content.text
 
             Headers ->
                 div
@@ -344,7 +364,7 @@ detailView entries model href entry prevStateEntry =
                     Just postData ->
                         case postData.text of
                             Just t ->
-                                jsonViewer "detail-body" t
+                                jsonViewer True "detail-body" t
 
                             _ ->
                                 noContent
@@ -355,7 +375,7 @@ detailView entries model href entry prevStateEntry =
             Response ->
                 case entry.response.content.text of
                     Just t ->
-                        jsonViewer "detail-body" t
+                        jsonViewer True "detail-body" t
 
                     _ ->
                         noContent

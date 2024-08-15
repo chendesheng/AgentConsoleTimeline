@@ -1,4 +1,4 @@
-import "@alenaksu/json-viewer";
+import "./components/jsonTree";
 import "./components/agentConsoleSnapshot";
 import "./components/agentConsoleSnapshotPlayer";
 import "./components/resizeDivier";

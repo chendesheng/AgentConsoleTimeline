@@ -106,16 +106,7 @@
     padding-left: 90px;
 }
 
-json-viewer {
-    --property-color: var(--text-color);
-    --string-color: var(--syntax-highlight-string-color);
-    --number-color: var(--syntax-highlight-number-color);
-    --boolean-color: var(--syntax-highlight-boolean-color);
-    --null-color: var(--syntax-highlight-symbol-color);
-    --background-color: transparent;
-    line-height: 1.5;
-    --font-family: inherit;
-    overflow-wrap: break-word;
+json-tree {
     padding-left: 12px;
 }
 
