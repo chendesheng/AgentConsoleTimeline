@@ -375,7 +375,7 @@ detailView entries model href entry prevStateEntry =
             Response ->
                 case entry.response.content.text of
                     Just t ->
-                        jsonViewer True "detail-body" t
+                        jsonViewer (entryKind /= ReduxState) "detail-body" t
 
                     _ ->
                         noContent
