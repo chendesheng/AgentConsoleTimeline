@@ -183,7 +183,13 @@ updateOpened msg model =
             ( { model
                 | detail =
                     { detailModel
-                        | show = True
+                        | show =
+                            case action of
+                                Select _ True _ ->
+                                    True
+
+                                _ ->
+                                    detailModel.show
                         , currentId = currentId
                     }
                 , table = table
