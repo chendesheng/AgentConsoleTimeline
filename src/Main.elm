@@ -164,25 +164,32 @@ updateOpened msg model =
     case msg of
         TableAction action ->
             let
-                model2 =
-                    case action of
-                        Select id True _ ->
-                            let
-                                detailModel =
-                                    model.detail
-                            in
-                            { model
-                                | detail =
-                                    { detailModel | show = True, currentId = id }
-                            }
-
-                        _ ->
-                            model
+                oldSelectedId =
+                    model.table.selected
 
                 ( table, cmd ) =
-                    updateTable model.navKey action model2.log model2.table
+                    updateTable model.navKey action model.log model.table
+
+                detailModel =
+                    model.detail
+
+                currentId =
+                    if table.selected == oldSelectedId then
+                        detailModel.currentId
+
+                    else
+                        table.selected
             in
-            ( { model2 | table = table }, Cmd.map TableAction cmd )
+            ( { model
+                | detail =
+                    { detailModel
+                        | show = True
+                        , currentId = currentId
+                    }
+                , table = table
+              }
+            , Cmd.map TableAction cmd
+            )
 
         GotTimezone tz ->
             ( { model | timezone = Just tz }, Cmd.none )
