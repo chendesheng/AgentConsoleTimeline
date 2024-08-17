@@ -68,6 +68,7 @@ type alias PageTimings =
 -}
 type alias Entry =
     { id : String -- Unique identifier (index) for the entry.
+    , startedDateTimeStr : String
     , pageref : Maybe String -- Reference to the parent page.
     , startedDateTime : Time.Posix -- The date and time the request started.
     , time : Float -- Total time for the request in milliseconds.

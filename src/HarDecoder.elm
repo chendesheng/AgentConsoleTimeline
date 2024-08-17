@@ -68,7 +68,7 @@ pageTimingsDecoder =
 
 entryDecoder : Decoder Entry
 entryDecoder =
-    map10 (Entry "")
+    map10 (Entry "" "")
         (maybe <| field "pageref" string)
         (field "startedDateTime" Iso8601.decoder)
         (field "time" float)

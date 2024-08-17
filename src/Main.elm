@@ -8,7 +8,7 @@ import Har exposing (ClientInfo, EntryKind(..), SortOrder(..))
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Html.Lazy exposing (lazy, lazy4)
+import Html.Lazy exposing (lazy2, lazy3, lazy4)
 import Initial exposing (InitialModel, InitialMsg, defaultInitialModel, initialView, updateInitial)
 import List
 import Table exposing (TableModel, TableMsg(..), defaultTableModel, tableFilterView, tableView, updateTable)
@@ -49,7 +49,7 @@ init navKey =
 viewOpened : OpenedModel -> Html OpenedMsg
 viewOpened model =
     case model.timezone of
-        Just tz ->
+        Just _ ->
             let
                 startTime =
                     model.log.entries
@@ -67,8 +67,8 @@ viewOpened model =
                 "app"
                 model.dropFile
                 DropFile
-                [ Html.map TableAction (lazy tableFilterView table.filter)
-                , Html.map TableAction (lazy4 tableView tz startTime table detail.show)
+                [ Html.map TableAction (lazy2 tableFilterView table.waterfallMsPerPx table.filter)
+                , Html.map TableAction (lazy3 tableView startTime table detail.show)
                 , Html.map DetailAction
                     (lazy4 detailViewContainer
                         model.clientInfo.href
@@ -198,7 +198,30 @@ updateOpened msg model =
             )
 
         GotTimezone tz ->
-            ( { model | timezone = Just tz }, Cmd.none )
+            let
+                log =
+                    model.log
+
+                table =
+                    model.table
+
+                entries =
+                    List.map
+                        (\entry ->
+                            { entry
+                                | startedDateTimeStr =
+                                    Utils.formatTime tz entry.startedDateTime
+                            }
+                        )
+                        log.entries
+            in
+            ( { model
+                | timezone = Just tz
+                , table = { table | entries = entries }
+                , log = { log | entries = entries }
+              }
+            , Cmd.none
+            )
 
         DetailAction detailMsg ->
             let

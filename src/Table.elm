@@ -88,7 +88,8 @@ defaultTableModel =
         , { id = "method", label = "Method", minWidth = 50 }
         , { id = "status", label = "Status", minWidth = 50 }
         , { id = "time", label = "Time", minWidth = 80 }
-        , { id = "domain", label = "Domain", minWidth = 80 }
+
+        -- , { id = "domain", label = "Domain", minWidth = 80 }
         , { id = "size", label = "Size", minWidth = 80 }
         , { id = "waterfall", label = "", minWidth = 0 }
         ]
@@ -152,8 +153,8 @@ tableSelectNextEntry navKey table isUp =
 -- VIEW
 
 
-entryView : Time.Zone -> Float -> List TableColumn -> String -> Time.Posix -> Har.Entry -> Html TableMsg
-entryView tz msPerPx columns selected startTime entry =
+entryView : Float -> List TableColumn -> String -> Time.Posix -> Har.Entry -> Html TableMsg
+entryView msPerPx columns selected startTime entry =
     div
         [ class
             (if selected == entry.id then
@@ -172,7 +173,7 @@ entryView tz msPerPx columns selected startTime entry =
                     )
             )
         ]
-        (List.map (\column -> tableCellView tz msPerPx column startTime entry) columns)
+        (List.map (\column -> tableCellView msPerPx column startTime entry) columns)
 
 
 getEntryIcon : Har.Entry -> Html msg
@@ -194,8 +195,8 @@ getEntryIcon entry =
             Icons.jsDoc
 
 
-tableCellContentView : Time.Zone -> Float -> String -> Time.Posix -> Har.Entry -> Html msg
-tableCellContentView tz msPerPx column startTime entry =
+tableCellContentView : Float -> String -> Time.Posix -> Har.Entry -> Html msg
+tableCellContentView msPerPx column startTime entry =
     case column of
         "name" ->
             div
@@ -230,7 +231,7 @@ tableCellContentView tz msPerPx column startTime entry =
             text <| String.fromInt entry.response.status
 
         "time" ->
-            text <| Utils.formatTime tz entry.startedDateTime
+            text entry.startedDateTimeStr
 
         "domain" ->
             text <|
@@ -271,7 +272,7 @@ tableCellContentView tz msPerPx column startTime entry =
                         (String.fromInt <| round entry.time)
                             ++ " ms; "
                             ++ "at "
-                            ++ Utils.formatTime tz entry.startedDateTime
+                            ++ entry.startedDateTimeStr
                     ]
                     []
 
@@ -279,8 +280,8 @@ tableCellContentView tz msPerPx column startTime entry =
             text ""
 
 
-tableCellView : Time.Zone -> Float -> TableColumn -> Time.Posix -> Har.Entry -> Html msg
-tableCellView tz msPerPx column startTime entry =
+tableCellView : Float -> TableColumn -> Time.Posix -> Har.Entry -> Html msg
+tableCellView msPerPx column startTime entry =
     div
         [ class "table-body-cell"
         , class <| "table-body-cell-" ++ column.id
@@ -292,7 +293,7 @@ tableCellView tz msPerPx column startTime entry =
             else
                 ""
         ]
-        [ tableCellContentView tz msPerPx column.id startTime entry ]
+        [ tableCellContentView msPerPx column.id startTime entry ]
 
 
 tableSortIcon : SortOrder -> Html msg
@@ -400,8 +401,21 @@ keyDecoder =
     D.map toKey <| D.field "key" D.string
 
 
-tableFilterView : TableFilter -> Html TableMsg
-tableFilterView filter =
+waterfallMsPerPxToScale : Float -> String
+waterfallMsPerPxToScale msPerPx =
+    (String.fromInt <| floor <| msPerPx / 10.0) ++ "x"
+
+
+scaleToWaterfallMsPerPx : String -> Float
+scaleToWaterfallMsPerPx scale =
+    String.dropRight 1 scale
+        |> String.toFloat
+        |> Maybe.map ((*) 10.0)
+        |> Maybe.withDefault 10.0
+
+
+tableFilterView : Float -> TableFilter -> Html TableMsg
+tableFilterView waterfallMsPerPx filter =
     section [ class "table-filter" ]
         [ input
             [ class "table-filter-input"
@@ -423,11 +437,20 @@ tableFilterView filter =
                 , option [ value "4" ] [ text "Others" ]
                 ]
             ]
+        , label [ class "table-filter-select" ]
+            [ div [] [ text <| waterfallMsPerPxToScale waterfallMsPerPx ]
+            , select [ onInput (scaleToWaterfallMsPerPx >> SetWaterfallMsPerPx) ]
+                [ option [ value "1x" ] [ text "1x" ]
+                , option [ value "2x" ] [ text "2x" ]
+                , option [ value "3x" ] [ text "3x" ]
+                , option [ value "4x" ] [ text "4x" ]
+                ]
+            ]
         ]
 
 
-tableBodyView : Time.Zone -> Time.Posix -> List TableColumn -> Int -> String -> Bool -> List Har.Entry -> Int -> Html TableMsg
-tableBodyView tz startTime columns guidelineLeft selected showDetail entries scrollTop =
+tableBodyView : Float -> Time.Posix -> List TableColumn -> Int -> String -> Bool -> List Har.Entry -> Int -> Html TableMsg
+tableBodyView msPerPx startTime columns guidelineLeft selected showDetail entries scrollTop =
     let
         visibleColumns =
             if showDetail then
@@ -475,7 +498,7 @@ tableBodyView tz startTime columns guidelineLeft selected showDetail entries scr
         )
             :: List.map
                 (\entry ->
-                    ( entry.id, entryView tz 10.0 visibleColumns selected firstEntryStartTime entry )
+                    ( entry.id, entryView msPerPx visibleColumns selected firstEntryStartTime entry )
                 )
                 entries
 
@@ -503,8 +526,8 @@ resolveSelected selected entries =
         ""
 
 
-tableView : Time.Zone -> Time.Posix -> TableModel -> Bool -> Html TableMsg
-tableView tz startTime { entries, sortBy, columns, columnWidths, selected, scrollTop, waterfallMsPerPx } showDetail =
+tableView : Time.Posix -> TableModel -> Bool -> Html TableMsg
+tableView startTime { entries, sortBy, columns, columnWidths, selected, scrollTop, waterfallMsPerPx } showDetail =
     let
         selected2 =
             resolveSelected selected entries
@@ -548,7 +571,7 @@ tableView tz startTime { entries, sortBy, columns, columnWidths, selected, scrol
             )
         ]
         [ lazy6 tableHeadersView waterfallMsPerPx startTime firstEntryStartTime sortBy columns showDetail2
-        , lazy8 tableBodyView tz startTime columns guidelineLeft selected2 showDetail2 entries scrollTop
+        , lazy8 tableBodyView waterfallMsPerPx startTime columns guidelineLeft selected2 showDetail2 entries scrollTop
         ]
 
 
@@ -586,6 +609,7 @@ type TableMsg
     | Scroll Int
     | InputFilter String
     | SelectKind (Maybe EntryKind)
+    | SetWaterfallMsPerPx Float
 
 
 updateTable : Nav.Key -> TableMsg -> Har.Log -> TableModel -> ( TableModel, Cmd TableMsg )
@@ -688,3 +712,6 @@ updateTable navKey action log table =
               else
                 Cmd.none
             )
+
+        SetWaterfallMsPerPx msPerPx ->
+            ( { table | waterfallMsPerPx = msPerPx }, Cmd.none )
