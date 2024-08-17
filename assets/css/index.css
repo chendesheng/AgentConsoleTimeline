@@ -1,6 +1,7 @@
-@import "./variables.css";
-@import "./normalize.css";
-@import "./app.css";
-@import "./table.css";
-@import "./detail.css";
-@import "./icons.css";
+@import './variables.css';
+@import './normalize.css';
+@import './app.css';
+@import './table.css';
+@import './detail.css';
+@import './icons.css';
+@import './select.css';

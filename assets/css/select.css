@@ -1,0 +1,45 @@
+.select {
+  position: relative;
+}
+
+.select > select {
+  padding-right: 16px;
+}
+
+.select:last-child {
+  margin-left: auto;
+  margin-right: 20px;
+}
+
+.select:hover > div {
+  background-color: var(--selected-background-color);
+}
+
+.select > div:after {
+  content: url('../images/UpDownArrows.svg');
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  width: 6px;
+}
+
+.select > div {
+  pointer-events: none;
+  background-color: var(--background-color-content);
+  position: absolute;
+  left: -2px;
+  top: 6px;
+  border-radius: 2px;
+  padding: 2px 4px;
+  padding-right: 16px;
+  white-space: nowrap;
+}
+
+.select > select {
+  border: none;
+  outline: none;
+  appearance: none;
+  background: none;
+  width: fit-content;
+  height: 29px;
+}

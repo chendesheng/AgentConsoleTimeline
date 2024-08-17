@@ -414,6 +414,15 @@ scaleToWaterfallMsPerPx scale =
         |> Maybe.withDefault 10.0
 
 
+dropDownList : { value : String, onInput : String -> msg } -> List { label : String, value : String } -> Html msg
+dropDownList options children =
+    label [ class "select" ]
+        [ div [] [ text options.value ]
+        , select [ onInput options.onInput ] <|
+            List.map (\item -> option [ value item.value ] [ text item.label ]) children
+        ]
+
+
 tableFilterView : Float -> TableFilter -> Html TableMsg
 tableFilterView waterfallMsPerPx filter =
     section [ class "table-filter" ]
@@ -426,25 +435,25 @@ tableFilterView waterfallMsPerPx filter =
             , placeholder "Filter"
             ]
             []
-        , label [ class "table-filter-select" ]
-            [ div [] [ text <| Har.entryKindLabel filter.kind ]
-            , select [ onInput (Har.stringToEntryKind >> SelectKind) ]
-                [ option [ value "" ] [ text "All" ]
-                , option [ value "0" ] [ text "Redux State" ]
-                , option [ value "1" ] [ text "Redux Action" ]
-                , option [ value "2" ] [ text "Log" ]
-                , option [ value "3" ] [ text "Http" ]
-                , option [ value "4" ] [ text "Others" ]
-                ]
+        , dropDownList
+            { value = Har.entryKindLabel filter.kind
+            , onInput = Har.stringToEntryKind >> SelectKind
+            }
+            [ { value = "", label = "All" }
+            , { value = "0", label = "Redux State" }
+            , { value = "1", label = "Redux Action" }
+            , { value = "2", label = "Log" }
+            , { value = "3", label = "Http" }
+            , { value = "4", label = "Others" }
             ]
-        , label [ class "table-filter-select" ]
-            [ div [] [ text <| waterfallMsPerPxToScale waterfallMsPerPx ]
-            , select [ onInput (scaleToWaterfallMsPerPx >> SetWaterfallMsPerPx) ]
-                [ option [ value "1x" ] [ text "1x" ]
-                , option [ value "2x" ] [ text "2x" ]
-                , option [ value "3x" ] [ text "3x" ]
-                , option [ value "4x" ] [ text "4x" ]
-                ]
+        , dropDownList
+            { value = waterfallMsPerPxToScale waterfallMsPerPx
+            , onInput = scaleToWaterfallMsPerPx >> SetWaterfallMsPerPx
+            }
+            [ { value = "1x", label = "1x" }
+            , { value = "2x", label = "2x" }
+            , { value = "3x", label = "3x" }
+            , { value = "4x", label = "4x" }
             ]
         ]
 

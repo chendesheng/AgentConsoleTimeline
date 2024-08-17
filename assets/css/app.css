@@ -43,7 +43,7 @@
 
 .table-filter-select:last-child {
     margin-left: auto;
-    margin-right: 20px;
+    margin-right: 8px;
 }
 
 .table-filter-select:hover > div {
