@@ -423,6 +423,26 @@ dropDownList options children =
         ]
 
 
+tableFilterOptions : List { value : String, label : String }
+tableFilterOptions =
+    [ { value = "", label = "All" }
+    , { value = "0", label = "Redux State" }
+    , { value = "1", label = "Redux Action" }
+    , { value = "2", label = "Log" }
+    , { value = "3", label = "Http" }
+    , { value = "4", label = "Others" }
+    ]
+
+
+waterfallScaleOptions : List { value : String, label : String }
+waterfallScaleOptions =
+    [ { value = "1x", label = "1x" }
+    , { value = "2x", label = "2x" }
+    , { value = "3x", label = "3x" }
+    , { value = "4x", label = "4x" }
+    ]
+
+
 tableFilterView : Float -> TableFilter -> Html TableMsg
 tableFilterView waterfallMsPerPx filter =
     section [ class "table-filter" ]
@@ -439,22 +459,12 @@ tableFilterView waterfallMsPerPx filter =
             { value = Har.entryKindLabel filter.kind
             , onInput = Har.stringToEntryKind >> SelectKind
             }
-            [ { value = "", label = "All" }
-            , { value = "0", label = "Redux State" }
-            , { value = "1", label = "Redux Action" }
-            , { value = "2", label = "Log" }
-            , { value = "3", label = "Http" }
-            , { value = "4", label = "Others" }
-            ]
+            tableFilterOptions
         , dropDownList
             { value = waterfallMsPerPxToScale waterfallMsPerPx
             , onInput = scaleToWaterfallMsPerPx >> SetWaterfallMsPerPx
             }
-            [ { value = "1x", label = "1x" }
-            , { value = "2x", label = "2x" }
-            , { value = "3x", label = "3x" }
-            , { value = "4x", label = "4x" }
-            ]
+            waterfallScaleOptions
         ]
 
 
