@@ -115,7 +115,7 @@ tableSelectNextEntry navKey table isUp =
 
             nextIndex =
                 if isUp then
-                    if index - 1 > 0 then
+                    if index > 0 then
                         index - 1
 
                     else
