@@ -123,29 +123,36 @@ export class JsonTree extends LitElement {
   private _showFilter = false;
 
   render() {
-    return html`<div class="actions">
-        ${this._showFilter
-          ? html`<input
-              type="search"
-              @input="${this.handleInput}"
-              @blur="${this.handleInputBlur}"
-              @keydown="${this.handleKeyDown}"
-              placeholder="Filter"
-            />`
-          : html`
-              <div style="display: contents">
-                <button tabindex="0" @click=${this.handleCopy}>Copy</button
-                >&nbsp;<button tabindex="0" @click=${this.handleCollapseAll}>
-                  Collapse</button
-                >&nbsp;<button tabindex="0" @click=${this.handleExpandAll}>
-                  Expand</button
-                >&nbsp;<button tabindex="0" @click=${this.handleShowFilter}>
-                  Filter
-                </button>
-              </div>
-            `}
-      </div>
-      <json-viewer .data=${JSON.parse(this.data)}></json-viewer>`;
+    try {
+      return html`<div class="actions">
+          ${this._showFilter
+            ? html`<input
+                type="search"
+                @input="${this.handleInput}"
+                @blur="${this.handleInputBlur}"
+                @keydown="${this.handleKeyDown}"
+                placeholder="Filter"
+              />`
+            : html`
+                <div style="display: contents">
+                  <button tabindex="0" @click=${this.handleCopy}>Copy</button
+                  >&nbsp;<button tabindex="0" @click=${this.handleCollapseAll}>
+                    Collapse</button
+                  >&nbsp;<button tabindex="0" @click=${this.handleExpandAll}>
+                    Expand</button
+                  >&nbsp;<button tabindex="0" @click=${this.handleShowFilter}>
+                    Filter
+                  </button>
+                </div>
+              `}
+        </div>
+        <json-viewer .data=${JSON.parse(this.data)}></json-viewer>`;
+    } catch (e: any) {
+      return html`<div style="margin-top: 10px;">
+        <div>${e.message}</div>
+        <div>${this.data}</div>
+      </div>`;
+    }
   }
 
   protected update(changedProperties: PropertyValues): void {
