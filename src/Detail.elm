@@ -13,6 +13,7 @@ import Json.Encode as Encode
 import List
 import String
 import Task
+import Time
 import TokenDecoder exposing (parseToken)
 import Utils
 
@@ -123,8 +124,47 @@ jsonViewer initialExpanded className json =
         []
 
 
-agentConsoleSnapshot : List Har.Entry -> String -> String -> Har.Entry -> Html DetailMsg
-agentConsoleSnapshot entries href currentId entry =
+agentConsoleSnapshotPlayer : List Har.Entry -> String -> Html DetailMsg
+agentConsoleSnapshotPlayer entries initialId =
+    let
+        stateEntries =
+            entries
+                |> Har.filterEntries "" (Just Har.ReduxState)
+                |> Har.sortEntries ( "time", Har.Asc )
+
+        firstEntryStartTime =
+            Har.getFirstEntryStartTime entries 0
+
+        lastEntryStartTime =
+            Utils.getLast stateEntries
+                |> Maybe.map .startedDateTime
+                |> Maybe.withDefault (Time.millisToPosix 0)
+    in
+    Html.node "agent-console-snapshot-player"
+        [ stateEntries
+            |> List.map
+                (\{ id, startedDateTime } ->
+                    Encode.object
+                        [ ( "time", Encode.int <| Utils.timespanMillis firstEntryStartTime startedDateTime )
+                        , ( "id", Encode.string id )
+                        ]
+                )
+            |> Encode.list (\a -> a)
+            |> Encode.encode 0
+            |> attribute "items"
+        , Attr.min <| String.fromInt 0
+        , Attr.max <| String.fromInt <| Utils.timespanMillis firstEntryStartTime lastEntryStartTime
+        , attribute "initialId" initialId
+        , on "timeChange" <|
+            Decode.map SetCurrentId <|
+                Decode.at [ "detail", "id" ] Decode.string
+        , on "scrollToCurrent" <| Decode.succeed ScrollToCurrentId
+        ]
+        []
+
+
+agentConsoleSnapshot : List Har.Entry -> String -> String -> String -> Html DetailMsg
+agentConsoleSnapshot entries href currentId entryId =
     let
         stateEntries =
             entries
@@ -142,57 +182,24 @@ agentConsoleSnapshot entries href currentId entry =
                 _ ->
                     True
 
-        firstEntryStartTime =
-            Har.getFirstEntryStartTime entries 0
-
-        lastEntry =
-            Utils.getLast stateEntries
-                |> Maybe.withDefault entry
-
-        lastEntryStartTime =
-            lastEntry.startedDateTime
-
-        entry1 =
+        { startedDateTime, state } =
             stateEntries
                 |> Utils.findItem (\e -> e.id == currentId)
-                |> Maybe.withDefault lastEntry
-
-        state =
-            Har.getReduxState entry1
-                |> Maybe.withDefault ""
+                |> Maybe.map
+                    (\e ->
+                        { startedDateTime = e.startedDateTime, state = Har.getReduxState e |> Maybe.withDefault "" }
+                    )
+                |> Maybe.withDefault { startedDateTime = Time.millisToPosix 0, state = "" }
     in
     div [ class "detail-body", class "agent-console-snapshot-container" ] <|
         Html.node "agent-console-snapshot"
             [ src <| href ++ "&snapshot=true"
             , attribute "state" state
-            , attribute "time" <| Iso8601.fromTime entry1.startedDateTime
+            , attribute "time" <| Iso8601.fromTime startedDateTime
             ]
             []
             :: (if showPlayback then
-                    [ Html.node "agent-console-snapshot-player"
-                        [ stateEntries
-                            |> List.map
-                                (\{ id, startedDateTime } ->
-                                    Encode.object
-                                        [ ( "time", Encode.int <| Utils.timespanMillis firstEntryStartTime startedDateTime )
-                                        , ( "id", Encode.string id )
-                                        ]
-                                )
-                            |> Encode.list (\a -> a)
-                            |> Encode.encode 0
-                            |> attribute "items"
-                        , Attr.min <| String.fromInt 0
-                        , Attr.max <| String.fromInt <| Utils.timespanMillis firstEntryStartTime lastEntryStartTime
-                        , attribute "initialTime" <|
-                            String.fromInt <|
-                                Utils.timespanMillis firstEntryStartTime entry.startedDateTime
-                        , on "timeChange" <|
-                            Decode.map SetCurrentId <|
-                                Decode.at [ "detail", "id" ] Decode.string
-                        , on "scrollToCurrent" <| Decode.succeed ScrollToCurrentId
-                        ]
-                        []
-                    ]
+                    [ lazy2 agentConsoleSnapshotPlayer entries entryId ]
 
                 else
                     []
@@ -321,7 +328,7 @@ detailView entries model href entry prevStateEntry =
             Preview ->
                 case entryKind of
                     ReduxState ->
-                        agentConsoleSnapshot entries href model.currentId entry
+                        agentConsoleSnapshot entries href model.currentId entry.id
 
                     ReduxAction ->
                         jsonViewer True "detail-body" <| Maybe.withDefault "" <| Har.getRequestBody entry

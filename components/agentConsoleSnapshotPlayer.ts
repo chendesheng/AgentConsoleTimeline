@@ -12,15 +12,22 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
   @property({ type: Number })
   max: number = 0;
 
-  @property({ type: Number })
-  initialTime: number = 0;
+  @property()
+  initialId: string = "";
 
   @state()
   private time: number = 0;
   @state()
+  private index: number = 0;
+  @state()
   private isPlaying: boolean = false;
   @state()
   private isSeeking: boolean = false;
+
+  private get isPlayingOrSeeking() {
+    return this.isPlaying || this.isSeeking;
+  }
+
   private timer: any;
 
   static styles = css`
@@ -31,6 +38,12 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
       height: 20px;
       gap: 4px;
       width: 100%;
+      --current-time-color: grey;
+    }
+
+    .container:focus {
+      outline: none;
+      --current-time-color: red;
     }
 
     .container > button {
@@ -41,6 +54,10 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
       border-radius: 2px;
       width: 24px;
       height: 18px;
+    }
+
+    .container > time {
+      width: 6ch;
     }
 
     .track {
@@ -63,7 +80,7 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
     }
 
     .track > div.currentTime {
-      background-color: red;
+      background-color: var(--current-time-color, red);
       z-index: 1;
     }
     .track > div.currentTime::before {
@@ -73,7 +90,7 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
       left: -2.5px;
       width: 6px;
       height: 0px;
-      border-top: 1px solid red;
+      border-top: 1px solid var(--current-time-color, red);
     }
     .track > div.currentTime::after {
       content: "";
@@ -82,7 +99,7 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
       left: -2.5px;
       width: 6px;
       height: 0px;
-      border-top: 1px solid red;
+      border-top: 1px solid var(--current-time-color, red);
     }
     button.reset,
     button.reveal {
@@ -90,66 +107,40 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
       line-height: 0px;
       padding: 0;
     }
-    .container > time {
-      width: 6ch;
-    }
   `;
 
   private handleClickReset() {
-    this.time = this.initialTime;
-    this.isPlaying = false;
-    clearInterval(this.timer);
-    this.fireTimeChange();
+    this.initById(this.initialId);
   }
 
   private handleClickScroll() {
     this.dispatchEvent(new CustomEvent("scrollToCurrent", { detail: {} }));
   }
 
-  private prevId?: string;
-  private fireTimeChange() {
-    if (this.prevId === this.getCurrentItem()?.id) {
-      return;
-    }
-
-    this.prevId = this.getCurrentItem()?.id;
-    // console.log("timeChange", this.prevId);
-    this.getCurrentItem()?.id;
+  private fireIndexChange() {
+    const id = this.items[this.index]!.id;
     this.dispatchEvent(
       new CustomEvent("timeChange", {
-        detail: { id: this.prevId }
+        detail: { id }
       })
     );
   }
 
-  private handleIsPlayingChanged() {
-    // console.log("handleIsPlayingChange", this.isPlaying, this.isSeeking);
-    if (this.isPlaying && !this.isSeeking) {
-      this.timer = setInterval(() => {
-        this.updateTime(this.time + 50);
-        this.fireTimeChange();
-      }, 50);
-    } else {
-      clearInterval(this.timer);
-      this.timer = null;
-    }
-  }
-
   private handleClickPlay() {
     this.isPlaying = !this.isPlaying;
-    this.handleIsPlayingChanged();
+  }
+
+  private updateIndex(index: number) {
+    // console.log("updateIndex", index);
+    const i = clamp(index, 0, this.items.length - 1);
+    if (i !== index) this.isPlaying = false;
+    this.index = i;
   }
 
   private updateTime(time: number) {
     time = clamp(time, +this.min, +this.max);
     if (this.time === time) return;
     this.time = time;
-    this.fireTimeChange();
-
-    if (this.time >= +this.max) {
-      this.isPlaying = false;
-      this.handleIsPlayingChanged();
-    }
   }
 
   private updateTimePx(e: MouseEvent) {
@@ -159,22 +150,17 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
     this.updateTime(+this.min + (+this.max - this.min) * pos);
   }
 
-  private getTimePosPercent(time: number) {
-    // console.log(time, this.min, this.max);
-    return `${((time - this.min) / (this.max - this.min)) * 100}%`;
-  }
-
   private handleMouseDownTrack(e: MouseEvent) {
     if (this.isSeeking) return;
 
     this.isSeeking = true;
-    this.handleIsPlayingChanged();
 
     this.updateTimePx(e);
   }
 
   private handleMouseMoveTrack(e: MouseEvent) {
     if (e.buttons === 1) {
+      if (!this.isSeeking) return;
       this.updateTimePx(e);
     }
   }
@@ -183,11 +169,38 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
     if (!this.isSeeking) return;
 
     this.isSeeking = false;
-    this.handleIsPlayingChanged();
+  }
+
+  private handleKeyDown(e: KeyboardEvent) {
+    if (e.key === " ") {
+      this.isPlaying = !this.isPlaying;
+    } else if (e.key === "s") {
+      this.handleClickScroll();
+    } else if (e.key === "r") {
+      this.handleClickReset();
+    }
+
+    if (!this.isPlayingOrSeeking) {
+      if (e.key === "ArrowLeft") {
+        this.updateIndex(this.index - 1);
+        // this.handleClickScroll();
+      } else if (e.key === "ArrowRight") {
+        this.updateIndex(this.index + 1);
+        // this.handleClickScroll();
+      }
+    }
+  }
+
+  private getTimePosPercent(time: number) {
+    return `${((time - this.min) / (this.max - this.min)) * 100}%`;
   }
 
   render() {
-    return html`<div class="container">
+    return html`<div
+      class="container"
+      @keydown=${this.handleKeyDown}
+      tabindex="0"
+    >
       <button @click=${this.handleClickPlay}>
         ${this.isPlaying && !this.isSeeking ? "❚❚" : "▶"}
       </button>
@@ -212,30 +225,62 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
     </div>`;
   }
 
-  connectedCallback(): void {
-    super.connectedCallback();
-    this.time = +this.initialTime;
+  private timeToIndex(time: number) {
+    const i = this.items.findIndex((item) => time < item.time);
+    // console.log("timeToIndex", time, i);
+    return clamp(i - 1, 0, this.items.length - 1);
+  }
+  private indexToTime(index: number) {
+    const time = this.items[index]?.time || this.items[0].time;
+    // console.log("indexToTime", index, time);
+    return time;
   }
 
-  private getCurrentItem() {
-    const i = this.items.findIndex((item) => this.time <= item.time);
+  private initById(entryId: string) {
+    // console.log("initById", entryId);
 
-    if (this.items[i].time === this.time) {
-      return this.items[i];
-    } else if (i > 0) {
-      return this.items[i - 1];
-    } else if (this.items.length > 0) {
-      return this.items[0];
+    this.isPlaying = false;
+    this.isSeeking = false;
+    this.index = this.items.findIndex(({ id }) => id === entryId);
+    this.time = this.indexToTime(this.index);
+  }
+
+  protected updated(changedProperties: PropertyValues): void {
+    // console.log("updated", changedProperties);
+
+    if (changedProperties.has("items")) {
+      this.items.sort((a, b) => a.time - b.time);
     }
-  }
 
-  protected update(changedProperties: PropertyValues): void {
-    super.update(changedProperties);
-    if (changedProperties.has("initialTime")) {
-      this.isPlaying = false;
-      this.isSeeking = false;
-      this.time = +this.initialTime;
-      this.handleIsPlayingChanged();
+    if (changedProperties.has("initialId")) {
+      this.initById(this.initialId);
+    }
+
+    if (
+      changedProperties.has("isPlaying") ||
+      changedProperties.has("isSeeking")
+    ) {
+      if (this.isPlaying && !this.isSeeking) {
+        this.timer = setInterval(() => {
+          this.updateTime(this.time + 50);
+        }, 50);
+      } else {
+        clearInterval(this.timer);
+        this.timer = null;
+      }
+    }
+
+    if (changedProperties.has("time")) {
+      if (this.isPlayingOrSeeking) {
+        this.index = this.timeToIndex(this.time);
+      }
+    }
+
+    if (changedProperties.has("index")) {
+      if (!this.isPlayingOrSeeking) {
+        this.time = this.indexToTime(this.index);
+      }
+      this.fireIndexChange();
     }
   }
 }
