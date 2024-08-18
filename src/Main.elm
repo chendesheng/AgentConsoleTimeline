@@ -119,7 +119,7 @@ initOpened log navKey =
       , log = log
       , dropFile = defaultDropFileModel
       }
-    , Task.perform GotTimezone Time.here
+    , Cmd.batch [ Task.perform GotTimezone Time.here, Utils.scrollIntoView "entry0" ]
     )
 
 
