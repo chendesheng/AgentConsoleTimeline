@@ -1,13 +1,10 @@
 import { html, css, LitElement, PropertyValues } from "lit";
-import { customElement, property, state } from "lit/decorators.js";
+import { customElement, property, query, state } from "lit/decorators.js";
 
 @customElement("agent-console-snapshot-player")
 export class AgentConsoleSnapshotPlayer extends LitElement {
   @property({ type: Array })
   items: { id: string; time: number }[] = [];
-
-  @property({ type: Number })
-  min: number = 0;
 
   @property({ type: Number })
   max: number = 0;
@@ -120,7 +117,7 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
   private fireIndexChange() {
     const id = this.items[this.index]!.id;
     this.dispatchEvent(
-      new CustomEvent("timeChange", {
+      new CustomEvent("change", {
         detail: { id }
       })
     );
@@ -138,37 +135,53 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
   }
 
   private updateTime(time: number) {
-    time = clamp(time, +this.min, +this.max);
+    time = clamp(time, 0, +this.max);
     if (this.time === time) return;
     this.time = time;
   }
 
-  private updateTimePx(e: MouseEvent) {
-    const rect = (e.target as HTMLElement).getBoundingClientRect();
-    const x = e.clientX - rect.left;
+  private updateTimePx(mouseX: number, rect: DOMRect) {
+    const x = mouseX - rect.left;
     const pos = x / rect.width;
-    this.updateTime(+this.min + (+this.max - this.min) * pos);
+    this.updateTime(+this.max * pos);
   }
 
   private handleMouseDownTrack(e: MouseEvent) {
     if (this.isSeeking) return;
 
     this.isSeeking = true;
+    const rect = (e.target as HTMLElement).getBoundingClientRect();
+    this.updateTimePx(e.clientX, rect);
 
-    this.updateTimePx(e);
-  }
+    const overlay = document.createElement("div");
+    overlay.style.cssText = `position: fixed; top: 0; left: 0; right: 0; bottom: 0;`;
+    document.body.append(overlay);
 
-  private handleMouseMoveTrack(e: MouseEvent) {
-    if (e.buttons === 1) {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (e.buttons === 0) {
+        this.isSeeking = false;
+        cancel();
+        return;
+      } else if (e.buttons === 1) {
+        if (!this.isSeeking) return;
+        this.updateTimePx(e.clientX, rect);
+      }
+    };
+
+    const handleMouseUp = (_e: MouseEvent) => {
       if (!this.isSeeking) return;
-      this.updateTimePx(e);
-    }
-  }
+      this.isSeeking = false;
+      cancel();
+    };
 
-  private handleMouseUpTrack(e: MouseEvent) {
-    if (!this.isSeeking) return;
+    const cancel = () => {
+      overlay.remove();
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
 
-    this.isSeeking = false;
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
   }
 
   private handleKeyDown(e: KeyboardEvent) {
@@ -192,7 +205,7 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
   }
 
   private getTimePosPercent(time: number) {
-    return `${((time - this.min) / (this.max - this.min)) * 100}%`;
+    return `${(time / this.max) * 100}%`;
   }
 
   render() {
@@ -206,12 +219,7 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
       </button>
       <button class="reset" @click=${this.handleClickReset}>↺</button>
       <button class="reveal" @click=${this.handleClickScroll}>⇱</button>
-      <div
-        class="track"
-        @mousedown=${this.handleMouseDownTrack}
-        @mousemove=${this.handleMouseMoveTrack}
-        @mouseup=${this.handleMouseUpTrack}
-      >
+      <div class="track" @mousedown=${this.handleMouseDownTrack}>
         <div
           class="currentTime"
           style="left: ${this.getTimePosPercent(this.time)}"

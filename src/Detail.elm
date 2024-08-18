@@ -152,10 +152,9 @@ agentConsoleSnapshotPlayer entries initialId =
             |> Encode.list (\a -> a)
             |> Encode.encode 0
             |> attribute "items"
-        , Attr.min <| String.fromInt 0
         , Attr.max <| String.fromInt <| Utils.timespanMillis firstEntryStartTime lastEntryStartTime
         , attribute "initialId" initialId
-        , on "timeChange" <|
+        , on "change" <|
             Decode.map SetCurrentId <|
                 Decode.at [ "detail", "id" ] Decode.string
         , on "scrollToCurrent" <| Decode.succeed ScrollToCurrentId
