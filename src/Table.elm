@@ -350,22 +350,21 @@ tableHeaderCellWaterfallScales msPerPx startTime firstEntryStartTime =
         alignOffset =
             100
                 - modBy 100
-                    (floor
-                        ((toFloat <| Time.posixToMillis firstEntryStartTime - Time.posixToMillis startTime)
+                    (floor <|
+                        (toFloat <| Utils.timespanMillis startTime firstEntryStartTime)
                             / msPerPx
-                        )
                     )
 
         toMillis : Int -> String
         toMillis i =
             let
                 px =
-                    alignOffset + i * 100
+                    toFloat <| alignOffset + i * 100
             in
-            Utils.floatToString 2
-                (((toFloat <| Time.posixToMillis firstEntryStartTime - Time.posixToMillis startTime) + toFloat px * msPerPx)
-                    / 1000
-                )
+            (String.fromInt <|
+                floor <|
+                    (((toFloat <| Utils.timespanMillis startTime firstEntryStartTime) + (px * msPerPx)) / 1000)
+            )
                 ++ "s"
     in
     div
@@ -484,10 +483,9 @@ tableBodyView msPerPx startTime columns guidelineLeft selected showDetail entrie
         guidelineAlignOffset =
             100
                 - modBy 100
-                    (floor
-                        ((toFloat <| Time.posixToMillis firstEntryStartTime - Time.posixToMillis startTime)
-                            / 10.0
-                        )
+                    (floor <|
+                        (toFloat <| Utils.timespanMillis startTime firstEntryStartTime)
+                            / msPerPx
                     )
     in
     Keyed.ol
@@ -495,7 +493,7 @@ tableBodyView msPerPx startTime columns guidelineLeft selected showDetail entrie
         , id "table-body"
         , tabindex 0
         , Utils.hijackOn "keydown" (D.map KeyDown keyDecoder)
-        , on "scroll" (D.map Scroll (D.field "target" (D.field "scrollTop" D.int)))
+        , on "scroll" <| D.map Scroll <| D.at [ "target", "scrollTop" ] D.int
         ]
     <|
         (if showDetail then
