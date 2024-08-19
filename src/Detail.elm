@@ -189,15 +189,24 @@ agentConsoleSnapshot entries href currentId entryId =
                         { startedDateTime = e.startedDateTime, state = Har.getReduxState e |> Maybe.withDefault "" }
                     )
                 |> Maybe.withDefault { startedDateTime = Time.millisToPosix 0, state = "" }
+
+        href2 =
+            if String.contains "isSuperAgent=true" href then
+                String.replace "agentconsole.html" "superagent.html" href
+
+            else
+                href
     in
     div [ class "detail-body", class "agent-console-snapshot-container" ] <|
-        Html.node "agent-console-snapshot"
-            [ src <| href ++ "&snapshot=true"
+        [ div [ class "agent-console-snapshot-href" ] [ text href2 ]
+        , Html.node "agent-console-snapshot"
+            [ src <| href2 ++ "&snapshot=true"
             , attribute "state" state
             , attribute "time" <| Iso8601.fromTime startedDateTime
             ]
             []
-            :: (if showPlayback then
+        ]
+            ++ (if showPlayback then
                     [ lazy2 agentConsoleSnapshotPlayer entries entryId ]
 
                 else

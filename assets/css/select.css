@@ -8,7 +8,7 @@
 
 .select:last-child {
   margin-left: auto;
-  margin-right: 20px;
+  margin-right: 10px;
 }
 
 .select:hover > div {

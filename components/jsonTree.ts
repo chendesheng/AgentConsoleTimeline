@@ -42,7 +42,6 @@ export class JsonTree extends LitElement {
       appearance: none;
       -webkit-appearance: none;
       all: unset;
-      color: var(--color-text-secondary);
       cursor: pointer;
       opacity: 0.5;
       user-select: none;
