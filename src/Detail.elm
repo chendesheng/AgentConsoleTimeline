@@ -297,6 +297,9 @@ resolveSelectedTab tab entry =
                 Headers ->
                     Preview
 
+                StateChanges ->
+                    Preview
+
                 _ ->
                     tab
 

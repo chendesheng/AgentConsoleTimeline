@@ -13,6 +13,8 @@ if (process.env.NODE_ENV === "production") {
   loader.config({ paths: { vs: "./vs" } });
 }
 
+const loaderPromise = loader.init();
+
 @customElement("monaco-editor")
 export class CodeEditor extends LitElement {
   @property()
@@ -20,7 +22,8 @@ export class CodeEditor extends LitElement {
   @property()
   language = "json";
 
-  private readonly containerRef = createRef<HTMLDivElement>();
+  @query(".container")
+  container!: HTMLDivElement;
 
   editor!: any;
   monaco!: any;
@@ -28,33 +31,35 @@ export class CodeEditor extends LitElement {
   static styles = css`
     .container {
       height: 100%;
+      display: none;
+    }
+    .container.loaded {
+      display: block;
     }
   `;
 
   render() {
-    return html`<div class="container" ${ref(this.containerRef)}></div>`;
+    return html`<div class="container"></div>`;
   }
 
-  protected firstUpdated(_changedProperties: PropertyValues): void {
-    loader.init().then((monaco) => {
-      this.monaco = monaco;
+  protected async firstUpdated(_changedProperties: PropertyValues) {
+    this.monaco = await loaderPromise;
+    this.monaco.editor.onDidCreateEditor((editor: any) => {
+      const addLoadedClass = () => {
+        if (!this.container.classList.contains("loaded")) {
+          this.container.classList.add("loaded");
+        }
+      };
+      cloneStyles(this.renderRoot, addLoadedClass);
+    });
 
-      // Copy over editor styles
-      const styles = document.querySelectorAll(
-        "link[rel='stylesheet'][data-name^='vs/']"
-      );
-      for (const style of styles) {
-        this.renderRoot.appendChild(style.cloneNode(true));
-      }
-
-      this.editor = this.monaco.editor.create(this.containerRef.value!, {
-        language: this.language,
-        automaticLayout: true,
-        theme: "vs-dark",
-        value: formatJson(this.content),
-        readOnly: true,
-        wordWrap: "on"
-      });
+    this.editor = this.monaco.editor.create(this.container, {
+      language: this.language,
+      automaticLayout: true,
+      theme: "vs-dark",
+      value: formatJson(this.content),
+      readOnly: true,
+      wordWrap: "on"
     });
   }
 
@@ -74,7 +79,8 @@ export class MonacoDiffEditor extends LitElement {
   @property()
   modified: string = "";
 
-  private readonly containerRef = createRef<HTMLDivElement>();
+  @query(".container")
+  container!: HTMLDivElement;
 
   editor: any;
   monaco: any;
@@ -82,40 +88,39 @@ export class MonacoDiffEditor extends LitElement {
   static styles = css`
     .container {
       height: 100%;
+      display: none;
+    }
+    .container.loaded {
+      display: block;
     }
   `;
 
   render() {
-    return html`<div class="container" ${ref(this.containerRef)}></div>`;
+    return html`<div class="container"></div>`;
   }
 
-  protected firstUpdated(_changedProperties: PropertyValues): void {
-    loader.init().then((monaco) => {
-      this.monaco = monaco;
-
-      // Copy over editor styles
-      const styles = document.querySelectorAll(
-        "link[rel='stylesheet'][data-name^='vs/']"
-      );
-      for (const style of styles) {
-        this.renderRoot.appendChild(style.cloneNode(true));
-      }
-
-      this.editor = this.monaco.editor.createDiffEditor(
-        this.containerRef.value!,
-        {
-          language: this.language,
-          originalEditable: false,
-          automaticLayout: true,
-          theme: "vs-dark",
-          readOnly: true,
-          wordWrap: "on",
-          diffWordWrap: true
+  protected async firstUpdated(_changedProperties: PropertyValues) {
+    this.monaco = await loaderPromise;
+    this.monaco.editor.onDidCreateDiffEditor((editor: any) => {
+      const addLoadedClass = () => {
+        if (!this.container.classList.contains("loaded")) {
+          this.container.classList.add("loaded");
         }
-      );
-
-      this.setModels();
+      };
+      cloneStyles(this.renderRoot, addLoadedClass);
     });
+
+    this.editor = this.monaco.editor.createDiffEditor(this.container, {
+      language: this.language,
+      originalEditable: false,
+      automaticLayout: true,
+      theme: "vs-dark",
+      readOnly: true,
+      wordWrap: "on",
+      diffWordWrap: true
+    });
+
+    this.setModels();
   }
 
   private setModels() {
@@ -136,7 +141,8 @@ export class MonacoDiffEditor extends LitElement {
 
   protected updated(changedProperties: PropertyValues): void {
     if (
-      (changedProperties.has("original") || changedProperties.has("modified")) &&
+      (changedProperties.has("original") ||
+        changedProperties.has("modified")) &&
       this.editor
     ) {
       this.setModels();
@@ -146,4 +152,16 @@ export class MonacoDiffEditor extends LitElement {
 
 function formatJson(s: string) {
   return JSON.stringify(JSON.parse(s), null, 4);
+}
+
+function cloneStyles(root: HTMLElement | DocumentFragment, onload: () => void) {
+  // Copy over editor styles
+  const styles = document.querySelectorAll(
+    "link[rel='stylesheet'][data-name^='vs/']"
+  );
+  for (const style of styles) {
+    const cloned = style.cloneNode(true) as HTMLLinkElement;
+    cloned.onload = onload;
+    root.prepend(cloned);
+  }
 }
