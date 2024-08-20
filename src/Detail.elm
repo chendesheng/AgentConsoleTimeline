@@ -198,15 +198,13 @@ agentConsoleSnapshot entries href currentId entryId =
                 href
     in
     div [ class "detail-body", class "agent-console-snapshot-container" ] <|
-        [ div [ class "agent-console-snapshot-href" ] [ text href2 ]
-        , Html.node "agent-console-snapshot"
+        Html.node "agent-console-snapshot"
             [ src <| href2 ++ "&snapshot=true"
             , attribute "state" state
             , attribute "time" <| Iso8601.fromTime startedDateTime
             ]
             []
-        ]
-            ++ (if showPlayback then
+            :: (if showPlayback then
                     [ lazy2 agentConsoleSnapshotPlayer entries entryId ]
 
                 else
