@@ -1,4 +1,4 @@
-port module Utils exposing (..)
+module Utils exposing (..)
 
 import Html exposing (Attribute)
 import Html.Attributes exposing (attribute)
@@ -6,9 +6,6 @@ import Html.Events exposing (preventDefaultOn)
 import Json.Decode as D
 import String exposing (fromFloat, fromInt)
 import Time
-
-
-port scrollIntoView : String -> Cmd msg
 
 
 compareInt : Int -> Int -> Order

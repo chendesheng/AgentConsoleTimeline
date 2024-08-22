@@ -1,6 +1,7 @@
 module Main exposing (main)
 
 import Browser
+import Browser.Dom as Dom
 import Browser.Navigation as Nav
 import Detail exposing (DetailModel, DetailMsg(..), detailViewContainer)
 import DropFile exposing (DropFileModel, DropFileMsg(..), defaultDropFileModel, dropFileView)
@@ -11,7 +12,7 @@ import Html.Events exposing (..)
 import Html.Lazy exposing (lazy2, lazy3, lazy4)
 import Initial exposing (InitialModel, InitialMsg, defaultInitialModel, initialView, updateInitial)
 import List
-import Table exposing (TableModel, TableMsg(..), defaultTableModel, tableFilterView, tableView, updateTable)
+import Table exposing (TableModel, TableMsg(..), defaultTableModel, subTable, tableFilterView, tableView, updateTable)
 import Task
 import Time
 import Utils
@@ -109,9 +110,13 @@ type OpenedMsg
     | DropFile DropFileMsg
 
 
-initOpened : Har.Log -> Nav.Key -> ( OpenedModel, Cmd OpenedMsg )
-initOpened log navKey =
-    ( { table = { defaultTableModel | entries = log.entries }
+initOpened : Har.Log -> Nav.Key -> Maybe Int -> ( OpenedModel, Cmd OpenedMsg )
+initOpened log navKey initialViewportHeight =
+    let
+        table =
+            { defaultTableModel | entries = log.entries, viewportHeight = Maybe.withDefault 0 initialViewportHeight }
+    in
+    ( { table = table
       , timezone = Nothing
       , detail = Detail.defaultDetailModel
       , clientInfo = Har.getClientInfo log.entries
@@ -119,7 +124,25 @@ initOpened log navKey =
       , log = log
       , dropFile = defaultDropFileModel
       }
-    , Cmd.batch [ Task.perform GotTimezone Time.here, Utils.scrollIntoView "entry0" ]
+    , Cmd.batch
+        [ Task.perform GotTimezone Time.here
+        , Task.attempt (\_ -> TableAction Table.NoOp) <| Dom.setViewportOf "table-body" 0 0
+        , case initialViewportHeight of
+            Nothing ->
+                Task.attempt
+                    (\res ->
+                        case res of
+                            Ok v ->
+                                TableAction <| SetViewportHeight <| round v.scene.height
+
+                            _ ->
+                                TableAction Table.NoOp
+                    )
+                    Dom.getViewport
+
+            _ ->
+                Cmd.none
+        ]
     )
 
 
@@ -135,7 +158,7 @@ update msg model =
                                 Just log ->
                                     let
                                         ( m, cmd2 ) =
-                                            initOpened log newModel.navKey
+                                            initOpened log newModel.navKey Nothing
                                     in
                                     ( Opened m, Cmd.map OpenedMsg cmd2 )
 
@@ -185,7 +208,7 @@ updateOpened msg model =
                     { detailModel
                         | show =
                             case action of
-                                Select _ True _ ->
+                                Select _ True _ _ ->
                                     True
 
                                 _ ->
@@ -231,16 +254,7 @@ updateOpened msg model =
                 ( table, cmd1 ) =
                     case detailMsg of
                         ScrollToCurrentId ->
-                            let
-                                ( table2, cmd2 ) =
-                                    updateTable model.navKey (Select model.detail.currentId False True) model.log model.table
-                            in
-                            ( table2
-                            , Cmd.batch
-                                [ cmd2
-                                , Utils.scrollIntoView <| "entry" ++ model.detail.currentId
-                                ]
-                            )
+                            updateTable model.navKey (Select model.detail.currentId False True True) model.log model.table
 
                         _ ->
                             ( model.table, Cmd.none )
@@ -253,7 +267,7 @@ updateOpened msg model =
             )
 
         DropFile (GotFileContent log) ->
-            initOpened log model.navKey
+            initOpened log model.navKey (Just model.table.viewportHeight)
 
         DropFile dropMsg ->
             let
@@ -268,8 +282,13 @@ updateOpened msg model =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.none
+subscriptions model =
+    case model of
+        Initial _ ->
+            Sub.none
+
+        Opened _ ->
+            Sub.map (OpenedMsg << TableAction) subTable
 
 
 
@@ -290,7 +309,7 @@ main =
                     Just fragment ->
                         case String.split "entry" fragment of
                             [ "", entryId ] ->
-                                OpenedMsg <| TableAction (Select entryId False False)
+                                OpenedMsg <| TableAction (Select entryId False False True)
 
                             _ ->
                                 NoOp

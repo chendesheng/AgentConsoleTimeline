@@ -158,6 +158,7 @@ ol.table-body {
     background-size: 100px;
     width: 20000px;
     pointer-events: none;
+    z-index: 1;
 }
 
 .waterfall-guideline {

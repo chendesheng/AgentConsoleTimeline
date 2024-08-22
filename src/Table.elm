@@ -1,6 +1,7 @@
-module Table exposing (TableModel, TableMsg(..), defaultTableModel, tableFilterView, tableView, updateTable)
+module Table exposing (TableModel, TableMsg(..), defaultTableModel, subTable, tableFilterView, tableView, updateTable, scrollToEntry)
 
 import Browser.Dom as Dom
+import Browser.Events exposing (onResize)
 import Browser.Navigation as Nav
 import Dict exposing (Dict)
 import Har exposing (EntryKind(..), SortBy, SortOrder(..))
@@ -68,6 +69,7 @@ type alias TableModel =
     , filter : TableFilter
     , scrollTop : Int
     , waterfallMsPerPx : Float
+    , viewportHeight : Int
     }
 
 
@@ -101,6 +103,7 @@ defaultTableModel =
         }
     , scrollTop = 0
     , waterfallMsPerPx = 10.0
+    , viewportHeight = 0
     }
 
 
@@ -140,7 +143,7 @@ tableSelectNextEntry navKey table isUp =
 
           else
             Cmd.batch
-                [ Utils.scrollIntoView ("entry" ++ newSelected)
+                [ scrollToEntry table newSelected
                 , Nav.replaceUrl navKey ("#entry" ++ newSelected)
                 ]
         )
@@ -153,26 +156,28 @@ tableSelectNextEntry navKey table isUp =
 -- VIEW
 
 
-entryView : Float -> List TableColumn -> String -> Time.Posix -> Har.Entry -> Html TableMsg
-entryView msPerPx columns selected startTime entry =
+entryView : Float -> List TableColumn -> String -> Time.Posix -> List (Attribute TableMsg) -> Har.Entry -> Html TableMsg
+entryView msPerPx columns selected startTime attrs entry =
     div
-        [ class
-            (if selected == entry.id then
-                "selected"
+        (attrs
+            ++ [ class
+                    (if selected == entry.id then
+                        "selected"
 
-             else
-                ""
-            )
-        , id <| "entry" ++ entry.id
-        , class "table-body-row"
-        , on "click"
-            (D.at [ "target", "className" ] D.string
-                |> D.map
-                    (\className ->
-                        Select entry.id (String.contains "table-body-cell-name" className) True
+                     else
+                        ""
                     )
-            )
-        ]
+               , id <| "entry" ++ entry.id
+               , class "table-body-row"
+               , on "click"
+                    (D.at [ "target", "className" ] D.string
+                        |> D.map
+                            (\className ->
+                                Select entry.id (String.contains "table-body-cell-name" className) True False
+                            )
+                    )
+               ]
+        )
         (List.map (\column -> tableCellView msPerPx column startTime entry) columns)
 
 
@@ -467,8 +472,52 @@ tableFilterView waterfallMsPerPx filter =
         ]
 
 
-tableBodyView : Float -> Time.Posix -> List TableColumn -> Int -> String -> Bool -> List Har.Entry -> Int -> Html TableMsg
-tableBodyView msPerPx startTime columns guidelineLeft selected showDetail entries scrollTop =
+virtualizedList :
+    { scrollTop : Int
+    , viewportHeight : Int
+    , itemHeight : Int
+    , items : List item
+    , renderItem : List (Attribute msg) -> item -> ( String, Html msg )
+    }
+    -> Html msg
+virtualizedList { scrollTop, viewportHeight, itemHeight, items, renderItem } =
+    let
+        overhead = 5
+        
+        totalCount = List.length items
+
+        totalHeight =
+             totalCount * itemHeight
+
+        fromIndex =
+            Basics.max 0 <| floor <| toFloat scrollTop / toFloat itemHeight - overhead
+
+        visibleItemsCount =
+            Basics.min totalCount <| ceiling <| toFloat viewportHeight / toFloat itemHeight + 2 * overhead
+
+        visibleItems =
+            items |> List.drop fromIndex |> List.take visibleItemsCount
+    in
+    Keyed.ol
+        [ style "height" <| intPx totalHeight
+        , style "padding" "0"
+        , style "margin" "0"
+        , style "position" "relative"
+        ]
+        (List.indexedMap
+            (\i item ->
+                renderItem
+                    [ style "top" <| intPx ((fromIndex + i) * itemHeight)
+                    , style "position" "absolute"
+                    ]
+                    item
+            )
+            visibleItems
+        )
+
+
+tableBodyView : Float -> Time.Posix -> List TableColumn -> Int -> String -> Bool -> List Har.Entry -> Int -> Int -> Html TableMsg
+tableBodyView msPerPx startTime columns guidelineLeft selected showDetail entries scrollTop viewportHeight =
     let
         visibleColumns =
             if showDetail then
@@ -488,7 +537,7 @@ tableBodyView msPerPx startTime columns guidelineLeft selected showDetail entrie
                             / msPerPx
                     )
     in
-    Keyed.ol
+    div
         [ class "table-body"
         , id "table-body"
         , tabindex 0
@@ -496,12 +545,11 @@ tableBodyView msPerPx startTime columns guidelineLeft selected showDetail entrie
         , on "scroll" <| D.map Scroll <| D.at [ "target", "scrollTop" ] D.int
         ]
     <|
-        (if showDetail then
-            ( "waterfall", text "" )
+        [ if showDetail then
+            text ""
 
-         else
-            ( "waterfall"
-            , div
+          else
+            div
                 [ class "waterfall-guideline-container"
                 , style "left" (intPx (guidelineLeft + guidelineAlignOffset))
                 ]
@@ -511,13 +559,14 @@ tableBodyView msPerPx startTime columns guidelineLeft selected showDetail entrie
                     ]
                     []
                 ]
-            )
-        )
-            :: List.map
-                (\entry ->
-                    ( entry.id, entryView msPerPx visibleColumns selected firstEntryStartTime entry )
-                )
-                entries
+        , virtualizedList
+            { scrollTop = scrollTop
+            , viewportHeight = viewportHeight
+            , itemHeight = 20
+            , items = entries
+            , renderItem = \attrs entry -> ( entry.id, entryView msPerPx visibleColumns selected firstEntryStartTime attrs entry )
+            }
+        ]
 
 
 tableHeadersView : Float -> Time.Posix -> Time.Posix -> SortBy -> List TableColumn -> Bool -> Html TableMsg
@@ -544,7 +593,7 @@ resolveSelected selected entries =
 
 
 tableView : Time.Posix -> TableModel -> Bool -> Html TableMsg
-tableView startTime { entries, sortBy, columns, columnWidths, selected, scrollTop, waterfallMsPerPx } showDetail =
+tableView startTime { entries, sortBy, columns, columnWidths, selected, scrollTop, waterfallMsPerPx, viewportHeight } showDetail =
     let
         selected2 =
             resolveSelected selected entries
@@ -588,7 +637,7 @@ tableView startTime { entries, sortBy, columns, columnWidths, selected, scrollTo
             )
         ]
         [ lazy6 tableHeadersView waterfallMsPerPx startTime firstEntryStartTime sortBy columns showDetail2
-        , lazy8 tableBodyView waterfallMsPerPx startTime columns guidelineLeft selected2 showDetail2 entries scrollTop
+        , tableBodyView waterfallMsPerPx startTime columns guidelineLeft selected2 showDetail2 entries scrollTop viewportHeight
         ]
 
 
@@ -621,12 +670,14 @@ type TableMsg
     | FlipSort String
     | ResizeColumn String Int
       -- id, True means show detail, False means keep detail shown/hidden as is, is pushUrl
-    | Select String Bool Bool
+    | Select String Bool Bool Bool
     | KeyDown KeyCode
     | Scroll Int
+    | ScrollToEntry String
     | InputFilter String
     | SelectKind (Maybe EntryKind)
     | SetWaterfallMsPerPx Float
+    | SetViewportHeight Int
 
 
 updateTable : Nav.Key -> TableMsg -> Har.Log -> TableModel -> ( TableModel, Cmd TableMsg )
@@ -652,17 +703,24 @@ updateTable navKey action log table =
             in
             ( { table | sortBy = newSortBy, entries = newEntries }, Cmd.none )
 
-        Select id _ isPushUrl ->
+        Select id _ isPushUrl scrollTo ->
             if table.selected == id then
                 ( table, Cmd.none )
 
             else
                 ( { table | selected = id }
-                , if isPushUrl then
-                    Nav.pushUrl navKey ("#entry" ++ id)
+                , Cmd.batch
+                    [ if isPushUrl then
+                        Nav.pushUrl navKey ("#entry" ++ id)
 
-                  else
-                    Cmd.none
+                      else
+                        Cmd.none
+                    , if scrollTo then
+                        scrollToEntry table id
+
+                      else
+                        Cmd.none
+                    ]
                 )
 
         KeyDown key ->
@@ -702,7 +760,7 @@ updateTable navKey action log table =
             in
             ( { table | entries = newEntries, filter = { filter | match = match } }
             , if match == "" && table.selected /= "" then
-                Utils.scrollIntoView ("entry" ++ table.selected)
+                scrollToEntry table table.selected
 
               else
                 Cmd.none
@@ -722,7 +780,7 @@ updateTable navKey action log table =
             ( { table | entries = newEntries, filter = { filter | kind = kind } }
             , if table.selected /= "" then
                 Cmd.batch
-                    [ Utils.scrollIntoView ("entry" ++ table.selected)
+                    [ scrollToEntry table table.selected
                     , Task.attempt (\_ -> NoOp) <| Dom.focus "table-body"
                     ]
 
@@ -730,5 +788,46 @@ updateTable navKey action log table =
                 Cmd.none
             )
 
+        ScrollToEntry id ->
+            ( table, scrollToEntry table id )
+
         SetWaterfallMsPerPx msPerPx ->
             ( { table | waterfallMsPerPx = msPerPx }, Cmd.none )
+
+        SetViewportHeight height ->
+            ( { table | viewportHeight = height }, Cmd.none )
+
+
+scrollToEntry : TableModel -> String -> Cmd TableMsg
+scrollToEntry table id =
+    case Utils.indexOf (\entry -> entry.id == id) table.entries of
+        Just i ->
+            let
+                y =
+                    i * 20
+            in
+            if table.scrollTop <= y && y < table.scrollTop + table.viewportHeight then
+                Cmd.none
+
+            else
+                Task.attempt (\_ -> NoOp) <|
+                    Dom.setViewportOf "table-body"
+                        0
+                        (if y < table.scrollTop then
+                            toFloat y
+
+                         else
+                            toFloat (y - table.viewportHeight + 20)
+                        )
+
+        _ ->
+            Cmd.none
+
+
+
+-- SUBS
+
+
+subTable : Sub TableMsg
+subTable =
+    onResize (\_ h -> SetViewportHeight (h - 60))
