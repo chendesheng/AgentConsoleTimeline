@@ -1,0 +1,16 @@
+{
+  "name": "Agent Console Har Viewer",
+  "short_name": "ACHV",
+  "description": "",
+  "icons": [
+    {
+      "src": "./assets/logo/logo.png",
+      "sizes": "1024x1024",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "index.html",
+  "background_color": "#ffffff",
+  "theme_color": "#322730",
+  "display": "standalone"
+}
