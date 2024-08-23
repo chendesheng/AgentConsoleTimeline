@@ -299,7 +299,22 @@ main : Program () Model Msg
 main =
     Browser.application
         { init = \_ _ key -> init key
-        , view = \model -> { title = "", body = [ view model ] }
+        , view =
+            \model ->
+                { title =
+                    case model of
+                        Initial _ ->
+                            "ACD"
+
+                        Opened { table } ->
+                            case Table.getSelectedEntry table of
+                                Just entry ->
+                                    "ACD | " ++ Har.harEntryName entry
+
+                                _ ->
+                                    "ACD"
+                , body = [ view model ]
+                }
         , update = update
         , subscriptions = subscriptions
         , onUrlRequest = \_ -> NoOp

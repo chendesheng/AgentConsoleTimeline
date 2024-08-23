@@ -1,4 +1,4 @@
-module Table exposing (TableModel, TableMsg(..), defaultTableModel, subTable, tableFilterView, tableView, updateTable, scrollToEntry)
+module Table exposing (TableModel, TableMsg(..), defaultTableModel, getSelectedEntry, scrollToEntry, subTable, tableFilterView, tableView, updateTable)
 
 import Browser.Dom as Dom
 import Browser.Events exposing (onResize)
@@ -152,6 +152,11 @@ tableSelectNextEntry navKey table isUp =
         ( table, Cmd.none )
 
 
+getSelectedEntry : TableModel -> Maybe Har.Entry
+getSelectedEntry { selected, entries } =
+    Utils.findItem (\entry -> entry.id == selected) entries
+
+
 
 -- VIEW
 
@@ -209,27 +214,7 @@ tableCellContentView msPerPx column startTime entry =
                 , style "pointer-events" "none"
                 ]
                 [ getEntryIcon entry
-                , text <|
-                    let
-                        slashIndexes =
-                            List.reverse <| String.indexes "/" entry.request.url
-                    in
-                    case Har.getEntryKind entry of
-                        ReduxAction ->
-                            case slashIndexes of
-                                _ :: j :: _ ->
-                                    String.dropLeft (j + 1) entry.request.url
-
-                                _ ->
-                                    entry.request.url
-
-                        _ ->
-                            case slashIndexes of
-                                i :: _ ->
-                                    String.dropLeft (i + 1) entry.request.url
-
-                                _ ->
-                                    entry.request.url
+                , text <| Har.harEntryName entry
                 ]
 
         "status" ->
@@ -482,12 +467,14 @@ virtualizedList :
     -> Html msg
 virtualizedList { scrollTop, viewportHeight, itemHeight, items, renderItem } =
     let
-        overhead = 5
-        
-        totalCount = List.length items
+        overhead =
+            5
+
+        totalCount =
+            List.length items
 
         totalHeight =
-             totalCount * itemHeight
+            totalCount * itemHeight
 
         fromIndex =
             Basics.max 0 <| floor <| toFloat scrollTop / toFloat itemHeight - overhead
@@ -498,22 +485,20 @@ virtualizedList { scrollTop, viewportHeight, itemHeight, items, renderItem } =
         visibleItems =
             items |> List.drop fromIndex |> List.take visibleItemsCount
     in
-    Keyed.ol
+    div
         [ style "height" <| intPx totalHeight
-        , style "padding" "0"
-        , style "margin" "0"
         , style "position" "relative"
         ]
-        (List.indexedMap
-            (\i item ->
-                renderItem
-                    [ style "top" <| intPx ((fromIndex + i) * itemHeight)
-                    , style "position" "absolute"
-                    ]
-                    item
-            )
-            visibleItems
-        )
+        [ Keyed.ol
+            [ style "top" <| intPx <| fromIndex * itemHeight
+            , style "position" "absolute"
+            , style "width" "100%"
+            , style "padding" "0"
+            , style "margin" "0"
+            ]
+          <|
+            List.map (renderItem []) visibleItems
+        ]
 
 
 tableBodyView : Float -> Time.Posix -> List TableColumn -> Int -> String -> Bool -> List Har.Entry -> Int -> Int -> Html TableMsg
@@ -545,7 +530,14 @@ tableBodyView msPerPx startTime columns guidelineLeft selected showDetail entrie
         , on "scroll" <| D.map Scroll <| D.at [ "target", "scrollTop" ] D.int
         ]
     <|
-        [ if showDetail then
+        [ virtualizedList
+            { scrollTop = scrollTop
+            , viewportHeight = viewportHeight
+            , itemHeight = 20
+            , items = entries
+            , renderItem = \attrs entry -> ( entry.id, entryView msPerPx visibleColumns selected firstEntryStartTime attrs entry )
+            }
+        , if showDetail then
             text ""
 
           else
@@ -559,13 +551,6 @@ tableBodyView msPerPx startTime columns guidelineLeft selected showDetail entrie
                     ]
                     []
                 ]
-        , virtualizedList
-            { scrollTop = scrollTop
-            , viewportHeight = viewportHeight
-            , itemHeight = 20
-            , items = entries
-            , renderItem = \attrs entry -> ( entry.id, entryView msPerPx visibleColumns selected firstEntryStartTime attrs entry )
-            }
         ]
 
 

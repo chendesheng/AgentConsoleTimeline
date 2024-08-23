@@ -514,3 +514,27 @@ findEntryAndPrevStateEntry entries id =
 
         _ ->
             ( Nothing, Nothing )
+
+
+harEntryName : Entry -> String
+harEntryName entry =
+    let
+        slashIndexes =
+            List.reverse <| String.indexes "/" entry.request.url
+    in
+    case getEntryKind entry of
+        ReduxAction ->
+            case slashIndexes of
+                _ :: j :: _ ->
+                    String.dropLeft (j + 1) entry.request.url
+
+                _ ->
+                    entry.request.url
+
+        _ ->
+            case slashIndexes of
+                i :: _ ->
+                    String.dropLeft (i + 1) entry.request.url
+
+                _ ->
+                    entry.request.url

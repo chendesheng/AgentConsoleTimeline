@@ -1,6 +1,6 @@
 {
-  "name": "Agent Console Har Viewer",
-  "short_name": "ACHV",
+  "name": "Agent Console Debugger",
+  "short_name": "ACD",
   "description": "",
   "icons": [
     {
@@ -11,6 +11,6 @@
   ],
   "start_url": "index.html",
   "background_color": "#ffffff",
-  "theme_color": "#322730",
+  "theme_color": "#363636",
   "display": "standalone"
 }
