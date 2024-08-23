@@ -538,3 +538,22 @@ harEntryName entry =
 
                 _ ->
                     entry.request.url
+
+
+getNextStateEntryIndex : List Entry -> Int -> Int
+getNextStateEntryIndex entries index =
+    entries
+        |> List.drop (index + 1)
+        |> Utils.indexOf (\entry -> isReduxStateEntry entry)
+        |> Maybe.map (\d -> index + 1 + d)
+        |> Maybe.withDefault index
+
+
+getPrevStateEntryIndex : List Entry -> Int -> Int
+getPrevStateEntryIndex entries index =
+    entries
+        |> List.take index
+        |> List.reverse
+        |> Utils.indexOf (\entry -> isReduxStateEntry entry)
+        |> Maybe.map (\d -> index - d - 1)
+        |> Maybe.withDefault index

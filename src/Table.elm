@@ -107,8 +107,8 @@ defaultTableModel =
     }
 
 
-tableSelectNextEntry : Nav.Key -> TableModel -> Bool -> ( TableModel, Cmd TableMsg )
-tableSelectNextEntry navKey table isUp =
+tableSelectNextEntry : Nav.Key -> TableModel -> Shortcut -> ( TableModel, Cmd TableMsg )
+tableSelectNextEntry navKey table shortcut =
     if table.selected /= "" then
         let
             index =
@@ -117,18 +117,45 @@ tableSelectNextEntry navKey table isUp =
                     |> Maybe.withDefault -1
 
             nextIndex =
-                if isUp then
-                    if index > 0 then
-                        index - 1
+                case shortcut of
+                    ArrowUp ->
+                        if index > 0 then
+                            index - 1
 
-                    else
+                        else
+                            List.length table.entries - 1
+
+                    ArrowDown ->
+                        if index + 1 < List.length table.entries then
+                            index + 1
+
+                        else
+                            0
+
+                    ArrowLeft ->
+                        Har.getPrevStateEntryIndex table.entries index
+
+                    ArrowRight ->
+                        Har.getNextStateEntryIndex table.entries index
+
+                    NextPage ->
+                        Basics.min (List.length table.entries - 1) <|
+                            index
+                                + ceiling (toFloat table.viewportHeight / 40)
+
+                    PrevPage ->
+                        Basics.max 0 <|
+                            index
+                                - ceiling (toFloat table.viewportHeight / 40)
+
+                    Bottom ->
                         List.length table.entries - 1
 
-                else if index + 1 < List.length table.entries then
-                    index + 1
+                    Top ->
+                        0
 
-                else
-                    0
+                    _ ->
+                        index
 
             newSelected =
                 table.entries
@@ -145,6 +172,18 @@ tableSelectNextEntry navKey table isUp =
             Cmd.batch
                 [ scrollToEntry table newSelected
                 , Nav.replaceUrl navKey ("#entry" ++ newSelected)
+                , case shortcut of
+                    Search ->
+                        Task.attempt (\_ -> NoOp) <| Dom.focus "table-filter-input"
+
+                    Back ->
+                        Nav.back navKey 1
+
+                    Forward ->
+                        Nav.forward navKey 1
+
+                    _ ->
+                        Cmd.none
                 ]
         )
 
@@ -373,21 +412,69 @@ tableHeaderCellWaterfallScales msPerPx startTime firstEntryStartTime =
         )
 
 
-keyDecoder : D.Decoder KeyCode
+keyDecoder : D.Decoder ( Shortcut, Bool )
 keyDecoder =
     let
-        toKey key =
-            case key of
-                "ArrowUp" ->
+        toShortcut key ctrlKey =
+            case ( key, ctrlKey ) of
+                ( "ArrowUp", False ) ->
                     ArrowUp
 
-                "ArrowDown" ->
+                ( "ArrowDown", False ) ->
                     ArrowDown
+
+                ( "k", False ) ->
+                    ArrowUp
+
+                ( "j", False ) ->
+                    ArrowDown
+
+                ( "h", False ) ->
+                    ArrowLeft
+
+                ( "l", False ) ->
+                    ArrowRight
+
+                ( "ArrowLeft", False ) ->
+                    ArrowLeft
+
+                ( "ArrowRight", False ) ->
+                    ArrowRight
+
+                ( "d", True ) ->
+                    NextPage
+
+                ( "u", True ) ->
+                    PrevPage
+
+                ( "G", False ) ->
+                    Bottom
+
+                ( "g", False ) ->
+                    Top
+
+                ( "o", True ) ->
+                    Back
+
+                ( "i", True ) ->
+                    Forward
+
+                ( "/", False ) ->
+                    Search
 
                 _ ->
                     NoKey
     in
-    D.map toKey <| D.field "key" D.string
+    D.map2
+        (\key ctrlKey ->
+            let
+                shortcut =
+                    toShortcut key ctrlKey
+            in
+            ( shortcut, shortcut /= NoKey )
+        )
+        (D.field "key" D.string)
+        (D.field "ctrlKey" D.bool)
 
 
 waterfallMsPerPxToScale : Float -> String
@@ -423,6 +510,20 @@ tableFilterOptions =
     ]
 
 
+onEsc : TableMsg -> Attribute TableMsg
+onEsc msg =
+    preventDefaultOn "keydown" <|
+        D.map
+            (\key ->
+                if key == "Escape" then
+                    ( msg, True )
+
+                else
+                    ( NoOp, False )
+            )
+            (D.field "key" D.string)
+
+
 waterfallScaleOptions : List { value : String, label : String }
 waterfallScaleOptions =
     [ { value = "1x", label = "1x" }
@@ -437,11 +538,13 @@ tableFilterView waterfallMsPerPx filter =
     section [ class "table-filter" ]
         [ input
             [ class "table-filter-input"
+            , id "table-filter-input"
             , value filter.match
             , onInput InputFilter
             , type_ "search"
             , autofocus True
             , placeholder "Filter"
+            , onEsc SelectTable
             ]
             []
         , dropDownList
@@ -526,7 +629,7 @@ tableBodyView msPerPx startTime columns guidelineLeft selected showDetail entrie
         [ class "table-body"
         , id "table-body"
         , tabindex 0
-        , Utils.hijackOn "keydown" (D.map KeyDown keyDecoder)
+        , preventDefaultOn "keydown" (D.map (Tuple.mapFirst KeyDown) keyDecoder)
         , on "scroll" <| D.map Scroll <| D.at [ "target", "scrollTop" ] D.int
         ]
     <|
@@ -644,9 +747,18 @@ totalWidth columnWidths =
 -- UPDATE
 
 
-type KeyCode
+type Shortcut
     = ArrowUp
     | ArrowDown
+    | NextPage
+    | PrevPage
+    | Bottom
+    | Top
+    | Back
+    | Forward
+    | ArrowLeft
+    | ArrowRight
+    | Search
     | NoKey
 
 
@@ -656,13 +768,14 @@ type TableMsg
     | ResizeColumn String Int
       -- id, True means show detail, False means keep detail shown/hidden as is, is pushUrl
     | Select String Bool Bool Bool
-    | KeyDown KeyCode
+    | KeyDown Shortcut
     | Scroll Int
     | ScrollToEntry String
     | InputFilter String
     | SelectKind (Maybe EntryKind)
     | SetWaterfallMsPerPx Float
     | SetViewportHeight Int
+    | SelectTable
 
 
 updateTable : Nav.Key -> TableMsg -> Har.Log -> TableModel -> ( TableModel, Cmd TableMsg )
@@ -713,8 +826,8 @@ updateTable navKey action log table =
                 NoKey ->
                     ( table, Cmd.none )
 
-                arrow ->
-                    tableSelectNextEntry navKey table (arrow == ArrowUp)
+                key_ ->
+                    tableSelectNextEntry navKey table key_
 
         ResizeColumn column dx ->
             let
@@ -781,6 +894,9 @@ updateTable navKey action log table =
 
         SetViewportHeight height ->
             ( { table | viewportHeight = height }, Cmd.none )
+
+        SelectTable ->
+            ( table, Task.attempt (\_ -> NoOp) <| Dom.focus "table-body" )
 
 
 scrollToEntry : TableModel -> String -> Cmd TableMsg

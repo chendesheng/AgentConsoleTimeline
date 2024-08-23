@@ -133,7 +133,7 @@ initOpened log navKey initialViewportHeight =
                     (\res ->
                         case res of
                             Ok v ->
-                                TableAction <| SetViewportHeight <| round v.scene.height
+                                TableAction <| SetViewportHeight <| round v.scene.height - 60
 
                             _ ->
                                 TableAction Table.NoOp

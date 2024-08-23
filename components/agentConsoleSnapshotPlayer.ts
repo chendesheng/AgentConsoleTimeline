@@ -194,10 +194,10 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
     }
 
     if (!this.isPlayingOrSeeking) {
-      if (e.key === "ArrowLeft") {
+      if (e.key === "ArrowLeft" || e.key === "h") {
         this.updateIndex(this.index - 1);
         // this.handleClickScroll();
-      } else if (e.key === "ArrowRight") {
+      } else if (e.key === "ArrowRight" || e.key === "l") {
         this.updateIndex(this.index + 1);
         // this.handleClickScroll();
       }
