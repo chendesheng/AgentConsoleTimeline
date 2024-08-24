@@ -70,6 +70,7 @@ type alias TableModel =
     , scrollTop : Int
     , waterfallMsPerPx : Float
     , viewportHeight : Int
+    , pendingKeys : List String
     }
 
 
@@ -104,6 +105,7 @@ defaultTableModel =
     , scrollTop = 0
     , waterfallMsPerPx = 10.0
     , viewportHeight = 0
+    , pendingKeys = []
     }
 
 
@@ -164,7 +166,7 @@ tableSelectNextEntry navKey table shortcut =
                     |> Maybe.map .id
                     |> Maybe.withDefault ""
         in
-        ( { table | selected = newSelected }
+        ( { table | selected = newSelected, pendingKeys = [] }
         , if newSelected == "" then
             Cmd.none
 
@@ -174,13 +176,16 @@ tableSelectNextEntry navKey table shortcut =
                 , Nav.replaceUrl navKey ("#entry" ++ newSelected)
                 , case shortcut of
                     Search ->
-                        Task.attempt (\_ -> NoOp) <| Dom.focus "table-filter-input"
+                        focus "table-filter-input"
 
                     Back ->
                         Nav.back navKey 1
 
                     Forward ->
                         Nav.forward navKey 1
+
+                    Center ->
+                        scrollToCenter table newSelected
 
                     _ ->
                         Cmd.none
@@ -412,55 +417,67 @@ tableHeaderCellWaterfallScales msPerPx startTime firstEntryStartTime =
         )
 
 
-keyDecoder : D.Decoder ( Shortcut, Bool )
-keyDecoder =
+keyDecoder : List String -> D.Decoder ( Shortcut, Bool )
+keyDecoder pendingKeys =
     let
         toShortcut key ctrlKey =
-            case ( key, ctrlKey ) of
-                ( "ArrowUp", False ) ->
+            case ( pendingKeys, key, ctrlKey ) of
+                ( _, "ArrowUp", False ) ->
                     ArrowUp
 
-                ( "ArrowDown", False ) ->
+                ( _, "ArrowDown", False ) ->
                     ArrowDown
 
-                ( "k", False ) ->
+                ( _, "k", False ) ->
                     ArrowUp
 
-                ( "j", False ) ->
+                ( _, "j", False ) ->
                     ArrowDown
 
-                ( "h", False ) ->
+                ( _, "h", False ) ->
                     ArrowLeft
 
-                ( "l", False ) ->
+                ( _, "l", False ) ->
                     ArrowRight
 
-                ( "ArrowLeft", False ) ->
+                ( _, "ArrowLeft", False ) ->
                     ArrowLeft
 
-                ( "ArrowRight", False ) ->
+                ( _, "ArrowRight", False ) ->
                     ArrowRight
 
-                ( "d", True ) ->
+                ( _, "d", True ) ->
                     NextPage
 
-                ( "u", True ) ->
+                ( _, "u", True ) ->
                     PrevPage
 
-                ( "G", False ) ->
+                ( _, "G", False ) ->
                     Bottom
 
-                ( "g", False ) ->
+                ( [ "g" ], "g", False ) ->
                     Top
 
-                ( "o", True ) ->
+                ( _, "o", True ) ->
                     Back
 
-                ( "i", True ) ->
+                ( _, "i", True ) ->
                     Forward
 
-                ( "/", False ) ->
+                ( _, "/", False ) ->
                     Search
+
+                ( [], "g", False ) ->
+                    AppendKey "g"
+
+                ( [], "z", False ) ->
+                    AppendKey "z"
+
+                ( [ "z" ], "z", False ) ->
+                    Center
+
+                ( _, "Escapse", _ ) ->
+                    Esc
 
                 _ ->
                     NoKey
@@ -604,8 +621,8 @@ virtualizedList { scrollTop, viewportHeight, itemHeight, items, renderItem } =
         ]
 
 
-tableBodyView : Float -> Time.Posix -> List TableColumn -> Int -> String -> Bool -> List Har.Entry -> Int -> Int -> Html TableMsg
-tableBodyView msPerPx startTime columns guidelineLeft selected showDetail entries scrollTop viewportHeight =
+tableBodyView : List String -> Float -> Time.Posix -> List TableColumn -> Int -> String -> Bool -> List Har.Entry -> Int -> Int -> Html TableMsg
+tableBodyView pendingKeys msPerPx startTime columns guidelineLeft selected showDetail entries scrollTop viewportHeight =
     let
         visibleColumns =
             if showDetail then
@@ -629,7 +646,7 @@ tableBodyView msPerPx startTime columns guidelineLeft selected showDetail entrie
         [ class "table-body"
         , id "table-body"
         , tabindex 0
-        , preventDefaultOn "keydown" (D.map (Tuple.mapFirst KeyDown) keyDecoder)
+        , preventDefaultOn "keydown" (D.map (Tuple.mapFirst KeyDown) (keyDecoder pendingKeys))
         , on "scroll" <| D.map Scroll <| D.at [ "target", "scrollTop" ] D.int
         ]
     <|
@@ -681,7 +698,7 @@ resolveSelected selected entries =
 
 
 tableView : Time.Posix -> TableModel -> Bool -> Html TableMsg
-tableView startTime { entries, sortBy, columns, columnWidths, selected, scrollTop, waterfallMsPerPx, viewportHeight } showDetail =
+tableView startTime { entries, sortBy, columns, columnWidths, selected, scrollTop, waterfallMsPerPx, viewportHeight, pendingKeys } showDetail =
     let
         selected2 =
             resolveSelected selected entries
@@ -725,7 +742,7 @@ tableView startTime { entries, sortBy, columns, columnWidths, selected, scrollTo
             )
         ]
         [ lazy6 tableHeadersView waterfallMsPerPx startTime firstEntryStartTime sortBy columns showDetail2
-        , tableBodyView waterfallMsPerPx startTime columns guidelineLeft selected2 showDetail2 entries scrollTop viewportHeight
+        , tableBodyView pendingKeys waterfallMsPerPx startTime columns guidelineLeft selected2 showDetail2 entries scrollTop viewportHeight
         ]
 
 
@@ -759,6 +776,9 @@ type Shortcut
     | ArrowLeft
     | ArrowRight
     | Search
+    | AppendKey String
+    | Center
+    | Esc
     | NoKey
 
 
@@ -824,7 +844,13 @@ updateTable navKey action log table =
         KeyDown key ->
             case key of
                 NoKey ->
-                    ( table, Cmd.none )
+                    ( { table | pendingKeys = [] }, Cmd.none )
+
+                AppendKey strKey ->
+                    ( { table | pendingKeys = strKey :: table.pendingKeys }, Cmd.none )
+
+                Esc ->
+                    ( { table | pendingKeys = [] }, Cmd.none )
 
                 key_ ->
                     tableSelectNextEntry navKey table key_
@@ -879,7 +905,7 @@ updateTable navKey action log table =
             , if table.selected /= "" then
                 Cmd.batch
                     [ scrollToEntry table table.selected
-                    , Task.attempt (\_ -> NoOp) <| Dom.focus "table-body"
+                    , focus "table-body"
                     ]
 
               else
@@ -896,7 +922,12 @@ updateTable navKey action log table =
             ( { table | viewportHeight = height }, Cmd.none )
 
         SelectTable ->
-            ( table, Task.attempt (\_ -> NoOp) <| Dom.focus "table-body" )
+            ( table
+            , Cmd.batch
+                [ scrollToEntry table table.selected
+                , focus "table-body"
+                ]
+            )
 
 
 scrollToEntry : TableModel -> String -> Cmd TableMsg
@@ -923,6 +954,24 @@ scrollToEntry table id =
 
         _ ->
             Cmd.none
+
+
+scrollToCenter : TableModel -> String -> Cmd TableMsg
+scrollToCenter table id =
+    case Utils.indexOf (\entry -> entry.id == id) table.entries of
+        Just i ->
+            Task.attempt (\_ -> NoOp) <|
+                Dom.setViewportOf "table-body"
+                    0
+                    (toFloat i * 20 - toFloat table.viewportHeight / 2 + 10)
+
+        _ ->
+            Cmd.none
+
+
+focus : String -> Cmd TableMsg
+focus =
+    Task.attempt (\_ -> NoOp) << Dom.focus
 
 
 
