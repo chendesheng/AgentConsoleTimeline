@@ -100,7 +100,8 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
     }
     button.reset,
     button.reveal {
-      font-size: 22px;
+      font-size: 18px;
+      font-weight: 500;
       line-height: 0px;
       padding: 0;
     }

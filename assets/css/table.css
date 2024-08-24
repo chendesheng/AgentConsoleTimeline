@@ -73,7 +73,7 @@ ol.table-body {
     display: none;
 }
 
-.table-header-cell resize-divider {
+.table .table-header-cell resize-divider {
     position: absolute;
     right: 0;
     top: 4px;
@@ -82,6 +82,8 @@ ol.table-body {
     cursor: col-resize;
     border-right: solid 1px var(--border-color);
     box-sizing: border-box;
+    left: unset;
+    transform: unset;
 }
 
 .table-header-cell:active {
@@ -214,4 +216,14 @@ ol.table-body {
     height: 24px;
     flex: none;
     transform: translate(-50%, 0);
+}
+
+.table resize-divider {
+    position: absolute;
+    width: 4px;
+    height: 100%;
+    left: var(--table-column-name-width);
+    z-index: 1;
+    cursor: col-resize;
+    transform: translate(-100%, 0);
 }

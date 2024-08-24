@@ -9,7 +9,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Html.Keyed as Keyed
-import Html.Lazy exposing (lazy6, lazy8)
+import Html.Lazy exposing (lazy6, lazy7, lazy8)
 import Icons
 import Initial exposing (InitialMsg(..))
 import Json.Decode as D
@@ -205,6 +205,15 @@ getSelectedEntry { selected, entries } =
 -- VIEW
 
 
+resizeDivider : (Int -> Int -> value) -> Html value
+resizeDivider onResize =
+    Html.node "resize-divider"
+        [ Html.Events.on "resize" <|
+            D.field "detail" (D.map2 onResize (D.field "dx" D.int) (D.field "dy" D.int))
+        ]
+        []
+
+
 entryView : Float -> List TableColumn -> String -> Time.Posix -> List (Attribute TableMsg) -> Har.Entry -> Html TableMsg
 entryView msPerPx columns selected startTime attrs entry =
     div
@@ -360,14 +369,7 @@ tableHeaderCell waterfallMsPerPx startTime firstEntryStartTime ( sortColumn, sor
 
            else
             div [] []
-         , Html.node "resize-divider"
-            [ Html.Events.on
-                "resize"
-                (D.at [ "detail", "dx" ] D.int
-                    |> D.map (ResizeColumn column.id)
-                )
-            ]
-            []
+         , resizeDivider (\dx _ -> ResizeColumn column.id dx)
          ]
             ++ (if column.id == "waterfall" then
                     [ tableHeaderCellWaterfallScales waterfallMsPerPx startTime firstEntryStartTime ]
@@ -621,8 +623,8 @@ virtualizedList { scrollTop, viewportHeight, itemHeight, items, renderItem } =
         ]
 
 
-tableBodyView : List String -> Float -> Time.Posix -> List TableColumn -> Int -> String -> Bool -> List Har.Entry -> Int -> Int -> Html TableMsg
-tableBodyView pendingKeys msPerPx startTime columns guidelineLeft selected showDetail entries scrollTop viewportHeight =
+tableBodyEntriesView : Float -> Time.Posix -> List TableColumn -> String -> Bool -> Int -> List Har.Entry -> Int -> Html TableMsg
+tableBodyEntriesView msPerPx startTime columns selected showDetail scrollTop entries viewportHeight =
     let
         visibleColumns =
             if showDetail then
@@ -630,7 +632,19 @@ tableBodyView pendingKeys msPerPx startTime columns guidelineLeft selected showD
 
             else
                 columns
+    in
+    virtualizedList
+        { scrollTop = scrollTop
+        , viewportHeight = viewportHeight
+        , itemHeight = 20
+        , items = entries
+        , renderItem = \attrs entry -> ( entry.id, entryView msPerPx visibleColumns selected startTime attrs entry )
+        }
 
+
+tableBodyDetailView : Float -> Time.Posix -> Int -> Bool -> List Har.Entry -> Int -> Html msg
+tableBodyDetailView msPerPx startTime guidelineLeft showDetail entries scrollTop =
+    let
         firstEntryStartTime =
             Har.getFirstEntryStartTime entries (floor <| toFloat scrollTop / 20)
 
@@ -642,6 +656,24 @@ tableBodyView pendingKeys msPerPx startTime columns guidelineLeft selected showD
                             / msPerPx
                     )
     in
+    if showDetail then
+        text ""
+
+    else
+        div
+            [ class "waterfall-guideline-container"
+            , style "left" (intPx (guidelineLeft + guidelineAlignOffset))
+            ]
+            [ div
+                [ class "waterfall-guideline"
+                , style "left" (intPx -guidelineAlignOffset)
+                ]
+                []
+            ]
+
+
+tableBodyView : List String -> Float -> Time.Posix -> List TableColumn -> Int -> String -> Bool -> List Har.Entry -> Int -> Int -> Html TableMsg
+tableBodyView pendingKeys msPerPx startTime columns guidelineLeft selected showDetail entries scrollTop viewportHeight =
     div
         [ class "table-body"
         , id "table-body"
@@ -650,27 +682,8 @@ tableBodyView pendingKeys msPerPx startTime columns guidelineLeft selected showD
         , on "scroll" <| D.map Scroll <| D.at [ "target", "scrollTop" ] D.int
         ]
     <|
-        [ virtualizedList
-            { scrollTop = scrollTop
-            , viewportHeight = viewportHeight
-            , itemHeight = 20
-            , items = entries
-            , renderItem = \attrs entry -> ( entry.id, entryView msPerPx visibleColumns selected firstEntryStartTime attrs entry )
-            }
-        , if showDetail then
-            text ""
-
-          else
-            div
-                [ class "waterfall-guideline-container"
-                , style "left" (intPx (guidelineLeft + guidelineAlignOffset))
-                ]
-                [ div
-                    [ class "waterfall-guideline"
-                    , style "left" (intPx -guidelineAlignOffset)
-                    ]
-                    []
-                ]
+        [ lazy8 tableBodyEntriesView msPerPx startTime columns selected showDetail scrollTop entries viewportHeight
+        , lazy6 tableBodyDetailView msPerPx startTime guidelineLeft showDetail entries scrollTop
         ]
 
 
@@ -743,7 +756,13 @@ tableView startTime { entries, sortBy, columns, columnWidths, selected, scrollTo
         ]
         [ lazy6 tableHeadersView waterfallMsPerPx startTime firstEntryStartTime sortBy columns showDetail2
         , tableBodyView pendingKeys waterfallMsPerPx startTime columns guidelineLeft selected2 showDetail2 entries scrollTop viewportHeight
+        , detailFirstColumnResizeDivider
         ]
+
+
+detailFirstColumnResizeDivider : Html TableMsg
+detailFirstColumnResizeDivider =
+    resizeDivider (\dx _ -> ResizeColumn "name" dx)
 
 
 totalWidth : Dict String Int -> List TableColumn -> Int

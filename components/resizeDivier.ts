@@ -4,7 +4,7 @@ import {
   eventOptions,
   property,
   query,
-  state,
+  state
 } from "lit/decorators";
 
 @customElement("resize-divider")
@@ -34,6 +34,9 @@ export class ResizeDivier extends LitElement {
 
   @eventOptions({ passive: true })
   private _handleMouseDown(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+
     this._isResizing = true;
 
     let x = e.clientX;
@@ -41,17 +44,21 @@ export class ResizeDivier extends LitElement {
 
     const overlay = document.createElement("div");
     overlay.id = "resize-overlay";
-    overlay.style.cssText = `position: fixed; top: 0; left: 0; right: 0; bottom: 0; cursor: ${this.direction === "horizontal" ? "row-resize" : "col-resize"};`;
+    overlay.style.cssText = `position: fixed; top: 0; left: 0; right: 0; bottom: 0; cursor: ${
+      this.direction === "horizontal" ? "row-resize" : "col-resize"
+    };`;
     document.body.append(overlay);
 
     overlay.addEventListener("mousemove", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       try {
         const dx = e.clientX - x;
         const dy = e.clientY - y;
 
         // if no button is pressed, stop resizing
         if (e.buttons === 0) {
-          this._dispatchResizeEvent(e, dx, dy, true);
+          this._dispatchResizeEvent(e, 0, 0, true);
           overlay.remove();
           return;
         }
@@ -64,6 +71,8 @@ export class ResizeDivier extends LitElement {
 
     overlay.addEventListener("mouseup", (e) => {
       try {
+        e.preventDefault();
+        e.stopPropagation();
         const dx = e.clientX - x;
         const dy = e.clientY - y;
         this._dispatchResizeEvent(e, dx, dy, true);
@@ -79,7 +88,7 @@ export class ResizeDivier extends LitElement {
     _e: MouseEvent,
     dx: number,
     dy: number,
-    isFinished: boolean,
+    isFinished: boolean
   ) {
     if (!this._isResizing) return;
     this.dispatchEvent(
@@ -89,9 +98,9 @@ export class ResizeDivier extends LitElement {
         detail: {
           dx,
           dy,
-          isFinished: isFinished,
-        },
-      }),
+          isFinished: isFinished
+        }
+      })
     );
   }
 }
