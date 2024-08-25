@@ -170,6 +170,26 @@ findItem predicate list =
                 findItem predicate xs
 
 
+findMaybeItemHelper : Int -> (Int -> a -> Maybe b) -> List a -> Maybe b
+findMaybeItemHelper i f list =
+    case list of
+        [] ->
+            Nothing
+
+        x :: xs ->
+            case f i x of
+                Just y ->
+                    Just y
+
+                Nothing ->
+                    findMaybeItemHelper (i + 1) f xs
+
+
+findMaybeItem : (Int -> a -> Maybe b) -> List a -> Maybe b
+findMaybeItem =
+    findMaybeItemHelper 0
+
+
 dropWhileBefore : (a -> Bool) -> List a -> List a
 dropWhileBefore predicate list =
     case list of
@@ -185,6 +205,20 @@ dropWhileBefore predicate list =
 
         _ ->
             list
+
+
+dropWhile : (a -> Bool) -> List a -> List a
+dropWhile predicate list =
+    case list of
+        [] ->
+            []
+
+        x :: xs ->
+            if predicate x then
+                dropWhile predicate xs
+
+            else
+                list
 
 
 timespanMillis : Time.Posix -> Time.Posix -> Int

@@ -1,6 +1,9 @@
 module Har exposing (..)
 
+import Dict exposing (Dict)
 import Json.Decode as D
+import Regex exposing (Match)
+import String exposing (contains)
 import Time
 import Utils
 
@@ -557,3 +560,70 @@ getPrevStateEntryIndex entries index =
         |> Utils.indexOf (\entry -> isReduxStateEntry entry)
         |> Maybe.map (\d -> index - d - 1)
         |> Maybe.withDefault index
+
+
+searchEntry : String -> List Entry -> String -> List { id : String, index : Int, name : String, matches : List Match }
+searchEntry selected entries keyword =
+    let
+        startIndex =
+            entries
+                |> Utils.indexOf (\entry -> entry.id == selected)
+                |> Maybe.map ((+) 1)
+                |> Maybe.withDefault 0
+    in
+    entries
+        |> List.drop startIndex
+        |> List.indexedMap
+            (\index entry ->
+                let
+                    name =
+                        harEntryName entry
+                in
+                { id = entry.id
+                , index = startIndex + index
+                , name = name
+                , matches =
+                    keyword
+                        |> Regex.fromStringWith { caseInsensitive = True, multiline = False }
+                        |> Maybe.map (\re -> Regex.find re name)
+                        |> Maybe.withDefault []
+                }
+            )
+        |> List.filter (\{ matches } -> List.isEmpty matches == False)
+
+
+findEntry : String -> List Entry -> String -> Maybe { id : String, index : Int, name : String, matches : List Match }
+findEntry selected entries keyword =
+    let
+        startIndex =
+            entries
+                |> Utils.indexOf (\entry -> entry.id == selected)
+                |> Maybe.map ((+) 1)
+                |> Maybe.withDefault 0
+    in
+    entries
+        |> List.drop startIndex
+        |> Utils.findMaybeItem
+            (\index entry ->
+                let
+                    name =
+                        harEntryName entry
+                in
+                keyword
+                    |> Regex.fromStringWith { caseInsensitive = True, multiline = False }
+                    |> Maybe.map
+                        (\re ->
+                            name
+                                |> Regex.find re
+                                |> List.head
+                                |> Maybe.map
+                                    (\match ->
+                                        { id = entry.id
+                                        , matches = [ match ]
+                                        , name = name
+                                        , index = startIndex + index
+                                        }
+                                    )
+                        )
+                    |> Maybe.withDefault Nothing
+            )

@@ -10,6 +10,45 @@
     position: relative;
 }
 
+input#table-search {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    height: 29px;
+    width: var(--table-column-name-width);
+    z-index: 1;
+    outline: none;
+    border: none;
+    box-sizing: border-box;
+    background: var(--background-color);
+    color: var(--text-color);
+    padding-left: 6px; 
+}
+
+input#table-search:-webkit-autofill {
+    background: var(--background-color);
+}
+
+.table-body-search-row {
+    position: absolute;
+    left: 24px;
+    height: 20px;
+    line-height: 20px;
+    font-size: 11px;
+    font-family: -webkit-system-font, sans-serif;
+    border-radius: 1px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.table-body-search-row .match-highlight {
+    background: var(--search-highlight-background-color-active);
+    color: var(--search-highlight-text-color-active);
+}
+.table-body-search-row .match {
+    visibility: hidden;
+}
+
 section.table {
     overflow-y: auto;
     overflow-x: hidden;
@@ -30,6 +69,7 @@ section.table {
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior: none;
+    position: relative;
 }
 ol.table-body {
     margin: 0;
