@@ -134,22 +134,75 @@ withUpdateIndex table updateIndex =
     ( { table | selected = newSelected, vimState = { vimState | pendingKeys = [] } }, scrollToEntry table newSelected )
 
 
-applySearchResult : TableModel -> ( TableModel, Cmd TableMsg )
-applySearchResult table =
+applySearchResult : TableModel -> Bool -> ( TableModel, Cmd TableMsg )
+applySearchResult table isNext =
     let
+        selectedIndex =
+            table.entries
+                |> Utils.indexOf (\entry -> entry.id == table.selected)
+                |> Maybe.withDefault -1
+
         selected =
             case table.vimState.search of
-                SearchDone { result, currentIndex } ->
+                SearchDone { result } ->
+                    -- FIXME: this is too much, must have better way
+                    let
+                        i =
+                            result
+                                |> Utils.indexOf (\{ index } -> index > selectedIndex)
+                                |> Maybe.map
+                                    (\index ->
+                                        if isNext then
+                                            index
+
+                                        else
+                                            index - 1
+                                    )
+                                |> Maybe.withDefault
+                                    (if isNext then
+                                        0
+
+                                     else
+                                        List.length result - 1
+                                    )
+                    in
                     result
-                        |> List.drop currentIndex
+                        |> List.drop i
                         |> List.head
-                        |> Maybe.map .id
+                        |> Maybe.map
+                            (\{ id } ->
+                                if table.selected == id then
+                                    if i == 0 then
+                                        result
+                                            |> List.reverse
+                                            |> List.head
+                                            |> Maybe.map .id
+                                            |> Maybe.withDefault table.selected
+
+                                    else
+                                        result
+                                            |> List.drop (i - 1)
+                                            |> List.head
+                                            |> Maybe.map .id
+                                            |> Maybe.withDefault table.selected
+
+                                else
+                                    id
+                            )
                         |> Maybe.withDefault table.selected
 
                 _ ->
                     table.selected
+
+        vimState =
+            table.vimState
     in
-    ( { table | selected = selected }, scrollToEntry table selected )
+    ( { table
+        | selected = selected
+        , vimState = { vimState | pendingKeys = [] }
+      }
+    , scrollToEntry table selected
+    )
 
 
 executeVimAction : Nav.Key -> TableModel -> VimAction -> ( TableModel, Cmd TableMsg )
@@ -237,7 +290,6 @@ executeVimAction navKey table action =
                         | search =
                             SearchDone
                                 { result = result
-                                , currentIndex = 0
                                 , lineBuffer = lineBuffer1
                                 }
                     }
@@ -287,10 +339,10 @@ executeVimAction navKey table action =
             ( { table | vimState = { vimState | search = search } }, focus "table-search" )
 
         NextSearchResult ->
-            applySearchResult table
+            applySearchResult table True
 
         PrevSearchResult ->
-            applySearchResult table
+            applySearchResult table False
 
         Esc ->
             let

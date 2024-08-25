@@ -20,7 +20,6 @@ type SearchingState
         }
     | SearchDone
         { result : List SearchMatchItem
-        , currentIndex : Int
         , lineBuffer : String
         }
 
@@ -81,44 +80,6 @@ updateVimState vimState vimAction =
 
                         _ ->
                             NotSearch
-            }
-
-        NextSearchResult ->
-            { vimState
-                | search =
-                    case vimState.search of
-                        SearchDone searchDone ->
-                            SearchDone
-                                { searchDone
-                                    | currentIndex =
-                                        if searchDone.currentIndex + 1 == List.length searchDone.result then
-                                            0
-
-                                        else
-                                            searchDone.currentIndex + 1
-                                }
-
-                        _ ->
-                            vimState.search
-            }
-
-        PrevSearchResult ->
-            { vimState
-                | search =
-                    case vimState.search of
-                        SearchDone searchDone ->
-                            SearchDone
-                                { searchDone
-                                    | currentIndex =
-                                        if searchDone.currentIndex == 0 then
-                                            List.length searchDone.result - 1
-
-                                        else
-                                            searchDone.currentIndex - 1
-                                }
-
-                        _ ->
-                            vimState.search
             }
 
         _ ->
