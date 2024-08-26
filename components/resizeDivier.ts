@@ -34,7 +34,6 @@ export class ResizeDivier extends LitElement {
 
   @eventOptions({ passive: true })
   private _handleMouseDown(e: MouseEvent) {
-    e.preventDefault();
     e.stopPropagation();
 
     this._isResizing = true;
@@ -50,7 +49,6 @@ export class ResizeDivier extends LitElement {
     document.body.append(overlay);
 
     overlay.addEventListener("mousemove", (e) => {
-      e.preventDefault();
       e.stopPropagation();
       try {
         const dx = e.clientX - x;
@@ -71,7 +69,6 @@ export class ResizeDivier extends LitElement {
 
     overlay.addEventListener("mouseup", (e) => {
       try {
-        e.preventDefault();
         e.stopPropagation();
         const dx = e.clientX - x;
         const dy = e.clientY - y;
