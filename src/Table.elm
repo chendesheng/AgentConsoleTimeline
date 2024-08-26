@@ -273,18 +273,13 @@ executeVimAction navKey table action =
                 ( result, lineBuffer1 ) =
                     case vimState.search of
                         Searching { lineBuffer } ->
-                            ( Har.searchEntry table.selected table.entries <| String.dropLeft 1 lineBuffer, lineBuffer )
+                            ( Har.searchEntry table.entries <| String.dropLeft 1 lineBuffer, lineBuffer )
 
                         _ ->
                             ( [], "" )
 
-                selected =
-                    result
-                        |> List.head
-                        |> Maybe.map .id
-                        |> Maybe.withDefault table.selected
-            in
-            ( { table
+                table1 =
+                    { table
                 | vimState =
                     { vimState
                         | search =
@@ -293,10 +288,10 @@ executeVimAction navKey table action =
                                 , lineBuffer = lineBuffer1
                                 }
                     }
-                , selected = selected
               }
-            , Cmd.batch [ focus "table-body", scrollToEntry table selected ]
-            )
+            in
+            applySearchResult table1 True
+                |> Tuple.mapSecond (\cmd -> Cmd.batch [ focus "table-body", cmd ])
 
         SetSearchModeLineBuffer lineBuffer ->
             let

@@ -562,17 +562,9 @@ getPrevStateEntryIndex entries index =
         |> Maybe.withDefault index
 
 
-searchEntry : String -> List Entry -> String -> List { id : String, index : Int, name : String, matches : List Match }
-searchEntry selected entries keyword =
-    let
-        startIndex =
-            entries
-                |> Utils.indexOf (\entry -> entry.id == selected)
-                |> Maybe.map ((+) 1)
-                |> Maybe.withDefault 0
-    in
+searchEntry : List Entry -> String -> List { id : String, index : Int, name : String, matches : List Match }
+searchEntry entries keyword =
     entries
-        |> List.drop startIndex
         |> List.indexedMap
             (\index entry ->
                 let
@@ -580,7 +572,7 @@ searchEntry selected entries keyword =
                         harEntryName entry
                 in
                 { id = entry.id
-                , index = startIndex + index
+                , index = index
                 , name = name
                 , matches =
                     keyword
