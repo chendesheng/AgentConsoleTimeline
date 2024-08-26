@@ -280,15 +280,15 @@ executeVimAction navKey table action =
 
                 table1 =
                     { table
-                | vimState =
-                    { vimState
-                        | search =
-                            SearchDone
-                                { result = result
-                                , lineBuffer = lineBuffer1
-                                }
+                        | vimState =
+                            { vimState
+                                | search =
+                                    SearchDone
+                                        { result = result
+                                        , lineBuffer = lineBuffer1
+                                        }
+                            }
                     }
-              }
             in
             applySearchResult table1 True
                 |> Tuple.mapSecond (\cmd -> Cmd.batch [ focus "table-body", cmd ])
@@ -798,7 +798,7 @@ tableBodyView vimState msPerPx startTime columns guidelineLeft selected showDeta
         , id "table-body"
         , tabindex 0
         , preventDefaultOn "keydown" (D.map (Tuple.mapFirst ExecuteAction) (keyDecoder showDetail vimState))
-        , on "scroll" <| D.map Scroll <| D.at [ "target", "scrollTop" ] D.int
+        , on "scroll" <| D.map (round >> Scroll) <| D.at [ "target", "scrollTop" ] D.float
         ]
         [ lazy8 tableBodyEntriesView msPerPx startTime columns selected showDetail scrollTop entries viewportHeight
         , lazy3 tableBodySearchResultView vimState scrollTop viewportHeight
