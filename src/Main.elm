@@ -33,6 +33,7 @@ type alias OpenedModel =
     , detail : DetailModel
     , clientInfo : ClientInfo
     , navKey : Nav.Key
+    , fileName : String
     , log : Har.Log
     , dropFile : DropFileModel
     }
@@ -110,8 +111,8 @@ type OpenedMsg
     | DropFile DropFileMsg
 
 
-initOpened : Har.Log -> Nav.Key -> Maybe Int -> ( OpenedModel, Cmd OpenedMsg )
-initOpened log navKey initialViewportHeight =
+initOpened : String -> Har.Log -> Nav.Key ->  Maybe Int -> ( OpenedModel, Cmd OpenedMsg )
+initOpened fileName log navKey initialViewportHeight =
     let
         table =
             { defaultTableModel | entries = log.entries, viewportHeight = Maybe.withDefault 0 initialViewportHeight }
@@ -121,6 +122,7 @@ initOpened log navKey initialViewportHeight =
       , detail = Detail.defaultDetailModel
       , clientInfo = Har.getClientInfo log.entries
       , navKey = navKey
+      , fileName = fileName
       , log = log
       , dropFile = defaultDropFileModel
       }
@@ -158,7 +160,7 @@ update msg model =
                                 Just log ->
                                     let
                                         ( m, cmd2 ) =
-                                            initOpened log newModel.navKey Nothing
+                                            initOpened newModel.dropFile.fileName log newModel.navKey Nothing
                                     in
                                     ( Opened m, Cmd.map OpenedMsg cmd2 )
 
@@ -267,7 +269,7 @@ updateOpened msg model =
             )
 
         DropFile (GotFileContent log) ->
-            initOpened log model.navKey (Just model.table.viewportHeight)
+            initOpened model.dropFile.fileName log model.navKey (Just model.table.viewportHeight)
 
         DropFile dropMsg ->
             let
@@ -306,13 +308,13 @@ main =
                         Initial _ ->
                             "ACD"
 
-                        Opened { table } ->
+                        Opened { table, fileName } ->
                             case Table.getSelectedEntry table of
                                 Just entry ->
-                                    "ACD | " ++ Har.harEntryName entry
+                                    fileName ++ " | " ++ Har.harEntryName entry
 
                                 _ ->
-                                    "ACD"
+                                    fileName
                 , body = [ view model ]
                 }
         , update = update

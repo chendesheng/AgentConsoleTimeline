@@ -18,6 +18,7 @@ import Utils
 type alias DropFileModel =
     { hover : Bool
     , error : Maybe String
+    , fileName : String
     , fileContent : Maybe Har.Log
     }
 
@@ -26,6 +27,7 @@ defaultDropFileModel : DropFileModel
 defaultDropFileModel =
     { hover = False
     , error = Nothing
+    , fileName = ""
     , fileContent = Nothing
     }
 
@@ -55,7 +57,7 @@ dropFileUpdate msg model =
             ( { model | hover = False }, Cmd.none )
 
         GotFile file ->
-            ( { model | hover = False }
+            ( { model | hover = False, fileName = File.name file }
             , Task.perform
                 (\str ->
                     case D.decodeString harDecoder str of
