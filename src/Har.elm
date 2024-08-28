@@ -1,9 +1,7 @@
 module Har exposing (..)
 
-import Dict exposing (Dict)
 import Json.Decode as D
 import Regex exposing (Match)
-import String exposing (contains)
 import Time
 import Utils
 
