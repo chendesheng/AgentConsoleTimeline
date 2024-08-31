@@ -109,9 +109,6 @@ export class JsonTree extends LitElement {
   private handleShowFilter() {
     this._showFilter = true;
   }
-  private handleInputBlur(e: FocusEvent) {
-    this._showFilter = false;
-  }
 
   private handleKeyDown(e: KeyboardEvent) {
     if (e.key === "Escape") {
@@ -129,7 +126,6 @@ export class JsonTree extends LitElement {
             ? html`<input
                 type="search"
                 @input="${this.handleInput}"
-                @blur="${this.handleInputBlur}"
                 @keydown="${this.handleKeyDown}"
                 placeholder="Filter"
               />`
