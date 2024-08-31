@@ -1,7 +1,7 @@
 import loader from "@monaco-editor/loader";
-import { html, css, LitElement, PropertyValues, PropertyValueMap } from "lit";
-import { createRef, ref } from "lit/directives/ref.js";
+import { html, css, LitElement, PropertyValues } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
+import { sort as sortKeys } from "json-keys-sort";
 
 declare var process: {
   env: {
@@ -59,7 +59,7 @@ export class CodeEditor extends LitElement {
       theme: "vs-dark",
       value: formatJson(this.content),
       readOnly: true,
-      wordWrap: "on"
+      wordWrap: "on",
     });
   }
 
@@ -117,7 +117,7 @@ export class MonacoDiffEditor extends LitElement {
       theme: "vs-dark",
       readOnly: true,
       wordWrap: "on",
-      diffWordWrap: true
+      diffWordWrap: true,
     });
 
     this.setModels();
@@ -135,7 +135,7 @@ export class MonacoDiffEditor extends LitElement {
       modified: this.monaco.editor.createModel(
         formatJson(this.modified),
         this.language
-      )
+      ),
     });
   }
 
@@ -151,7 +151,7 @@ export class MonacoDiffEditor extends LitElement {
 }
 
 function formatJson(s: string) {
-  return JSON.stringify(JSON.parse(s), null, 4);
+  return JSON.stringify(sortKeys(JSON.parse(s)), null, 4);
 }
 
 function cloneStyles(root: HTMLElement | DocumentFragment, onload: () => void) {

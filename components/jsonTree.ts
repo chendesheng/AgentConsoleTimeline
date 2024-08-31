@@ -2,6 +2,7 @@ import "@alenaksu/json-viewer";
 import { JsonViewer } from "@alenaksu/json-viewer/dist/JsonViewer";
 import { html, css, LitElement, PropertyValues } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
+import { sort as sortKeys } from "json-keys-sort";
 
 declare global {
   interface HTMLElementTagNameMap {
@@ -145,7 +146,7 @@ export class JsonTree extends LitElement {
                 </div>
               `}
         </div>
-        <json-viewer .data=${JSON.parse(this.data)}></json-viewer>`;
+        <json-viewer .data=${sortKeys(JSON.parse(this.data))}></json-viewer>`;
     } catch (e: any) {
       return html`<div style="margin-top: 10px;">
         <div>${e.message}</div>

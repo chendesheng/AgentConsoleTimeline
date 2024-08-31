@@ -18,6 +18,7 @@
   "dependencies": {
     "@alenaksu/json-viewer": "^2.0.1",
     "@monaco-editor/loader": "^1.4.0",
+    "json-keys-sort": "^2.1.0",
     "lit": "^3.1.2"
   },
   "devDependencies": {
