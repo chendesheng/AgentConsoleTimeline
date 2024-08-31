@@ -9,7 +9,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Html.Keyed as Keyed
-import Html.Lazy exposing (lazy3, lazy6, lazy8)
+import Html.Lazy exposing (lazy3, lazy6, lazy7)
 import Icons
 import Initial exposing (InitialMsg(..))
 import Json.Decode as D
@@ -681,8 +681,8 @@ tableFilterView waterfallMsPerPx filter =
         ]
 
 
-tableBodyEntriesView : Float -> Posix -> List TableColumn -> String -> Bool -> Int -> List Har.Entry -> Int -> Html TableMsg
-tableBodyEntriesView msPerPx startTime columns selected showDetail scrollTop entries viewportHeight =
+tableBodyEntriesView : Float -> List TableColumn -> String -> Bool -> Int -> List Har.Entry -> Int -> Html TableMsg
+tableBodyEntriesView msPerPx columns selected showDetail scrollTop entries viewportHeight =
     let
         visibleColumns =
             if showDetail then
@@ -690,6 +690,9 @@ tableBodyEntriesView msPerPx startTime columns selected showDetail scrollTop ent
 
             else
                 columns
+
+        startTime =
+            Har.getFirstEntryStartTime entries (floor <| toFloat scrollTop / 20)
     in
     Utils.virtualizedList
         { scrollTop = scrollTop
@@ -739,7 +742,7 @@ tableBodyView search pendingKeys msPerPx startTime columns guidelineLeft selecte
         , preventDefaultOn "keydown" (D.map (Tuple.mapFirst ExecuteAction) (keyDecoder scrollTop showDetail pendingKeys))
         , on "scroll" <| D.map (round >> Scroll) <| D.at [ "target", "scrollTop" ] D.float
         ]
-        [ lazy8 tableBodyEntriesView msPerPx startTime columns selected showDetail scrollTop entries viewportHeight
+        [ lazy7 tableBodyEntriesView msPerPx columns selected showDetail scrollTop entries viewportHeight
         , lazy3 tableBodySearchResultView search scrollTop viewportHeight
         , lazy6 tableBodyDetailView msPerPx startTime guidelineLeft showDetail entries scrollTop
         ]
