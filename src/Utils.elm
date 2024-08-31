@@ -1,8 +1,9 @@
 module Utils exposing (..)
 
-import Html exposing (Attribute)
-import Html.Attributes exposing (attribute)
-import Html.Events exposing (preventDefaultOn)
+import Html exposing (Attribute, Html, div, label, option, select, text)
+import Html.Attributes exposing (attribute, class, style, value)
+import Html.Events exposing (onInput, preventDefaultOn)
+import Html.Keyed as Keyed
 import Json.Decode as D
 import String exposing (fromFloat, fromInt)
 import Time
@@ -265,3 +266,69 @@ hijackOn event decoder =
 hijack : msg -> ( msg, Bool )
 hijack msg =
     ( msg, True )
+
+
+
+-- VIEWS
+
+
+dropDownList : { value : String, onInput : String -> msg } -> List { label : String, value : String } -> Html msg
+dropDownList options children =
+    label [ class "select" ]
+        [ div [] [ text options.value ]
+        , select [ onInput options.onInput ] <|
+            List.map (\item -> option [ value item.value ] [ text item.label ]) children
+        ]
+
+
+virtualizedList :
+    { scrollTop : Int
+    , viewportHeight : Int
+    , itemHeight : Int
+    , items : List item
+    , renderItem : List (Attribute msg) -> item -> ( String, Html msg )
+    }
+    -> Html msg
+virtualizedList { scrollTop, viewportHeight, itemHeight, items, renderItem } =
+    let
+        overhead =
+            5
+
+        totalCount =
+            List.length items
+
+        totalHeight =
+            totalCount * itemHeight
+
+        fromIndex =
+            Basics.max 0 <| floor <| toFloat scrollTop / toFloat itemHeight - overhead
+
+        visibleItemsCount =
+            Basics.min totalCount <| ceiling <| toFloat viewportHeight / toFloat itemHeight + 2 * overhead
+
+        visibleItems =
+            items |> List.drop fromIndex |> List.take visibleItemsCount
+    in
+    div
+        [ style "height" <| intPx totalHeight
+        , style "position" "relative"
+        ]
+        [ Keyed.ol
+            [ style "top" <| intPx <| fromIndex * itemHeight
+            , style "position" "absolute"
+            , style "width" "100%"
+            , style "padding" "0"
+            , style "margin" "0"
+            ]
+          <|
+            List.map (renderItem []) visibleItems
+        ]
+
+
+resizeDivider : (Int -> Int -> value) -> Html value
+resizeDivider onResize =
+    Html.node "resize-divider"
+        [ Html.Events.on "resize" <|
+            D.field "detail" (D.map2 onResize (D.field "dx" D.int) (D.field "dy" D.int))
+        ]
+        []

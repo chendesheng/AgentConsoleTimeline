@@ -16,6 +16,7 @@ import Json.Decode as D
 import List exposing (sortBy)
 import Task
 import Time exposing (Posix)
+import UndoList as UL exposing (UndoList)
 import Utils exposing (floatPx, intPx)
 import Vim exposing (..)
 
@@ -71,7 +72,9 @@ type alias TableModel =
     , scrollTop : Int
     , waterfallMsPerPx : Float
     , viewportHeight : Int
-    , vimState : VimState
+    , pendingKeys : List String
+    , search : SearchingState
+    , searchHistory : UndoList String
     }
 
 
@@ -106,7 +109,9 @@ defaultTableModel =
     , scrollTop = 0
     , waterfallMsPerPx = 10.0
     , viewportHeight = 0
-    , vimState = defaultVimState
+    , pendingKeys = []
+    , search = NotSearch
+    , searchHistory = { present = "", past = [], future = [] }
     }
 
 
@@ -118,24 +123,30 @@ withUpdateIndex table updateIndex =
                 |> Utils.indexOf (\entry -> entry.id == table.selected)
                 |> Maybe.withDefault -1
 
-        nextIndex =
-            updateIndex index
-
         newSelected =
             table.entries
-                |> List.drop nextIndex
+                |> List.drop (updateIndex index)
                 |> List.head
                 |> Maybe.map .id
                 |> Maybe.withDefault ""
-
-        vimState =
-            table.vimState
     in
-    ( { table | selected = newSelected, vimState = { vimState | pendingKeys = [] } }, scrollToEntry table newSelected )
+    ( { table | selected = newSelected, pendingKeys = [] }, scrollToEntry table newSelected )
 
 
-applySearchResult : TableModel -> Bool -> ( TableModel, Cmd TableMsg )
-applySearchResult table isNext =
+applySearchHistory : TableModel -> TableModel
+applySearchHistory table =
+    let
+        lastSearch =
+            (UL.undo table.searchHistory).present
+
+        matches =
+            Har.searchEntry table.entries <| String.dropLeft 1 lastSearch
+    in
+    { table | search = SearchDone matches }
+
+
+applySearchResult : Bool -> TableModel -> ( TableModel, Cmd TableMsg )
+applySearchResult isNext table =
     let
         selectedIndex =
             table.entries
@@ -143,8 +154,8 @@ applySearchResult table isNext =
                 |> Maybe.withDefault -1
 
         selected =
-            case table.vimState.search of
-                SearchDone { result } ->
+            case table.search of
+                SearchDone result ->
                     -- FIXME: this is too much, must have better way
                     let
                         i =
@@ -193,16 +204,8 @@ applySearchResult table isNext =
 
                 _ ->
                     table.selected
-
-        vimState =
-            table.vimState
     in
-    ( { table
-        | selected = selected
-        , vimState = { vimState | pendingKeys = [] }
-      }
-    , scrollToEntry table selected
-    )
+    ( { table | selected = selected, pendingKeys = [] }, scrollToEntry table selected )
 
 
 executeVimAction : Nav.Key -> TableModel -> VimAction -> ( TableModel, Cmd TableMsg )
@@ -266,88 +269,71 @@ executeVimAction navKey table action =
             ( table, scrollToCenter table table.selected )
 
         Search ->
-            let
-                vimState =
-                    table.vimState
-
-                ( result, lineBuffer1 ) =
-                    case vimState.search of
-                        Searching { lineBuffer } ->
-                            ( Har.searchEntry table.entries <| String.dropLeft 1 lineBuffer, lineBuffer )
-
-                        _ ->
-                            ( [], "" )
-
-                table1 =
-                    { table
-                        | vimState =
-                            { vimState
-                                | search =
-                                    SearchDone
-                                        { result = result
-                                        , lineBuffer = lineBuffer1
-                                        }
-                            }
-                    }
-            in
-            applySearchResult table1 True
+            { table | searchHistory = UL.new "" table.searchHistory }
+                |> applySearchHistory
+                |> applySearchResult True
                 |> Tuple.mapSecond (\cmd -> Cmd.batch [ focus "table-body", cmd ])
 
         SetSearchModeLineBuffer lineBuffer ->
             let
-                vimState =
-                    table.vimState
+                match =
+                    lineBuffer
+                        |> String.dropLeft 1
+                        |> Har.findEntry table.selected table.entries
 
-                result =
-                    Har.findEntry table.selected table.entries <| String.dropLeft 1 lineBuffer
+                history =
+                    table.searchHistory
             in
             ( { table
-                | vimState =
-                    { vimState
-                        | search =
-                            case vimState.search of
-                                Searching searching ->
-                                    Searching { searching | result = result, lineBuffer = lineBuffer }
+                | search =
+                    case table.search of
+                        Searching searching ->
+                            Searching { searching | match = match }
 
-                                others ->
-                                    others
-                    }
+                        others ->
+                            others
+                , searchHistory = { history | present = lineBuffer }
               }
-            , result
+            , match
                 |> Maybe.map (\{ id } -> scrollToEntry table id)
                 |> Maybe.withDefault Cmd.none
             )
 
-        StartSearch _ ->
+        StartSearch prefix scrollTop ->
             let
-                vimState =
-                    table.vimState
-
-                search =
-                    case vimState.search of
-                        Searching searching ->
-                            Searching { searching | scrollTop = table.scrollTop }
-
-                        others ->
-                            others
-            in
-            ( { table | vimState = { vimState | search = search } }, focus "table-search" )
-
-        NextSearchResult ->
-            applySearchResult table True
-
-        PrevSearchResult ->
-            applySearchResult table False
-
-        Esc ->
-            let
-                vimState =
-                    table.vimState
+                history =
+                    table.searchHistory
             in
             ( { table
-                | vimState = { vimState | pendingKeys = [], search = NotSearch }
+                | search = Searching { match = Nothing, scrollTop = scrollTop }
+                , searchHistory = { history | present = prefix }
+              }
+            , focus "table-search"
+            )
+
+        NextSearchResult isDown ->
+            if UL.hasPast table.searchHistory then
+                case table.search of
+                    SearchDone _ ->
+                        applySearchResult isDown table
+
+                    NotSearch ->
+                        table
+                            |> applySearchHistory
+                            |> applySearchResult isDown
+
+                    _ ->
+                        ( table, Cmd.none )
+
+            else
+                ( table, Cmd.none )
+
+        Esc ->
+            ( { table
+                | pendingKeys = []
+                , search = NotSearch
                 , scrollTop =
-                    case vimState.search of
+                    case table.search of
                         Searching searching ->
                             searching.scrollTop
 
@@ -357,8 +343,23 @@ executeVimAction navKey table action =
             , focus "table-body"
             )
 
-        _ ->
-            ( table, Cmd.none )
+        NoAction ->
+            ( { table | pendingKeys = [] }, Cmd.none )
+
+        AppendKey strKey ->
+            ( { table | pendingKeys = strKey :: table.pendingKeys }, Cmd.none )
+
+        SearchNav isUp ->
+            ( { table
+                | searchHistory =
+                    if isUp then
+                        UL.undo table.searchHistory
+
+                    else
+                        UL.redo table.searchHistory
+              }
+            , Cmd.none
+            )
 
 
 getSelectedEntry : TableModel -> Maybe Har.Entry
@@ -368,15 +369,6 @@ getSelectedEntry { selected, entries } =
 
 
 -- VIEW
-
-
-resizeDivider : (Int -> Int -> value) -> Html value
-resizeDivider onResize =
-    Html.node "resize-divider"
-        [ Html.Events.on "resize" <|
-            D.field "detail" (D.map2 onResize (D.field "dx" D.int) (D.field "dy" D.int))
-        ]
-        []
 
 
 entryView : Float -> List TableColumn -> String -> Posix -> List (Attribute TableMsg) -> Har.Entry -> Html TableMsg
@@ -534,7 +526,7 @@ tableHeaderCell waterfallMsPerPx startTime firstEntryStartTime ( sortColumn, sor
 
            else
             div [] []
-         , resizeDivider (\dx _ -> ResizeColumn column.id dx)
+         , Utils.resizeDivider (\dx _ -> ResizeColumn column.id dx)
          ]
             ++ (if column.id == "waterfall" then
                     [ tableHeaderCellWaterfallScales waterfallMsPerPx startTime firstEntryStartTime ]
@@ -584,19 +576,19 @@ tableHeaderCellWaterfallScales msPerPx startTime firstEntryStartTime =
         )
 
 
-keyDecoder : Bool -> VimState -> D.Decoder ( VimAction, Bool )
-keyDecoder showDetail vimState =
+keyDecoder : Int -> Bool -> List String -> D.Decoder ( VimAction, Bool )
+keyDecoder scrollTop showDetail pendingKeys =
     D.map2
         (\key ctrlKey ->
             let
                 action =
-                    parseKeys vimState key ctrlKey
+                    parseKeys scrollTop pendingKeys key ctrlKey
 
                 action1 =
                     -- search mode is not support when showDetail is false
                     if
                         (case action of
-                            StartSearch _ ->
+                            StartSearch _ _ ->
                                 True
 
                             _ ->
@@ -626,15 +618,6 @@ scaleToWaterfallMsPerPx scale =
         |> String.toFloat
         |> Maybe.map ((*) 10.0)
         |> Maybe.withDefault 10.0
-
-
-dropDownList : { value : String, onInput : String -> msg } -> List { label : String, value : String } -> Html msg
-dropDownList options children =
-    label [ class "select" ]
-        [ div [] [ text options.value ]
-        , select [ onInput options.onInput ] <|
-            List.map (\item -> option [ value item.value ] [ text item.label ]) children
-        ]
 
 
 tableFilterOptions : List { value : String, label : String }
@@ -685,60 +668,16 @@ tableFilterView waterfallMsPerPx filter =
             , onEsc SelectTable
             ]
             []
-        , dropDownList
+        , Utils.dropDownList
             { value = Har.entryKindLabel filter.kind
             , onInput = Har.stringToEntryKind >> SelectKind
             }
             tableFilterOptions
-        , dropDownList
+        , Utils.dropDownList
             { value = waterfallMsPerPxToScale waterfallMsPerPx
             , onInput = scaleToWaterfallMsPerPx >> SetWaterfallMsPerPx
             }
             waterfallScaleOptions
-        ]
-
-
-virtualizedList :
-    { scrollTop : Int
-    , viewportHeight : Int
-    , itemHeight : Int
-    , items : List item
-    , renderItem : List (Attribute msg) -> item -> ( String, Html msg )
-    }
-    -> Html msg
-virtualizedList { scrollTop, viewportHeight, itemHeight, items, renderItem } =
-    let
-        overhead =
-            5
-
-        totalCount =
-            List.length items
-
-        totalHeight =
-            totalCount * itemHeight
-
-        fromIndex =
-            Basics.max 0 <| floor <| toFloat scrollTop / toFloat itemHeight - overhead
-
-        visibleItemsCount =
-            Basics.min totalCount <| ceiling <| toFloat viewportHeight / toFloat itemHeight + 2 * overhead
-
-        visibleItems =
-            items |> List.drop fromIndex |> List.take visibleItemsCount
-    in
-    div
-        [ style "height" <| intPx totalHeight
-        , style "position" "relative"
-        ]
-        [ Keyed.ol
-            [ style "top" <| intPx <| fromIndex * itemHeight
-            , style "position" "absolute"
-            , style "width" "100%"
-            , style "padding" "0"
-            , style "margin" "0"
-            ]
-          <|
-            List.map (renderItem []) visibleItems
         ]
 
 
@@ -752,7 +691,7 @@ tableBodyEntriesView msPerPx startTime columns selected showDetail scrollTop ent
             else
                 columns
     in
-    virtualizedList
+    Utils.virtualizedList
         { scrollTop = scrollTop
         , viewportHeight = viewportHeight
         , itemHeight = 20
@@ -791,33 +730,33 @@ tableBodyDetailView msPerPx startTime guidelineLeft showDetail entries scrollTop
             ]
 
 
-tableBodyView : VimState -> Float -> Posix -> List TableColumn -> Int -> String -> Bool -> List Har.Entry -> Int -> Int -> Html TableMsg
-tableBodyView vimState msPerPx startTime columns guidelineLeft selected showDetail entries scrollTop viewportHeight =
+tableBodyView : SearchingState -> List String -> Float -> Posix -> List TableColumn -> Int -> String -> Bool -> List Har.Entry -> Int -> Int -> Html TableMsg
+tableBodyView search pendingKeys msPerPx startTime columns guidelineLeft selected showDetail entries scrollTop viewportHeight =
     div
         [ class "table-body"
         , id "table-body"
         , tabindex 0
-        , preventDefaultOn "keydown" (D.map (Tuple.mapFirst ExecuteAction) (keyDecoder showDetail vimState))
+        , preventDefaultOn "keydown" (D.map (Tuple.mapFirst ExecuteAction) (keyDecoder scrollTop showDetail pendingKeys))
         , on "scroll" <| D.map (round >> Scroll) <| D.at [ "target", "scrollTop" ] D.float
         ]
         [ lazy8 tableBodyEntriesView msPerPx startTime columns selected showDetail scrollTop entries viewportHeight
-        , lazy3 tableBodySearchResultView vimState scrollTop viewportHeight
+        , lazy3 tableBodySearchResultView search scrollTop viewportHeight
         , lazy6 tableBodyDetailView msPerPx startTime guidelineLeft showDetail entries scrollTop
         ]
 
 
-tableBodySearchResultView : VimState -> Int -> Int -> Html msg
-tableBodySearchResultView vimState scrollTop viewportHeight =
+tableBodySearchResultView : SearchingState -> Int -> Int -> Html msg
+tableBodySearchResultView search scrollTop viewportHeight =
     let
         items =
-            case vimState.search of
-                SearchDone { result } ->
+            case search of
+                SearchDone result ->
                     result
 
-                Searching { result } ->
-                    case result of
-                        Just res ->
-                            [ res ]
+                Searching { match } ->
+                    case match of
+                        Just m ->
+                            [ m ]
 
                         _ ->
                             []
@@ -886,7 +825,7 @@ resolveSelected selected entries =
 
 
 tableView : Posix -> TableModel -> Bool -> Html TableMsg
-tableView startTime { entries, sortBy, columns, columnWidths, selected, scrollTop, waterfallMsPerPx, viewportHeight, vimState } showDetail =
+tableView startTime { entries, sortBy, columns, columnWidths, selected, scrollTop, waterfallMsPerPx, viewportHeight, search, searchHistory, pendingKeys } showDetail =
     let
         selected2 =
             resolveSelected selected entries
@@ -929,12 +868,13 @@ tableView startTime { entries, sortBy, columns, columnWidths, selected, scrollTo
                 visibleColumns
             )
         ]
-        [ case vimState.search of
-            Searching { lineBuffer } ->
+        [ case search of
+            Searching _ ->
                 input
                     [ class "table-search"
                     , id "table-search"
-                    , value lineBuffer
+                    , value searchHistory.present
+                    , autocomplete False
                     , onInput
                         (\value ->
                             ExecuteAction <|
@@ -949,32 +889,44 @@ tableView startTime { entries, sortBy, columns, columnWidths, selected, scrollTo
                     -- , onBlur <| ExecuteAction Esc
                     , preventDefaultOn "keydown" <|
                         D.map
-                            (\key ->
-                                case key of
-                                    "Escape" ->
+                            (\arg ->
+                                case arg of
+                                    ( "Escape", _ ) ->
                                         ( ExecuteAction Esc, True )
 
-                                    "Enter" ->
+                                    ( "Enter", _ ) ->
                                         ( ExecuteAction Search, True )
+
+                                    ( "ArrowUp", _ ) ->
+                                        ( ExecuteAction <| SearchNav True, True )
+
+                                    ( "ArrowDown", _ ) ->
+                                        ( ExecuteAction <| SearchNav False, True )
+
+                                    ( "p", True ) ->
+                                        ( ExecuteAction <| SearchNav True, True )
+
+                                    ( "n", True ) ->
+                                        ( ExecuteAction <| SearchNav False, True )
 
                                     _ ->
                                         ( NoOp, False )
                             )
-                            (D.field "key" D.string)
+                            (D.map2 Tuple.pair (D.field "key" D.string) (D.field "ctrlKey" D.bool))
                     ]
                     []
 
             _ ->
                 text ""
         , lazy6 tableHeadersView waterfallMsPerPx startTime firstEntryStartTime sortBy columns showDetail2
-        , tableBodyView vimState waterfallMsPerPx startTime columns guidelineLeft selected2 showDetail2 entries scrollTop viewportHeight
+        , tableBodyView search pendingKeys waterfallMsPerPx startTime columns guidelineLeft selected2 showDetail2 entries scrollTop viewportHeight
         , detailFirstColumnResizeDivider
         ]
 
 
 detailFirstColumnResizeDivider : Html TableMsg
 detailFirstColumnResizeDivider =
-    resizeDivider (\dx _ -> ResizeColumn "name" dx)
+    Utils.resizeDivider (\dx _ -> ResizeColumn "name" dx)
 
 
 totalWidth : Dict String Int -> List TableColumn -> Int
@@ -1055,7 +1007,7 @@ updateTable navKey action log table =
                 )
 
         ExecuteAction act ->
-            executeVimAction navKey { table | vimState = updateVimState table.vimState act } act
+            executeVimAction navKey table act
 
         ResizeColumn column dx ->
             let

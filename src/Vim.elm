@@ -14,20 +14,10 @@ type alias SearchMatchItem =
 type SearchingState
     = NotSearch
     | Searching
-        { result : Maybe SearchMatchItem
-        , lineBuffer : String
+        { match : Maybe SearchMatchItem
         , scrollTop : Int
         }
-    | SearchDone
-        { result : List SearchMatchItem
-        , lineBuffer : String
-        }
-
-
-type alias VimState =
-    { pendingKeys : List String
-    , search : SearchingState
-    }
+    | SearchDone (List SearchMatchItem)
 
 
 type VimAction
@@ -42,52 +32,18 @@ type VimAction
     | ArrowLeft
     | ArrowRight
     | Search
-    | StartSearch String
+    | StartSearch String Int
+    | SearchNav Bool
     | Center
     | Esc
-    | NextSearchResult
-    | PrevSearchResult
+    | NextSearchResult Bool
     | AppendKey String
     | SetSearchModeLineBuffer String
     | NoAction
 
 
-defaultVimState : VimState
-defaultVimState =
-    { pendingKeys = []
-    , search = NotSearch
-    }
-
-
-updateVimState : VimState -> VimAction -> VimState
-updateVimState vimState vimAction =
-    case vimAction of
-        NoAction ->
-            { vimState | pendingKeys = [] }
-
-        AppendKey strKey ->
-            { vimState | pendingKeys = strKey :: vimState.pendingKeys }
-
-        StartSearch prefix ->
-            { vimState | search = Searching { result = Nothing, lineBuffer = prefix, scrollTop = 0 } }
-
-        SetSearchModeLineBuffer str ->
-            { vimState
-                | search =
-                    case vimState.search of
-                        Searching searching ->
-                            Searching { searching | lineBuffer = str }
-
-                        _ ->
-                            NotSearch
-            }
-
-        _ ->
-            vimState
-
-
-parseKeys : VimState -> String -> Bool -> VimAction
-parseKeys { pendingKeys } key ctrlKey =
+parseKeys : Int -> List String -> String -> Bool -> VimAction
+parseKeys scrollTop pendingKeys key ctrlKey =
     case ( pendingKeys, key, ctrlKey ) of
         ( _, "ArrowUp", False ) ->
             ArrowUp
@@ -132,10 +88,10 @@ parseKeys { pendingKeys } key ctrlKey =
             Forward
 
         ( _, "/", False ) ->
-            StartSearch "/"
+            StartSearch "/" scrollTop
 
         ( _, "?", False ) ->
-            StartSearch "?"
+            StartSearch "?" scrollTop
 
         ( [], "g", False ) ->
             AppendKey "g"
@@ -150,10 +106,10 @@ parseKeys { pendingKeys } key ctrlKey =
             Esc
 
         ( _, "n", _ ) ->
-            NextSearchResult
+            NextSearchResult True
 
         ( _, "N", _ ) ->
-            PrevSearchResult
+            NextSearchResult False
 
         _ ->
             NoAction
