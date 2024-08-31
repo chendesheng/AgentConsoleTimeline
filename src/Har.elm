@@ -230,7 +230,7 @@ compareEntry : String -> Entry -> Entry -> Order
 compareEntry column a b =
     case column of
         "name" ->
-            Utils.compareString a.request.url b.request.url
+            Utils.compareString (harEntryName a) (harEntryName b)
 
         "status" ->
             Utils.compareInt a.response.status b.response.status
@@ -531,6 +531,9 @@ harEntryName entry =
 
                 _ ->
                     entry.request.url
+
+        ReduxState ->
+            "state/" ++ entry.id
 
         _ ->
             case slashIndexes of
