@@ -300,8 +300,16 @@ virtualizedList { scrollTop, viewportHeight, itemHeight, items, renderItem } =
         totalHeight =
             totalCount * itemHeight
 
-        fromIndex =
+        i =
             Basics.max 0 <| floor <| toFloat scrollTop / toFloat itemHeight - overhead
+
+        -- always start from even index, makes the background color consistant
+        fromIndex =
+            if isOdd i then
+                i - 1
+
+            else
+                i
 
         visibleItemsCount =
             Basics.min totalCount <| ceiling <| toFloat viewportHeight / toFloat itemHeight + 2 * overhead
@@ -332,3 +340,8 @@ resizeDivider onResize =
             D.field "detail" (D.map2 onResize (D.field "dx" D.int) (D.field "dy" D.int))
         ]
         []
+
+
+isOdd : Int -> Bool
+isOdd n =
+    Basics.modBy 2 n == 1
