@@ -88,6 +88,7 @@ export class JsonTree extends LitElement {
       position: relative;
       left: 1px;
       margin-right: 2px;
+      top: -1px;
     }
   `;
 
