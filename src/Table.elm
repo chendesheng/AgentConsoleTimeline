@@ -9,7 +9,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Html.Keyed as Keyed
-import Html.Lazy exposing (lazy3, lazy6, lazy7)
+import Html.Lazy exposing (lazy3, lazy5, lazy6, lazy7)
 import Icons
 import Initial exposing (InitialMsg(..))
 import Json.Decode as D
@@ -703,8 +703,8 @@ tableBodyEntriesView msPerPx columns selected showDetail scrollTop entries viewp
         }
 
 
-tableBodyDetailView : Float -> Posix -> Int -> Bool -> List Har.Entry -> Int -> Html msg
-tableBodyDetailView msPerPx startTime guidelineLeft showDetail entries scrollTop =
+waterfallGuideline : Float -> Posix -> Int -> List Har.Entry -> Int -> Html msg
+waterfallGuideline msPerPx startTime guidelineLeft entries scrollTop =
     let
         firstEntryStartTime =
             Har.getFirstEntryStartTime entries (floor <| toFloat scrollTop / 20)
@@ -717,20 +717,16 @@ tableBodyDetailView msPerPx startTime guidelineLeft showDetail entries scrollTop
                             / msPerPx
                     )
     in
-    if showDetail then
-        text ""
-
-    else
-        div
-            [ class "waterfall-guideline-container"
-            , style "left" (intPx (guidelineLeft + guidelineAlignOffset))
+    div
+        [ class "waterfall-guideline-container"
+        , style "left" (intPx (guidelineLeft + guidelineAlignOffset))
+        ]
+        [ div
+            [ class "waterfall-guideline"
+            , style "left" (intPx -guidelineAlignOffset)
             ]
-            [ div
-                [ class "waterfall-guideline"
-                , style "left" (intPx -guidelineAlignOffset)
-                ]
-                []
-            ]
+            []
+        ]
 
 
 tableBodyView : SearchingState -> List String -> Float -> Posix -> List TableColumn -> Int -> String -> Bool -> List Har.Entry -> Int -> Int -> Html TableMsg
@@ -744,7 +740,11 @@ tableBodyView search pendingKeys msPerPx startTime columns guidelineLeft selecte
         ]
         [ lazy7 tableBodyEntriesView msPerPx columns selected showDetail scrollTop entries viewportHeight
         , lazy3 tableBodySearchResultView search scrollTop viewportHeight
-        , lazy6 tableBodyDetailView msPerPx startTime guidelineLeft showDetail entries scrollTop
+        , if showDetail then
+            text ""
+
+          else
+            lazy5 waterfallGuideline msPerPx startTime guidelineLeft entries scrollTop
         ]
 
 
