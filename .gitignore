@@ -6,3 +6,4 @@ dist/
 .parcel-cache
 app.zip
 app*.zip
+*.sublime-workspace

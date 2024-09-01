@@ -8,7 +8,6 @@ import Har exposing (EntryKind(..), SortBy, SortOrder(..))
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Html.Keyed as Keyed
 import Html.Lazy exposing (lazy3, lazy5, lazy6, lazy7)
 import Icons
 import Initial exposing (InitialMsg(..))

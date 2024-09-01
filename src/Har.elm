@@ -388,9 +388,34 @@ filterByKind kind entries =
             entries
 
 
+entryContainsStr : String -> Entry -> Bool
+entryContainsStr w entry =
+    let
+        headerContains =
+            .value >> String.toLower >> String.contains w
+    in
+    (entry.request.url
+        |> String.toLower
+        |> String.contains w
+    )
+        || List.any headerContains entry.request.headers
+        || (entry.request.postData
+                |> Maybe.andThen .text
+                |> Maybe.withDefault ""
+                |> String.toLower
+                |> String.contains w
+           )
+        || List.any headerContains entry.response.headers
+        || (entry.response.content.text
+                |> Maybe.withDefault ""
+                |> String.toLower
+                |> String.contains w
+           )
+
+
 filterByMatch : String -> List Entry -> List Entry
 filterByMatch match entries =
-    case match of
+    case String.trim match of
         "" ->
             entries
 
@@ -399,15 +424,14 @@ filterByMatch match entries =
                 loweredFilter =
                     String.toLower filter
             in
-            entries
-                |> List.filter (\entry -> String.contains loweredFilter (String.toLower entry.request.url))
+            List.filter (entryContainsStr loweredFilter) entries
 
 
 filterEntries : String -> Maybe EntryKind -> List Entry -> List Entry
 filterEntries match kind entries =
     entries
-        |> filterByMatch match
         |> filterByKind kind
+        |> filterByMatch match
 
 
 type alias ClientInfo =

@@ -1,0 +1,11 @@
+{
+  "folders": [
+    {
+      "path": "."
+    },
+    {
+      "path": "/Users/roy/.elm/0.19.1/packages"
+    }
+  ],
+  "elm_entry_file": "src/Main.elm"
+}
