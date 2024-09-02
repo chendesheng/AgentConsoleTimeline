@@ -237,6 +237,36 @@ keyValueText { name, value } =
     keyValue { name = name, value = text value }
 
 
+parseCookies : String -> String
+parseCookies text =
+    text
+        |> String.split ";"
+        |> List.map String.trim
+        |> List.filter ((/=) "")
+        |> List.filterMap
+            (\cookie ->
+                case String.split "=" cookie of
+                    [ name, value ] ->
+                        case Url.percentDecode value of
+                            Just decoded ->
+                                Just ( name, decoded )
+
+                            _ ->
+                                Just ( name, value )
+
+                    _ ->
+                        Nothing
+            )
+        |> Encode.list
+            (\( name, value ) ->
+                Encode.object
+                    [ ( "name", Encode.string name )
+                    , ( "value", Encode.string value )
+                    ]
+            )
+        |> Encode.encode 0
+
+
 requestHeaderKeyValue : { x | name : String, value : String } -> Html msg
 requestHeaderKeyValue { name, value } =
     if String.toLower name == "authorization" then
@@ -252,6 +282,18 @@ requestHeaderKeyValue { name, value } =
 
                             _ ->
                                 text ""
+                        ]
+                }
+            ]
+
+    else if String.toLower name == "cookie" then
+        div []
+            [ keyValue
+                { name = name
+                , value =
+                    div []
+                        [ text value
+                        , jsonViewer False "" <| "{\"payload\":" ++ parseCookies value ++ "}"
                         ]
                 }
             ]
@@ -345,7 +387,7 @@ detailView entries model href entry prevStateEntry =
                         jsonViewer True "detail-body" <| Maybe.withDefault "" <| Har.getRequestBody entry
 
                     LogMessage ->
-                        jsonViewer True "detail-body" <| Maybe.withDefault "" <| Har.getLogMessage entry 
+                        jsonViewer True "detail-body" <| Maybe.withDefault "" <| Har.getLogMessage entry
 
                     _ ->
                         jsonViewer True "detail-body" <| Maybe.withDefault "" entry.response.content.text
