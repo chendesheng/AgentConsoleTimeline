@@ -239,17 +239,19 @@ keyValueText { name, value } =
 
 requestHeaderKeyValue : { x | name : String, value : String } -> Html msg
 requestHeaderKeyValue { name, value } =
-    if name == "Authorization" then
+    if String.toLower name == "authorization" then
         div []
             [ keyValue
                 { name = name
                 , value =
                     div []
                         [ text value
-                        , jsonViewer False "" <|
-                            "{\"payload\":"
-                                ++ (Result.withDefault "" <| parseToken value)
-                                ++ "}"
+                        , case parseToken value of
+                            Ok v ->
+                                jsonViewer False "" <| "{\"payload\":" ++ v ++ "}"
+
+                            _ ->
+                                text ""
                         ]
                 }
             ]

@@ -18,14 +18,7 @@ parseToken token =
                 |> String.split "."
         of
             [ _, payload, _ ] ->
-                payload
-                    |> Base64.decode
-                    |> Result.andThen
-                        (\decoded ->
-                            Decode.decodeString tokenPayloadDecoder decoded
-                                |> Result.mapError Decode.errorToString
-                        )
-                    |> Result.map encodeTokenPayload
+                Base64.decode payload
 
             _ ->
                 Result.Err "Invalid token format"
