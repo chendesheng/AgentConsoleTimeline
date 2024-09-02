@@ -64,8 +64,15 @@ export class CodeEditor extends LitElement {
   }
 
   protected updated(changedProperties: PropertyValues): void {
-    if (changedProperties.has("content") && this.editor) {
-      this.editor.setValue(formatJson(this.content));
+    if (
+      (changedProperties.has("content") || changedProperties.has("language")) &&
+      this.editor
+    ) {
+      const model = this.monaco.editor.createModel(
+        formatJson(this.content),
+        this.language
+      );
+      this.editor.setModel(model);
     }
   }
 }
@@ -151,7 +158,11 @@ export class MonacoDiffEditor extends LitElement {
 }
 
 function formatJson(s: string) {
-  return JSON.stringify(sortKeys(JSON.parse(s)), null, 4);
+  try {
+    return JSON.stringify(sortKeys(JSON.parse(s)), null, 4);
+  } catch (e) {
+    return s;
+  }
 }
 
 function cloneStyles(root: HTMLElement | DocumentFragment, onload: () => void) {

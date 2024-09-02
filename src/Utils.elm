@@ -345,3 +345,21 @@ resizeDivider onResize =
 isOdd : Int -> Bool
 isOdd n =
     Basics.modBy 2 n == 1
+
+
+getLanguage : String -> String
+getLanguage path =
+    if String.endsWith ".js" path then
+        "javascript"
+
+    else if String.endsWith ".ts" path then
+        "typescript"
+
+    else if String.endsWith ".css" path then
+        "css"
+
+    else if String.endsWith ".html" path then
+        "html"
+
+    else
+        "json"

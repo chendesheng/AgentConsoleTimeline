@@ -15,6 +15,7 @@ import String
 import Task
 import Time
 import TokenDecoder exposing (parseToken)
+import Url
 import Utils
 
 
@@ -399,6 +400,20 @@ detailView entries model href entry prevStateEntry =
                         noContent
 
             StateChanges ->
+                let
+                    lang =
+                        case entryKind of
+                            NetworkHttp ->
+                                case Url.fromString entry.request.url of
+                                    Just { path } ->
+                                        Utils.getLanguage path
+
+                                    _ ->
+                                        "json"
+
+                            _ ->
+                                "json"
+                in
                 case Har.getReduxState entry of
                     Just modified ->
                         case prevStateEntry of
@@ -409,6 +424,7 @@ detailView entries model href entry prevStateEntry =
                                             [ class "detail-body"
                                             , attribute "original" original
                                             , attribute "modified" modified
+                                            , attribute "language" lang
                                             ]
                                             []
 
@@ -433,10 +449,28 @@ detailView entries model href entry prevStateEntry =
 
                             _ ->
                                 entry.response.content.text
+
+                    lang =
+                        case entryKind of
+                            NetworkHttp ->
+                                case Url.fromString entry.request.url of
+                                    Just { path } ->
+                                        Utils.getLanguage path
+
+                                    _ ->
+                                        "json"
+
+                            _ ->
+                                "json"
                 in
                 case txt of
                     Just t ->
-                        Html.node "monaco-editor" [ class "detail-body", attribute "content" t ] []
+                        Html.node "monaco-editor"
+                            [ class "detail-body"
+                            , attribute "content" t
+                            , attribute "language" lang
+                            ]
+                            []
 
                     _ ->
                         noContent
