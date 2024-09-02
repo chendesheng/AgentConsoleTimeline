@@ -507,6 +507,16 @@ getRequestBody entry =
             Nothing
 
 
+getLogMessage : Entry -> Maybe String
+getLogMessage entry =
+    case entry.response.content.text of
+        Nothing ->
+            getRequestBody entry
+
+        e ->
+            e
+
+
 findEntryAndPrevStateEntryHelper : List Entry -> Int -> Maybe Entry -> ( Maybe Entry, Maybe Entry )
 findEntryAndPrevStateEntryHelper entries index prevStateEntry =
     if index == 0 then

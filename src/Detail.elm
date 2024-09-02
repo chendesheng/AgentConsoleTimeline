@@ -89,7 +89,6 @@ detailTabs selected entry =
 
                 LogMessage ->
                     [ { name = Preview, label = "Preview" }
-                    , { name = Response, label = "Message" }
                     , { name = Raw, label = "Raw" }
                     ]
 
@@ -342,6 +341,9 @@ detailView entries model href entry prevStateEntry =
                     ReduxAction ->
                         jsonViewer True "detail-body" <| Maybe.withDefault "" <| Har.getRequestBody entry
 
+                    LogMessage ->
+                        jsonViewer True "detail-body" <| Maybe.withDefault "" <| Har.getLogMessage entry 
+
                     _ ->
                         jsonViewer True "detail-body" <| Maybe.withDefault "" entry.response.content.text
 
@@ -425,6 +427,9 @@ detailView entries model href entry prevStateEntry =
                         case entryKind of
                             ReduxAction ->
                                 Har.getRequestBody entry
+
+                            LogMessage ->
+                                Har.getLogMessage entry
 
                             _ ->
                                 entry.response.content.text
