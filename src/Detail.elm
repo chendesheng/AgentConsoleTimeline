@@ -269,37 +269,29 @@ parseCookies text =
 
 requestHeaderKeyValue : { x | name : String, value : String } -> Html msg
 requestHeaderKeyValue { name, value } =
-    if String.toLower name == "authorization" then
-        div []
-            [ keyValue
-                { name = name
-                , value =
-                    div []
-                        [ text value
-                        , case parseToken value of
-                            Ok v ->
-                                jsonViewer False "" <| "{\"payload\":" ++ v ++ "}"
+    keyValue
+        { name = name
+        , value =
+            if String.toLower name == "authorization" then
+                div []
+                    [ text value
+                    , case parseToken value of
+                        Ok v ->
+                            jsonViewer False "" <| "{\"payload\":" ++ v ++ "}"
 
-                            _ ->
-                                text ""
-                        ]
-                }
-            ]
+                        _ ->
+                            text ""
+                    ]
 
-    else if String.toLower name == "cookie" then
-        div []
-            [ keyValue
-                { name = name
-                , value =
-                    div []
-                        [ text value
-                        , jsonViewer False "" <| "{\"payload\":" ++ parseCookies value ++ "}"
-                        ]
-                }
-            ]
+            else if String.toLower name == "cookie" then
+                div []
+                    [ text value
+                    , jsonViewer False "" <| "{\"payload\":" ++ parseCookies value ++ "}"
+                    ]
 
-    else
-        keyValueText { name = name, value = value }
+            else
+                text value
+        }
 
 
 noContent : Html msg
