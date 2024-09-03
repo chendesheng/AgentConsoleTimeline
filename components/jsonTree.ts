@@ -145,9 +145,9 @@ export class JsonTree extends LitElement {
         </div>
         <json-viewer .data=${sortKeys(JSON.parse(this.data))}></json-viewer>`;
     } catch (e: any) {
+      console.error(e);
       return html`<div style="margin-top: 10px;">
-        <div>${e.message}</div>
-        <div>${this.data}</div>
+        <pre>${this.data}</pre>
       </div>`;
     }
   }
