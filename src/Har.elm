@@ -513,6 +513,9 @@ getLogMessage entry =
         Nothing ->
             getRequestBody entry
 
+        Just "" ->
+            getRequestBody entry
+
         e ->
             e
 
