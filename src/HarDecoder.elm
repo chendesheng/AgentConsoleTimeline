@@ -1,9 +1,24 @@
-module HarDecoder exposing (harDecoder)
+module HarDecoder exposing (decodeHar)
 
 import Har exposing (..)
 import Iso8601
-import Json.Decode as Decode exposing (Decoder, bool, field, float, int, list, maybe, string)
+import Json.Decode as Decode exposing (Decoder, bool, decodeString, field, float, int, list, maybe, string)
+import Time
 import Url exposing (percentDecode)
+
+
+decodeHar : String -> Maybe Log
+decodeHar str =
+    case decodeString harDecoder str of
+        Ok { log } ->
+            Just
+                { log
+                    | entries =
+                        List.sortBy (\entry -> Time.posixToMillis entry.startedDateTime) log.entries
+                }
+
+        Err _ ->
+            Nothing
 
 
 harDecoder : Decoder HarFile

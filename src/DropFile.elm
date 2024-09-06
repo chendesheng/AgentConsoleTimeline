@@ -2,12 +2,11 @@ module DropFile exposing (DropFileModel, DropFileMsg(..), defaultDropFileModel, 
 
 import File exposing (File)
 import Har
-import HarDecoder exposing (harDecoder)
+import HarDecoder exposing (decodeHar)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Json.Decode as D
 import Task
-import Time
 import Utils
 
 
@@ -19,6 +18,7 @@ type alias DropFileModel =
     { hover : Bool
     , error : Maybe String
     , fileName : String
+    , fileContentString : String
     , fileContent : Maybe Har.Log
     }
 
@@ -28,6 +28,7 @@ defaultDropFileModel =
     { hover = False
     , error = Nothing
     , fileName = ""
+    , fileContentString = ""
     , fileContent = Nothing
     }
 
@@ -41,7 +42,7 @@ type DropFileMsg
     | DragEnter
     | DragLeave
     | GotFile File
-    | GotFileContent Har.Log
+    | GotFileContent String Har.Log
 
 
 dropFileUpdate : DropFileMsg -> DropFileModel -> ( DropFileModel, Cmd DropFileMsg )
@@ -60,22 +61,16 @@ dropFileUpdate msg model =
             ( { model | hover = False, fileName = File.name file }
             , Task.perform
                 (\str ->
-                    case D.decodeString harDecoder str of
-                        Ok { log } ->
-                            GotFileContent
-                                { log
-                                    | entries =
-                                        List.sortBy (\entry -> Time.posixToMillis entry.startedDateTime) log.entries
-                                }
-
-                        Err _ ->
-                            NoOp
+                    str
+                        |> decodeHar
+                        |> Maybe.map (GotFileContent str)
+                        |> Maybe.withDefault NoOp
                 )
                 (File.toString file)
             )
 
-        GotFileContent file ->
-            ( { model | fileContent = Just file }, Cmd.none )
+        GotFileContent fileContentString file ->
+            ( { model | fileContentString = fileContentString, fileContent = Just file }, Cmd.none )
 
 
 

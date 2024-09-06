@@ -6,12 +6,14 @@ import Browser.Navigation as Nav
 import Detail exposing (DetailModel, DetailMsg(..), detailViewContainer)
 import DropFile exposing (DropFileModel, DropFileMsg(..), defaultDropFileModel, dropFileView)
 import Har exposing (ClientInfo, EntryKind(..), SortOrder(..))
+import HarDecoder exposing (decodeHar)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Html.Lazy exposing (lazy2, lazy3, lazy4)
 import Initial exposing (InitialModel, InitialMsg, defaultInitialModel, initialView, updateInitial)
 import List
+import RecentFile exposing (RecentFile, gotFileContent, saveRecentFile)
 import Table exposing (TableModel, TableMsg(..), defaultTableModel, subTable, tableFilterView, tableView, updateTable)
 import Task
 import Time
@@ -39,9 +41,13 @@ type alias OpenedModel =
     }
 
 
-init : Nav.Key -> ( Model, Cmd Msg )
-init navKey =
-    ( Initial <| defaultInitialModel navKey, Cmd.none )
+init : Nav.Key -> List RecentFile -> ( Model, Cmd Msg )
+init navKey recentFiles =
+    let
+        model =
+            defaultInitialModel navKey
+    in
+    ( Initial <| { model | recentFiles = recentFiles }, Cmd.none )
 
 
 
@@ -111,8 +117,8 @@ type OpenedMsg
     | DropFile DropFileMsg
 
 
-initOpened : String -> Har.Log -> Nav.Key ->  Maybe Int -> ( OpenedModel, Cmd OpenedMsg )
-initOpened fileName log navKey initialViewportHeight =
+initOpened : String -> String -> Har.Log -> Nav.Key -> Maybe Int -> ( OpenedModel, Cmd OpenedMsg )
+initOpened fileName fileContent log navKey initialViewportHeight =
     let
         table =
             { defaultTableModel | entries = log.entries, viewportHeight = Maybe.withDefault 0 initialViewportHeight }
@@ -144,6 +150,7 @@ initOpened fileName log navKey initialViewportHeight =
 
             _ ->
                 Cmd.none
+        , saveRecentFile { fileName = fileName, fileContent = fileContent }
         ]
     )
 
@@ -160,7 +167,12 @@ update msg model =
                                 Just log ->
                                     let
                                         ( m, cmd2 ) =
-                                            initOpened newModel.dropFile.fileName log newModel.navKey Nothing
+                                            initOpened
+                                                newModel.dropFile.fileName
+                                                newModel.dropFile.fileContentString
+                                                log
+                                                newModel.navKey
+                                                Nothing
                                     in
                                     ( Opened m, Cmd.map OpenedMsg cmd2 )
 
@@ -262,14 +274,11 @@ updateOpened msg model =
                             ( model.table, Cmd.none )
             in
             ( { model | detail = detail, table = table }
-            , Cmd.batch
-                [ Cmd.map DetailAction cmd
-                , Cmd.map TableAction cmd1
-                ]
+            , Cmd.batch [ Cmd.map DetailAction cmd, Cmd.map TableAction cmd1 ]
             )
 
-        DropFile (GotFileContent log) ->
-            initOpened model.dropFile.fileName log model.navKey (Just model.table.viewportHeight)
+        DropFile (GotFileContent fileContent log) ->
+            initOpened model.dropFile.fileName fileContent log model.navKey (Just model.table.viewportHeight)
 
         DropFile dropMsg ->
             let
@@ -287,7 +296,15 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     case model of
         Initial _ ->
-            Sub.none
+            gotFileContent
+                (\str ->
+                    case decodeHar str of
+                        Just log ->
+                            InitialMsg <| Initial.DropFile <| GotFileContent str log
+
+                        _ ->
+                            NoOp
+                )
 
         Opened _ ->
             Sub.map (OpenedMsg << TableAction) subTable
@@ -297,10 +314,10 @@ subscriptions model =
 -- MAIN
 
 
-main : Program () Model Msg
+main : Program { recentFiles : List RecentFile } Model Msg
 main =
     Browser.application
-        { init = \_ _ key -> init key
+        { init = \flags _ key -> init key flags.recentFiles
         , view =
             \model ->
                 { title =
