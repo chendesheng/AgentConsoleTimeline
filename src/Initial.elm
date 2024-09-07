@@ -7,7 +7,7 @@ import HarDecoder exposing (decodeHar)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import RecentFile exposing (RecentFile, getFileContent)
+import RecentFile exposing (RecentFile, clearRecentFiles, getFileContent)
 
 
 
@@ -38,14 +38,31 @@ initialView model =
     dropFileView "initial-container"
         model.dropFile
         DropFile
-        [ ul []
-            (List.map
-                (\{ key, fileName } ->
-                    li [ onClick (ClickRecentFile key fileName) ] [ text fileName ]
-                )
-                model.recentFiles
+        [ ul [ class "recent-files" ]
+            (li [] [ a [ href "#", onClick Pick ] [ text "Open…" ] ]
+                :: li [] [ a [ href "#", onClick ClickClearRecentFiles ] [ text "Clear Recent Files" ] ]
+                :: li []
+                    [ text
+                        (if List.isEmpty model.recentFiles then
+                            ""
+
+                         else
+                            "⸻"
+                        )
+                    ]
+                :: List.map
+                    (\{ key, fileName } ->
+                        li
+                            []
+                            [ a
+                                [ onClick (ClickRecentFile key fileName)
+                                , href "#"
+                                ]
+                                [ text fileName ]
+                            ]
+                    )
+                    model.recentFiles
             )
-        , button [ onClick Pick ] [ text "Open Dump File" ]
         , span [ style "color" "red" ] [ text <| Maybe.withDefault "" model.dropFile.error ]
         ]
 
@@ -58,6 +75,7 @@ type InitialMsg
     = Pick
     | DropFile DropFileMsg
     | ClickRecentFile String String
+    | ClickClearRecentFiles
 
 
 updateInitial : InitialMsg -> InitialModel -> ( InitialModel, Cmd InitialMsg )
@@ -90,3 +108,6 @@ updateInitial msg model =
                             |> DropFile
                     )
             )
+
+        ClickClearRecentFiles ->
+            ( { model | recentFiles = [] }, clearRecentFiles () )

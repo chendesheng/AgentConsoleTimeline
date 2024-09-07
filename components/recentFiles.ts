@@ -12,7 +12,9 @@ async function openRecentFilesDb() {
 
 export async function getRecentFiles() {
   const db = await openRecentFilesDb();
-  return db.getAll("list");
+  const list = await db.getAll("list");
+  list.sort((a, b) => b.lastOpenTime - a.lastOpenTime);
+  return list;
 }
 
 export async function getFileContent(key: string) {
@@ -43,6 +45,18 @@ export async function saveRecentFile(fileName: string, content: string) {
       await contentStore.delete(toDelete);
     }
   }
+
+  await tx.done;
+}
+
+export async function clearRecentFile() {
+  const db = await openRecentFilesDb();
+  const tx = db.transaction(["list", "content"], "readwrite");
+  const listStore = tx.objectStore("list");
+  const contentStore = tx.objectStore("content");
+
+  await listStore.clear();
+  await contentStore.clear();
 
   await tx.done;
 }

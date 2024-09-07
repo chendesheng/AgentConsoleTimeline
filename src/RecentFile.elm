@@ -7,6 +7,7 @@ port saveRecentFile : { fileName : String, fileContent : String } -> Cmd msg
 port getFileContent : String -> Cmd msg
 
 
+
 -- port getRecentFiles : () -> Cmd msg
 
 
@@ -14,6 +15,9 @@ port gotFileContent : (String -> msg) -> Sub msg
 
 
 port gotRecentFiles : (List RecentFile -> msg) -> Sub msg
+
+
+port clearRecentFiles : () -> Cmd msg
 
 
 type alias RecentFile =
