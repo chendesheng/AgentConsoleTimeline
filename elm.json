@@ -6,6 +6,7 @@
     "elm-version": "0.19.1",
     "dependencies": {
         "direct": {
+            "agu-z/elm-zip": "3.0.1",
             "elm/browser": "1.0.2",
             "elm/core": "1.0.5",
             "elm/file": "1.0.5",
@@ -21,7 +22,11 @@
         "indirect": {
             "elm/bytes": "1.0.8",
             "elm/parser": "1.1.0",
-            "elm/virtual-dom": "1.0.3"
+            "elm/virtual-dom": "1.0.3",
+            "elm-community/list-extra": "8.7.0",
+            "folkertdev/elm-flate": "2.0.5",
+            "justinmimbs/date": "4.1.0",
+            "justinmimbs/time-extra": "1.2.0"
         }
     },
     "test-dependencies": {

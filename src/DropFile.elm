@@ -6,8 +6,10 @@ import HarDecoder exposing (decodeHar)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Json.Decode as D
-import Task
+import Task exposing (Task)
 import Utils
+import Zip
+import Zip.Entry as ZipEntry
 
 
 
@@ -45,6 +47,35 @@ type DropFileMsg
     | GotFileContent String Har.Log
 
 
+readFile : File -> Task x String
+readFile file =
+    let
+        name =
+            File.name file
+    in
+    if String.endsWith ".zip" name then
+        -- TODO: handle error
+        file
+            |> File.toBytes
+            |> Task.map
+                (\bytes ->
+                    bytes
+                        |> Zip.fromBytes
+                        |> Maybe.andThen
+                            (\zip ->
+                                zip
+                                    |> Zip.entries
+                                    |> List.filter (not << ZipEntry.isDirectory)
+                                    |> List.head
+                                    |> Maybe.andThen (ZipEntry.toString >> Result.toMaybe)
+                            )
+                        |> Maybe.withDefault ""
+                )
+
+    else
+        File.toString file
+
+
 dropFileUpdate : DropFileMsg -> DropFileModel -> ( DropFileModel, Cmd DropFileMsg )
 dropFileUpdate msg model =
     case msg of
@@ -66,7 +97,7 @@ dropFileUpdate msg model =
                         |> Maybe.map (GotFileContent str)
                         |> Maybe.withDefault NoOp
                 )
-                (File.toString file)
+                (readFile file)
             )
 
         GotFileContent fileContentString file ->
