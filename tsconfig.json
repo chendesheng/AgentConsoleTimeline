@@ -116,5 +116,6 @@
       }
     ]
   },
-  "files": ["index.d.ts"]
+  "files": ["index.d.ts"],
+  "include": ["components/**/*.ts"]
 }
