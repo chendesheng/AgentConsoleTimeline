@@ -45,32 +45,49 @@ type DropFileMsg
     | DragLeave
     | GotFile File
     | GotFileContent String Har.Log
+    | ReadFileError String
 
 
-readFile : File -> Task x String
+readFile : File -> Task String String
 readFile file =
     let
         name =
             File.name file
+        
+        fail message =
+            Task.fail <| "Unzip " ++ name ++ ": " ++ message
     in
     if String.endsWith ".zip" name then
-        -- TODO: handle error
-        file
-            |> File.toBytes
-            |> Task.map
-                (\bytes ->
-                    bytes
-                        |> Zip.fromBytes
-                        |> Maybe.andThen
-                            (\zip ->
-                                zip
-                                    |> Zip.entries
-                                    |> List.filter (not << ZipEntry.isDirectory)
-                                    |> List.head
-                                    |> Maybe.andThen (ZipEntry.toString >> Result.toMaybe)
-                            )
-                        |> Maybe.withDefault ""
-                )
+        -- unzip too large file is too slow
+        if File.size file > 1024 * 1024 * 50 then
+            fail "file is too large (> 50 MB)"
+
+        else
+            file
+                |> File.toBytes
+                |> Task.andThen
+                    (\bytes ->
+                        bytes
+                            |> Zip.fromBytes
+                            |> Maybe.andThen
+                                (\zip ->
+                                    case
+                                        zip
+                                            |> Zip.entries
+                                            |> List.filter (not << ZipEntry.isDirectory)
+                                            |> List.head
+                                    of
+                                        Just entry ->
+                                            entry
+                                                |> ZipEntry.toString
+                                                |> Result.toMaybe
+                                                |> Maybe.map Task.succeed
+
+                                        _ ->
+                                            Just <| fail "no files found"
+                                )
+                            |> Maybe.withDefault (fail "format error")
+                    )
 
     else
         File.toString file
@@ -90,18 +107,26 @@ dropFileUpdate msg model =
 
         GotFile file ->
             ( { model | hover = False, fileName = File.name file }
-            , Task.perform
-                (\str ->
-                    str
-                        |> decodeHar
-                        |> Maybe.map (GotFileContent str)
-                        |> Maybe.withDefault NoOp
+            , Task.attempt
+                (\res ->
+                    case res of
+                        Ok str ->
+                            str
+                                |> decodeHar
+                                |> Maybe.map (GotFileContent str)
+                                |> Maybe.withDefault (ReadFileError <| "File format error: " ++ File.name file)
+
+                        Err error ->
+                            ReadFileError error
                 )
                 (readFile file)
             )
 
         GotFileContent fileContentString file ->
-            ( { model | fileContentString = fileContentString, fileContent = Just file }, Cmd.none )
+            ( { model | fileContentString = fileContentString, fileContent = Just file, error = Nothing }, Cmd.none )
+
+        ReadFileError error ->
+            ( { model | error = Just error }, Cmd.none )
 
 
 

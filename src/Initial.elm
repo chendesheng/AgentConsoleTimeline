@@ -38,7 +38,8 @@ initialView model =
     dropFileView "initial-container"
         model.dropFile
         DropFile
-        [ ul [ class "recent-files" ]
+        [ span [ style "color" "red" ] [ text <| Maybe.withDefault "" model.dropFile.error ]
+        , ul [ class "recent-files" ]
             (li [] [ a [ href "#", onClick Pick ] [ text "Open…" ] ]
                 :: li [] [ a [ href "#", onClick ClickClearRecentFiles ] [ text "Clear Recent Files" ] ]
                 :: li []
@@ -63,7 +64,6 @@ initialView model =
                     )
                     model.recentFiles
             )
-        , span [ style "color" "red" ] [ text <| Maybe.withDefault "" model.dropFile.error ]
         ]
 
 
