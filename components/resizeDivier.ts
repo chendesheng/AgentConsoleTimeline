@@ -5,7 +5,7 @@ import {
   property,
   query,
   state
-} from "lit/decorators";
+} from "lit/decorators.js";
 
 @customElement("resize-divider")
 export class ResizeDivier extends LitElement {
