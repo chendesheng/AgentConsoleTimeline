@@ -304,11 +304,11 @@ sortEntries ( column, sortOrder ) =
 
 
 type EntryKind
-    = ReduxState
+    = LogMessage
     | NetworkHttp
-    | LogMessage
-    | ReduxAction
     | Others
+    | ReduxAction
+    | ReduxState
 
 
 getEntryKind : Entry -> EntryKind
@@ -478,6 +478,11 @@ isReduxStateEntry entry =
     entry.request.url == "/redux/state"
 
 
+isReduxEntry : Entry -> Bool
+isReduxEntry entry =
+    String.startsWith "/redux/" entry.request.url
+
+
 getReduxState : Entry -> Maybe String
 getReduxState entry =
     if isReduxStateEntry entry then
@@ -520,38 +525,32 @@ getLogMessage entry =
             e
 
 
-findEntryAndPrevStateEntryHelper : List Entry -> Int -> Maybe Entry -> ( Maybe Entry, Maybe Entry )
-findEntryAndPrevStateEntryHelper entries index prevStateEntry =
-    if index == 0 then
-        case entries of
-            entry :: _ ->
-                ( Just entry, prevStateEntry )
+findStateEntryAndPrevStateEntryHelper : List Entry -> String -> Maybe Entry -> List Entry -> ( Maybe Entry, Maybe Entry, List Entry )
+findStateEntryAndPrevStateEntryHelper entries id prevStateEntry nonStateEntries =
+    case entries of
+        entry :: rest ->
+            if entry.id == id then
+                if isReduxStateEntry entry then
+                    ( Just entry, prevStateEntry, List.reverse nonStateEntries )
 
-            [] ->
-                ( Nothing, Nothing )
+                else
+                    ( Nothing, prevStateEntry, List.reverse <| entry :: nonStateEntries )
 
-    else
-        case entries of
-            entry :: rest ->
-                findEntryAndPrevStateEntryHelper rest (index - 1) <|
-                    if isReduxStateEntry entry then
-                        Just entry
+            else if isReduxStateEntry entry then
+                findStateEntryAndPrevStateEntryHelper rest id (Just entry) []
 
-                    else
-                        prevStateEntry
+            else
+                findStateEntryAndPrevStateEntryHelper rest id prevStateEntry (entry :: nonStateEntries)
 
-            [] ->
-                ( Nothing, Nothing )
+        [] ->
+            ( Nothing, Nothing, [] )
 
 
-findEntryAndPrevStateEntry : List Entry -> String -> ( Maybe Entry, Maybe Entry )
-findEntryAndPrevStateEntry entries id =
-    case Utils.indexOf (\entry -> entry.id == id) entries of
-        Just index ->
-            findEntryAndPrevStateEntryHelper entries index Nothing
-
-        _ ->
-            ( Nothing, Nothing )
+{-| Returns state entry of id, prevStateEntry of the entry, entries between the prevStateEntry and the entry (including the entry if it is not redux state entry).
+-}
+findStateEntryAndPrevStateEntry : List Entry -> String -> ( Maybe Entry, Maybe Entry, List Entry )
+findStateEntryAndPrevStateEntry entries id =
+    findStateEntryAndPrevStateEntryHelper entries id Nothing []
 
 
 harEntryName : Entry -> String
@@ -581,21 +580,21 @@ harEntryName entry =
                     entry.request.url
 
 
-getNextStateEntryIndex : List Entry -> Int -> Int
-getNextStateEntryIndex entries index =
+getNextReduxEntryIndex : List Entry -> Int -> Int
+getNextReduxEntryIndex entries index =
     entries
         |> List.drop (index + 1)
-        |> Utils.indexOf (\entry -> isReduxStateEntry entry)
+        |> Utils.indexOf (\entry -> isReduxEntry entry)
         |> Maybe.map (\d -> index + 1 + d)
         |> Maybe.withDefault index
 
 
-getPrevStateEntryIndex : List Entry -> Int -> Int
-getPrevStateEntryIndex entries index =
+getPrevReduxEntryIndex : List Entry -> Int -> Int
+getPrevReduxEntryIndex entries index =
     entries
         |> List.take index
         |> List.reverse
-        |> Utils.indexOf (\entry -> isReduxStateEntry entry)
+        |> Utils.indexOf (\entry -> isReduxEntry entry)
         |> Maybe.map (\d -> index - d - 1)
         |> Maybe.withDefault index
 

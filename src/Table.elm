@@ -1,4 +1,15 @@
-module Table exposing (TableModel, TableMsg(..), defaultTableModel, getSelectedEntry, scrollToEntry, subTable, tableFilterView, tableView, updateTable)
+module Table exposing
+    ( TableModel
+    , TableMsg(..)
+    , defaultTableModel
+    , getSelectedEntry
+    , isSortByTime
+    , scrollToEntry
+    , subTable
+    , tableFilterView
+    , tableView
+    , updateTable
+    )
 
 import Browser.Dom as Dom
 import Browser.Events exposing (onResize)
@@ -75,6 +86,16 @@ type alias TableModel =
     , search : SearchingState
     , searchHistory : UndoList String
     }
+
+
+isSortByTime : TableModel -> Bool
+isSortByTime table =
+    case table.sortBy of
+        ( "time", _ ) ->
+            True
+
+        _ ->
+            False
 
 
 defaultTableModel : TableModel
@@ -231,10 +252,10 @@ executeVimAction navKey table action =
                 )
 
         ArrowLeft ->
-            withUpdateIndex table (Har.getPrevStateEntryIndex table.entries)
+            withUpdateIndex table (Har.getPrevReduxEntryIndex table.entries)
 
         ArrowRight ->
-            withUpdateIndex table (Har.getNextStateEntryIndex table.entries)
+            withUpdateIndex table (Har.getNextReduxEntryIndex table.entries)
 
         NextPage ->
             withUpdateIndex table
@@ -622,11 +643,12 @@ scaleToWaterfallMsPerPx scale =
 tableFilterOptions : List { value : String, label : String }
 tableFilterOptions =
     [ { value = "", label = "All" }
-    , { value = "0", label = "Redux State" }
-    , { value = "1", label = "Redux Action" }
-    , { value = "2", label = "Log" }
-    , { value = "3", label = "Http" }
-    , { value = "4", label = "Others" }
+    , { value = "0", label = "Redux" }
+    , { value = "1", label = "Redux State" }
+    , { value = "2", label = "Redux Action" }
+    , { value = "3", label = "Log" }
+    , { value = "4", label = "Http" }
+    , { value = "5", label = "Others" }
     ]
 
 

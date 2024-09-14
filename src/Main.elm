@@ -10,11 +10,11 @@ import HarDecoder exposing (decodeHar)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Html.Lazy exposing (lazy2, lazy3, lazy4)
+import Html.Lazy exposing (lazy2, lazy3, lazy5)
 import Initial exposing (InitialModel, InitialMsg, defaultInitialModel, initialView, updateInitial)
 import List
 import RecentFile exposing (RecentFile, gotFileContent, saveRecentFile)
-import Table exposing (TableModel, TableMsg(..), defaultTableModel, subTable, tableFilterView, tableView, updateTable)
+import Table exposing (TableModel, TableMsg(..), defaultTableModel, isSortByTime, subTable, tableFilterView, tableView, updateTable)
 import Task
 import Time
 import Utils
@@ -78,7 +78,8 @@ viewOpened model =
                 [ Html.map TableAction (lazy2 tableFilterView table.waterfallMsPerPx table.filter)
                 , Html.map TableAction (lazy3 tableView startTime table detail.show)
                 , Html.map DetailAction
-                    (lazy4 detailViewContainer
+                    (lazy5 detailViewContainer
+                        (isSortByTime table)
                         model.clientInfo.href
                         table.selected
                         table.entries

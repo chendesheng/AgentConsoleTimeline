@@ -7,6 +7,10 @@ export class AgentConsoleSnapshot extends LitElement {
   src = "";
   @property()
   state = "";
+
+  @property()
+  actions = "";
+
   @property()
   time = "";
 
@@ -59,7 +63,7 @@ export class AgentConsoleSnapshot extends LitElement {
     }
   `;
 
-  handleClickReloadButton() {
+  private handleClickReloadButton() {
     this.iframe.src = this.src;
   }
 
@@ -71,10 +75,28 @@ export class AgentConsoleSnapshot extends LitElement {
     <iframe src="${this.src}" allow="clipboard-read; clipboard-write"></iframe>`;
   }
 
-  sendToIframe() {
-    if (this.iframe?.contentWindow) {
-      this.iframe.contentWindow.postMessage(
+  private sendToIframe() {
+    if (this.state) {
+      console.log('restore state');
+      this.iframe.contentWindow?.postMessage(
         { type: "restoreReduxState", payload: this.state, time: this.time },
+        "*"
+      );
+    }
+    this.dispatchActionsToIframe(AgentConsoleSnapshot.parseActions(this.actions));
+  }
+
+  static parseActions(actions: string): string[] {
+    return actions ? JSON.parse(actions) : [];
+  }
+
+  dispatchActionsToIframe(actions: string[]) {
+    if (!this.iframe.contentWindow) return;
+
+    for (const action of actions) {
+      console.log('dispatch action', action);
+      this.iframe.contentWindow.postMessage(
+        { type: "dispatchReduxAction", action: JSON.parse(action), time: this.time },
         "*"
       );
     }
@@ -96,8 +118,27 @@ export class AgentConsoleSnapshot extends LitElement {
     window.removeEventListener("message", this.handleMessage);
   }
 
-  updated(changed: PropertyValues<this>) {
-    if (changed.has("state")) {
+  private diffActions(oldActionsStr: string): string[] | undefined {
+    const oldActions = AgentConsoleSnapshot.parseActions(oldActionsStr) as string[];
+    const actions = AgentConsoleSnapshot.parseActions(this.actions);
+    if (oldActions.length > actions.length) {
+      return;
+    }
+    if (oldActions.some((action, i) => action !== actions[i])) {
+      return;
+    }
+    return actions.slice(oldActions.length);
+  }
+
+  updated(prev: PropertyValues<this>) {
+    if (!prev.has("state") && prev.has("actions")) {
+      const actions = this.diffActions(prev.get("actions")!);
+      if (actions) this.dispatchActionsToIframe(actions);
+      else this.sendToIframe();
+      return;
+    }
+
+    if (prev.has("state")) {
       this.sendToIframe();
     }
   }

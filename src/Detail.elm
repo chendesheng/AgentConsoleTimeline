@@ -12,6 +12,7 @@ import Json.Decode as Decode
 import Json.Encode as Encode
 import List
 import String
+import Table exposing (isSortByTime)
 import Task
 import Time
 import TokenDecoder exposing (parseToken)
@@ -84,6 +85,7 @@ detailTabs selected entry =
 
                 ReduxAction ->
                     [ { name = Preview, label = "Preview" }
+                    , { name = Request, label = "Action" }
                     , { name = Response, label = "Trace" }
                     , { name = Raw, label = "Raw" }
                     ]
@@ -129,7 +131,7 @@ agentConsoleSnapshotPlayer entries initialId =
     let
         stateEntries =
             entries
-                |> Har.filterEntries "" (Just Har.ReduxState)
+                |> List.filter Har.isReduxEntry
                 |> Har.sortEntries ( "time", Har.Asc )
 
         firstEntryStartTime =
@@ -162,8 +164,8 @@ agentConsoleSnapshotPlayer entries initialId =
         []
 
 
-agentConsoleSnapshot : List Har.Entry -> String -> String -> String -> Html DetailMsg
-agentConsoleSnapshot entries href currentId entryId =
+agentConsoleSnapshot : Bool -> List Har.Entry -> String -> String -> Html DetailMsg
+agentConsoleSnapshot isSortByTime entries href currentId =
     let
         stateEntries =
             entries
@@ -181,14 +183,44 @@ agentConsoleSnapshot entries href currentId entryId =
                 _ ->
                     True
 
+        ( stateEntry, prevStateEntry, nonStateEntries ) =
+            Har.findStateEntryAndPrevStateEntry entries currentId
+
+        actions =
+            if isSortByTime && stateEntry == Nothing then
+                nonStateEntries
+                    |> Har.filterByKind (Just ReduxAction)
+                    |> List.map (\e -> Har.getRequestBody e |> Maybe.withDefault "")
+                    |> Encode.list Encode.string
+                    |> Encode.encode 0
+
+            else
+                -- pass empty actions when entries are not sorted by time
+                -- because when entries are not sorted by time, the states/actions are not in order
+                ""
+
         { startedDateTime, state } =
-            stateEntries
-                |> Utils.findItem (\e -> e.id == currentId)
-                |> Maybe.map
-                    (\e ->
-                        { startedDateTime = e.startedDateTime, state = Har.getReduxState e |> Maybe.withDefault "" }
-                    )
-                |> Maybe.withDefault { startedDateTime = Time.millisToPosix 0, state = "" }
+            case stateEntry of
+                Just entry ->
+                    case Har.getReduxState entry of
+                        Just st ->
+                            { startedDateTime = entry.startedDateTime, state = st }
+
+                        Nothing ->
+                            { startedDateTime = Time.millisToPosix 0, state = "" }
+
+                Nothing ->
+                    case prevStateEntry of
+                        Just prevEntry ->
+                            case Har.getReduxState prevEntry of
+                                Just prevSt ->
+                                    { startedDateTime = prevEntry.startedDateTime, state = prevSt }
+
+                                Nothing ->
+                                    { startedDateTime = Time.millisToPosix 0, state = "" }
+
+                        Nothing ->
+                            { startedDateTime = Time.millisToPosix 0, state = "" }
 
         href2 =
             if String.contains "isSuperAgent=true" href then
@@ -202,10 +234,11 @@ agentConsoleSnapshot entries href currentId entryId =
             [ src <| href2 ++ "&snapshot=true"
             , attribute "state" state
             , attribute "time" <| Iso8601.fromTime startedDateTime
+            , attribute "actions" <| actions
             ]
             []
             :: (if showPlayback then
-                    [ lazy2 agentConsoleSnapshotPlayer entries entryId ]
+                    [ lazy2 agentConsoleSnapshotPlayer entries currentId ]
 
                 else
                     []
@@ -304,12 +337,12 @@ styleVar name value =
     attribute "style" (name ++ ": " ++ value)
 
 
-detailViewContainer : String -> String -> List Har.Entry -> DetailModel -> Html DetailMsg
-detailViewContainer href selected entries detail =
+detailViewContainer : Bool -> String -> String -> List Har.Entry -> DetailModel -> Html DetailMsg
+detailViewContainer isSortByTime href selected entries detail =
     if detail.show then
-        case Har.findEntryAndPrevStateEntry entries selected of
-            ( Just entry, prevStateEntry ) ->
-                detailView entries detail href entry prevStateEntry
+        case Utils.findItem (\entry -> entry.id == selected) entries of
+            Just entry ->
+                detailView isSortByTime entries detail href entry
 
             _ ->
                 text ""
@@ -334,9 +367,6 @@ resolveSelectedTab tab entry =
 
         ReduxAction ->
             case tab of
-                Request ->
-                    Preview
-
                 Headers ->
                     Preview
 
@@ -355,8 +385,8 @@ resolveSelectedTab tab entry =
                     tab
 
 
-detailView : List Har.Entry -> DetailModel -> String -> Har.Entry -> Maybe Har.Entry -> Html DetailMsg
-detailView entries model href entry prevStateEntry =
+detailView : Bool -> List Har.Entry -> DetailModel -> String -> Har.Entry -> Html DetailMsg
+detailView isSortByTime entries model href entry =
     let
         selected =
             resolveSelectedTab model.tab entry
@@ -373,10 +403,10 @@ detailView entries model href entry prevStateEntry =
             Preview ->
                 case entryKind of
                     ReduxState ->
-                        agentConsoleSnapshot entries href model.currentId entry.id
+                        agentConsoleSnapshot isSortByTime entries href model.currentId
 
                     ReduxAction ->
-                        jsonViewer True "detail-body" <| Maybe.withDefault "" <| Har.getRequestBody entry
+                        agentConsoleSnapshot isSortByTime entries href model.currentId
 
                     LogMessage ->
                         jsonViewer True "detail-body" <| Maybe.withDefault "" <| Har.getLogMessage entry
@@ -415,17 +445,10 @@ detailView entries model href entry prevStateEntry =
                     ]
 
             Request ->
-                case entry.request.postData of
-                    Just postData ->
-                        case postData.text of
-                            Just t ->
-                                jsonViewer True "detail-body" t
-
-                            _ ->
-                                noContent
-
-                    _ ->
-                        noContent
+                entry
+                    |> Har.getRequestBody
+                    |> Maybe.map (jsonViewer True "detail-body")
+                    |> Maybe.withDefault noContent
 
             Response ->
                 case entry.response.content.text of
@@ -452,8 +475,8 @@ detailView entries model href entry prevStateEntry =
                 in
                 case Har.getReduxState entry of
                     Just modified ->
-                        case prevStateEntry of
-                            Just prevEntry ->
+                        case Har.findStateEntryAndPrevStateEntry entries entry.id of
+                            ( _, Just prevEntry, _ ) ->
                                 case Har.getReduxState prevEntry of
                                     Just original ->
                                         Html.node "monaco-diff-editor"
