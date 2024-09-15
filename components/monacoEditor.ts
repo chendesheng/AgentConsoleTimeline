@@ -17,9 +17,9 @@ const loaderPromise = loader.init();
 
 @customElement("monaco-editor")
 export class CodeEditor extends LitElement {
-  @property()
+  @property({ type: String })
   content = "";
-  @property()
+  @property({ type: String })
   language = "json";
 
   @query(".container")
@@ -70,7 +70,7 @@ export class CodeEditor extends LitElement {
     ) {
       const model = this.monaco.editor.createModel(
         formatJson(this.content),
-        this.language
+        this.language,
       );
       this.editor.setModel(model);
     }
@@ -79,11 +79,11 @@ export class CodeEditor extends LitElement {
 
 @customElement("monaco-diff-editor")
 export class MonacoDiffEditor extends LitElement {
-  @property()
+  @property({ type: String })
   language = "json";
-  @property()
+  @property({ type: String })
   original: string = "";
-  @property()
+  @property({ type: String })
   modified: string = "";
 
   @query(".container")
@@ -137,11 +137,11 @@ export class MonacoDiffEditor extends LitElement {
     this.editor.setModel({
       original: this.monaco.editor.createModel(
         formatJson(this.original),
-        this.language
+        this.language,
       ),
       modified: this.monaco.editor.createModel(
         formatJson(this.modified),
-        this.language
+        this.language,
       ),
     });
   }
@@ -168,7 +168,7 @@ function formatJson(s: string) {
 function cloneStyles(root: HTMLElement | DocumentFragment, onload: () => void) {
   // Copy over editor styles
   const styles = document.querySelectorAll(
-    "link[rel='stylesheet'][data-name^='vs/']"
+    "link[rel='stylesheet'][data-name^='vs/']",
   );
   for (const style of styles) {
     const cloned = style.cloneNode(true) as HTMLLinkElement;

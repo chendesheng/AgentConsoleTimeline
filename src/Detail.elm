@@ -3,7 +3,7 @@ module Detail exposing (DetailModel, DetailMsg(..), defaultDetailModel, detailVi
 import Browser.Dom as Dom
 import Har exposing (EntryKind(..))
 import Html exposing (..)
-import Html.Attributes as Attr exposing (..)
+import Html.Attributes as Attr exposing (class, property, src, style)
 import Html.Events exposing (..)
 import Html.Lazy exposing (lazy2)
 import Icons
@@ -113,16 +113,10 @@ detailTabs selected entry =
 jsonViewer : Bool -> String -> String -> Html msg
 jsonViewer initialExpanded className json =
     Html.node "json-tree"
-        ([ class className
-         , attribute "data" json
-         ]
-            ++ (if initialExpanded then
-                    [ attribute "initial-expanded" "" ]
-
-                else
-                    []
-               )
-        )
+        [ class className
+        , property "data" <| Encode.string json
+        , property "initialExpanded" <| Encode.bool initialExpanded
+        ]
         []
 
 
@@ -144,18 +138,16 @@ agentConsoleSnapshotPlayer entries initialId =
     in
     Html.node "agent-console-snapshot-player"
         [ stateEntries
-            |> List.map
+            |> Encode.list
                 (\{ id, startedDateTime } ->
                     Encode.object
                         [ ( "time", Encode.int <| Utils.timespanMillis firstEntryStartTime startedDateTime )
                         , ( "id", Encode.string id )
                         ]
                 )
-            |> Encode.list (\a -> a)
-            |> Encode.encode 0
-            |> attribute "items"
+            |> property "items"
         , Attr.max <| String.fromInt <| Utils.timespanMillis firstEntryStartTime lastEntryStartTime
-        , attribute "initialId" initialId
+        , property "initialId" <| Encode.string initialId
         , on "change" <|
             Decode.map SetCurrentId <|
                 Decode.at [ "detail", "id" ] Decode.string
@@ -192,12 +184,11 @@ agentConsoleSnapshot isSortByTime entries href currentId entryId =
                     |> Har.filterByKind (Just ReduxAction)
                     |> List.map (\e -> Har.getRequestBody e |> Maybe.withDefault "")
                     |> Encode.list Encode.string
-                    |> Encode.encode 0
 
             else
                 -- pass empty actions when entries are not sorted by time
                 -- because when entries are not sorted by time, the states/actions are not in order
-                ""
+                Encode.list (\a -> a) []
 
         { startedDateTime, state } =
             case stateEntry of
@@ -232,9 +223,9 @@ agentConsoleSnapshot isSortByTime entries href currentId entryId =
     div [ class "detail-body", class "agent-console-snapshot-container" ] <|
         Html.node "agent-console-snapshot"
             [ src <| href2 ++ "&snapshot=true"
-            , attribute "state" state
-            , attribute "time" <| Iso8601.fromTime startedDateTime
-            , attribute "actions" <| actions
+            , property "state" <| Encode.string state
+            , property "time" <| Encode.string <| Iso8601.fromTime startedDateTime
+            , property "actions" <| actions
             ]
             []
             :: (if showPlayback then
@@ -334,7 +325,7 @@ noContent =
 
 styleVar : String -> String -> Attribute msg
 styleVar name value =
-    attribute "style" (name ++ ": " ++ value)
+    property "style" <| Encode.string (name ++ ": " ++ value)
 
 
 detailViewContainer : Bool -> String -> String -> List Har.Entry -> DetailModel -> Html DetailMsg
@@ -481,9 +472,9 @@ detailView isSortByTime entries model href entry =
                                     Just original ->
                                         Html.node "monaco-diff-editor"
                                             [ class "detail-body"
-                                            , attribute "original" original
-                                            , attribute "modified" modified
-                                            , attribute "language" lang
+                                            , property "original" <| Encode.string original
+                                            , property "modified" <| Encode.string modified
+                                            , property "language" <| Encode.string lang
                                             ]
                                             []
 
@@ -526,8 +517,8 @@ detailView isSortByTime entries model href entry =
                     Just t ->
                         Html.node "monaco-editor"
                             [ class "detail-body"
-                            , attribute "content" t
-                            , attribute "language" lang
+                            , property "content" <| Encode.string t
+                            , property "language" <| Encode.string lang
                             ]
                             []
 

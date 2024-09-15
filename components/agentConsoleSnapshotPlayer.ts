@@ -9,8 +9,8 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
   @property({ type: Number })
   max: number = 0;
 
-  @property()
-  initialId: string = "";
+  @property({ type: String })
+  initialId = "";
 
   @state()
   private time: number = 0;

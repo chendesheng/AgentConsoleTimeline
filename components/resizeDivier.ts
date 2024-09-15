@@ -4,7 +4,7 @@ import {
   eventOptions,
   property,
   query,
-  state
+  state,
 } from "lit/decorators.js";
 
 @customElement("resize-divider")
@@ -23,7 +23,7 @@ export class ResizeDivier extends LitElement {
     }
   `;
 
-  @property()
+  @property({ type: String })
   direction: "horizontal" | "vertical" = "vertical";
 
   @query("#resize-divider")
@@ -85,7 +85,7 @@ export class ResizeDivier extends LitElement {
     _e: MouseEvent,
     dx: number,
     dy: number,
-    isFinished: boolean
+    isFinished: boolean,
   ) {
     if (!this._isResizing) return;
     this.dispatchEvent(
@@ -95,9 +95,9 @@ export class ResizeDivier extends LitElement {
         detail: {
           dx,
           dy,
-          isFinished: isFinished
-        }
-      })
+          isFinished: isFinished,
+        },
+      }),
     );
   }
 }

@@ -1,10 +1,11 @@
 module Utils exposing (..)
 
 import Html exposing (Attribute, Html, div, label, option, select, text)
-import Html.Attributes exposing (attribute, class, style, value)
+import Html.Attributes exposing (class, property, style, value)
 import Html.Events exposing (onInput, preventDefaultOn)
 import Html.Keyed as Keyed
 import Json.Decode as D
+import Json.Encode as Encode
 import String exposing (fromFloat, fromInt)
 import Time
 
@@ -255,7 +256,7 @@ styles ss =
                 ""
                 ss
     in
-    attribute "style" css
+    property "style" <| Encode.string css
 
 
 hijackOn : String -> D.Decoder msg -> Attribute msg

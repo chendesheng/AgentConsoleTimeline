@@ -18,10 +18,10 @@ declare global {
 
 @customElement("json-tree")
 export class JsonTree extends LitElement {
-  @property()
+  @property({ type: String })
   data = "";
 
-  @property({ type: Boolean, attribute: "initial-expanded" })
+  @property({ type: Boolean })
   initialExpanded = false;
 
   @query("json-viewer")

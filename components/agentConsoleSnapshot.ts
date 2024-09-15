@@ -3,15 +3,15 @@ import { customElement, property, query } from "lit/decorators.js";
 
 @customElement("agent-console-snapshot")
 export class AgentConsoleSnapshot extends LitElement {
-  @property()
+  @property({ type: String })
   src = "";
-  @property()
+  @property({ type: String })
   state = "";
 
-  @property()
-  actions = "";
+  @property({ type: Array })
+  actions: string[] = [];
 
-  @property()
+  @property({ type: String })
   time = "";
 
   @query("iframe")
@@ -86,13 +86,7 @@ export class AgentConsoleSnapshot extends LitElement {
         "*",
       );
     }
-    this.dispatchActionsToIframe(
-      AgentConsoleSnapshot.parseActions(this.actions),
-    );
-  }
-
-  static parseActions(actions: string): string[] {
-    return actions ? JSON.parse(actions) : [];
+    this.dispatchActionsToIframe(this.actions);
   }
 
   dispatchActionsToIframe(actions: string[]) {
@@ -127,11 +121,8 @@ export class AgentConsoleSnapshot extends LitElement {
     window.removeEventListener("message", this.handleMessage);
   }
 
-  private diffActions(oldActionsStr: string): string[] | undefined {
-    const oldActions = AgentConsoleSnapshot.parseActions(
-      oldActionsStr,
-    ) as string[];
-    const actions = AgentConsoleSnapshot.parseActions(this.actions);
+  private diffActions(oldActions: string[]): string[] | undefined {
+    const actions = this.actions;
     if (oldActions.length > actions.length) {
       return;
     }
