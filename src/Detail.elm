@@ -164,8 +164,8 @@ agentConsoleSnapshotPlayer entries initialId =
         []
 
 
-agentConsoleSnapshot : Bool -> List Har.Entry -> String -> String -> Html DetailMsg
-agentConsoleSnapshot isSortByTime entries href currentId =
+agentConsoleSnapshot : Bool -> List Har.Entry -> String -> String -> String -> Html DetailMsg
+agentConsoleSnapshot isSortByTime entries href currentId entryId =
     let
         stateEntries =
             entries
@@ -238,7 +238,7 @@ agentConsoleSnapshot isSortByTime entries href currentId =
             ]
             []
             :: (if showPlayback then
-                    [ lazy2 agentConsoleSnapshotPlayer entries currentId ]
+                    [ lazy2 agentConsoleSnapshotPlayer entries entryId ]
 
                 else
                     []
@@ -403,10 +403,10 @@ detailView isSortByTime entries model href entry =
             Preview ->
                 case entryKind of
                     ReduxState ->
-                        agentConsoleSnapshot isSortByTime entries href model.currentId
+                        agentConsoleSnapshot isSortByTime entries href model.currentId entry.id
 
                     ReduxAction ->
-                        agentConsoleSnapshot isSortByTime entries href model.currentId
+                        agentConsoleSnapshot isSortByTime entries href model.currentId entry.id
 
                     LogMessage ->
                         jsonViewer True "detail-body" <| Maybe.withDefault "" <| Har.getLogMessage entry

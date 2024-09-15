@@ -69,21 +69,26 @@ export class AgentConsoleSnapshot extends LitElement {
 
   render() {
     return html`<div class="header">
-      <button title="Reload" @click=${this.handleClickReloadButton}>⟳</button>
-      <div class="href">${this.src}</div>
-    </div>
-    <iframe src="${this.src}" allow="clipboard-read; clipboard-write"></iframe>`;
+        <button title="Reload" @click=${this.handleClickReloadButton}>⟳</button>
+        <div class="href">${this.src}</div>
+      </div>
+      <iframe
+        src="${this.src}"
+        allow="clipboard-read; clipboard-write"
+      ></iframe>`;
   }
 
   private sendToIframe() {
     if (this.state) {
-      console.log('restore state');
+      // console.log('restore state');
       this.iframe.contentWindow?.postMessage(
         { type: "restoreReduxState", payload: this.state, time: this.time },
-        "*"
+        "*",
       );
     }
-    this.dispatchActionsToIframe(AgentConsoleSnapshot.parseActions(this.actions));
+    this.dispatchActionsToIframe(
+      AgentConsoleSnapshot.parseActions(this.actions),
+    );
   }
 
   static parseActions(actions: string): string[] {
@@ -94,10 +99,14 @@ export class AgentConsoleSnapshot extends LitElement {
     if (!this.iframe.contentWindow) return;
 
     for (const action of actions) {
-      console.log('dispatch action', action);
+      // console.log('dispatch action', action);
       this.iframe.contentWindow.postMessage(
-        { type: "dispatchReduxAction", action: JSON.parse(action), time: this.time },
-        "*"
+        {
+          type: "dispatchReduxAction",
+          action: JSON.parse(action),
+          time: this.time,
+        },
+        "*",
       );
     }
   }
@@ -119,7 +128,9 @@ export class AgentConsoleSnapshot extends LitElement {
   }
 
   private diffActions(oldActionsStr: string): string[] | undefined {
-    const oldActions = AgentConsoleSnapshot.parseActions(oldActionsStr) as string[];
+    const oldActions = AgentConsoleSnapshot.parseActions(
+      oldActionsStr,
+    ) as string[];
     const actions = AgentConsoleSnapshot.parseActions(this.actions);
     if (oldActions.length > actions.length) {
       return;

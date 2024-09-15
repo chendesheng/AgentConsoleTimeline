@@ -119,8 +119,8 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
     const id = this.items[this.index]!.id;
     this.dispatchEvent(
       new CustomEvent("change", {
-        detail: { id }
-      })
+        detail: { id },
+      }),
     );
   }
 
@@ -227,7 +227,9 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
         ></div>
         ${this.items.map(
           (item) =>
-            html`<div style="left: ${this.getTimePosPercent(item.time)}"></div>`
+            html`<div
+              style="left: ${this.getTimePosPercent(item.time)}"
+            ></div>`,
         )}
       </div>
       <time>${((this.time - this.max) / 1000).toFixed(1)}s</time>
