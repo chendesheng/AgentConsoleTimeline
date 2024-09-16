@@ -7,7 +7,7 @@ import HarDecoder exposing (decodeHar)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import RecentFile exposing (RecentFile, clearRecentFiles, getFileContent)
+import RecentFile exposing (RecentFile, clearRecentFiles, deleteRecentFile, getFileContent)
 
 
 
@@ -60,6 +60,12 @@ initialView model =
                                 , href "#"
                                 ]
                                 [ text fileName ]
+                            , text " "
+                            , a
+                                [ onClick (ClickDeleteRecentFile key)
+                                , href "#"
+                                ]
+                                [ text "✕" ]
                             ]
                     )
                     model.recentFiles
@@ -76,6 +82,7 @@ type InitialMsg
     | DropFile DropFileMsg
     | ClickRecentFile String String
     | ClickClearRecentFiles
+    | ClickDeleteRecentFile String
 
 
 updateInitial : InitialMsg -> InitialModel -> ( InitialModel, Cmd InitialMsg )
@@ -111,3 +118,8 @@ updateInitial msg model =
 
         ClickClearRecentFiles ->
             ( { model | recentFiles = [] }, clearRecentFiles () )
+
+        ClickDeleteRecentFile key ->
+            ( { model | recentFiles = List.filter (\f -> f.key /= key) model.recentFiles }
+            , deleteRecentFile key
+            )

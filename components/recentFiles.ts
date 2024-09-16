@@ -60,3 +60,15 @@ export async function clearRecentFile() {
 
   await tx.done;
 }
+
+export async function deleteRecentFile(key: string) {
+  const db = await openRecentFilesDb();
+  const tx = db.transaction(["list", "content"], "readwrite");
+  const listStore = tx.objectStore("list");
+  const contentStore = tx.objectStore("content");
+
+  await listStore.delete(key);
+  await contentStore.delete(key);
+
+  await tx.done;
+}

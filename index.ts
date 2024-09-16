@@ -10,6 +10,7 @@ import {
   getFileContent,
   getRecentFiles,
   clearRecentFile,
+  deleteRecentFile,
 } from "./components/recentFiles";
 import { Elm } from "./src/Main.elm";
 
@@ -32,6 +33,10 @@ async function main() {
 
   app.ports.clearRecentFiles.subscribe(async () => {
     await clearRecentFile();
+  });
+
+  app.ports.deleteRecentFile.subscribe(async (key) => {
+    await deleteRecentFile(key);
   });
 
   // app.ports.getRecentFiles.subscribe(async () => {

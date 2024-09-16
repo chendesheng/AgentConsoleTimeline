@@ -20,6 +20,9 @@ port gotRecentFiles : (List RecentFile -> msg) -> Sub msg
 port clearRecentFiles : () -> Cmd msg
 
 
+port deleteRecentFile : String -> Cmd msg
+
+
 type alias RecentFile =
     { key : String
     , fileName : String
