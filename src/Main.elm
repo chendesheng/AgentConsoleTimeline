@@ -273,8 +273,20 @@ updateOpened msg model =
 
                         _ ->
                             ( model.table, Cmd.none )
+
+                clientInfo =
+                    let
+                        info =
+                            model.clientInfo
+                    in
+                    case detailMsg of
+                        SetHref href ->
+                            { info | href = href }
+
+                        _ ->
+                            info
             in
-            ( { model | detail = detail, table = table }
+            ( { model | detail = detail, table = table, clientInfo = clientInfo }
             , Cmd.batch [ Cmd.map DetailAction cmd, Cmd.map TableAction cmd1 ]
             )
 

@@ -34,7 +34,6 @@ export class AgentConsoleSnapshot extends LitElement {
     .header {
       flex: none;
       display: flex;
-      gap: 4px;
       align-items: end;
       color: var(--text-color);
       height: 20px;
@@ -52,14 +51,14 @@ export class AgentConsoleSnapshot extends LitElement {
       appearance: none;
       opacity: 0.5;
       cursor: pointer;
+      margin-right: 4px;
     }
     .header button:hover,
     .header button:active {
       opacity: 0.8;
     }
-    .header .href {
-      flex: auto;
-      opacity: 0.5;
+    .header .src {
+      flex: none;
     }
   `;
 
@@ -67,10 +66,30 @@ export class AgentConsoleSnapshot extends LitElement {
     this.iframe.src = this.src;
   }
 
+  private handleSrcInputBlur(e: UIEvent) {
+    const ele = e.target as HTMLInputElement;
+    const [prefix, rest] = AgentConsoleSnapshot.splitSrc(this.src);
+    if (ele.textContent!.trim() !== prefix.trim()) {
+      this.dispatchEvent(
+        new CustomEvent("srcChange", {
+          detail: { value: `${ele.textContent!.trim()}${rest}` },
+        }),
+      );
+    }
+  }
+
+  private static splitSrc(src: string) {
+    const url = new URL(src);
+    return [`${url.protocol}//${url.host}`, `${url.pathname}${url.search}`];
+  }
+
   render() {
+    const [prefix, rest] = AgentConsoleSnapshot.splitSrc(this.src);
     return html`<div class="header">
         <button title="Reload" @click=${this.handleClickReloadButton}>⟳</button>
-        <div class="href">${this.src}</div>
+        <span class="src" contenteditable @blur=${this.handleSrcInputBlur}
+          >${prefix}</span
+        >${rest}
       </div>
       <iframe
         src="${this.src}"

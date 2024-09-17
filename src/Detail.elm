@@ -214,7 +214,7 @@ agentConsoleSnapshot isSortByTime entries href currentId entryId =
                             { startedDateTime = Time.millisToPosix 0, state = "" }
 
         href2 =
-            if String.contains "isSuperAgent=true" href then
+            if String.contains "isSuperAgent=true" href && String.contains "agentconsole.html" href then
                 String.replace "agentconsole.html" "superagent.html" href
 
             else
@@ -226,6 +226,10 @@ agentConsoleSnapshot isSortByTime entries href currentId entryId =
             , property "state" <| Encode.string state
             , property "time" <| Encode.string <| Iso8601.fromTime startedDateTime
             , property "actions" <| actions
+            , Decode.string
+                |> Decode.at [ "detail", "value" ]
+                |> Decode.map (String.replace "&snapshot=true" "" >> SetHref)
+                |> on "srcChange"
             ]
             []
             :: (if showPlayback then
@@ -536,6 +540,7 @@ type DetailMsg
     | ChangeDetailTab DetailTabName
     | HideDetail
     | SetCurrentId String
+    | SetHref String
     | ScrollToCurrentId
 
 
@@ -543,6 +548,9 @@ updateDetail : DetailModel -> DetailMsg -> ( DetailModel, Cmd DetailMsg )
 updateDetail model detailMsg =
     case detailMsg of
         NoOp ->
+            ( model, Cmd.none )
+
+        SetHref _ ->
             ( model, Cmd.none )
 
         ChangeDetailTab tab ->
