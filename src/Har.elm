@@ -340,10 +340,10 @@ entryKindLabel kind =
             "All"
 
         Just ReduxState ->
-            "Redux State"
+            "Redux"
 
         Just ReduxAction ->
-            "Redux Action"
+            "Redux"
 
         Just LogMessage ->
             "Log"
@@ -362,15 +362,12 @@ stringToEntryKind s =
             Just ReduxState
 
         "1" ->
-            Just ReduxAction
-
-        "2" ->
             Just LogMessage
 
-        "3" ->
+        "2" ->
             Just NetworkHttp
 
-        "4" ->
+        "3" ->
             Just Others
 
         _ ->
@@ -383,17 +380,14 @@ entryKindValue kind =
         Just ReduxState ->
             "0"
 
-        Just ReduxAction ->
+        Just LogMessage ->
             "1"
 
-        Just LogMessage ->
+        Just NetworkHttp ->
             "2"
 
-        Just NetworkHttp ->
-            "3"
-
         Just Others ->
-            "4"
+            "3"
 
         _ ->
             ""
@@ -402,6 +396,9 @@ entryKindValue kind =
 filterByKind : Maybe EntryKind -> List Entry -> List Entry
 filterByKind kind entries =
     case kind of
+        Just ReduxState ->
+            List.filter isReduxEntry entries
+
         Just kd ->
             entries
                 |> List.filter (\entry -> getEntryKind entry == kd)
