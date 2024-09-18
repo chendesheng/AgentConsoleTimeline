@@ -25,7 +25,6 @@
 
 .select > div {
   pointer-events: none;
-  background-color: var(--background-color-content);
   position: absolute;
   left: -2px;
   top: 6px;
@@ -42,4 +41,5 @@
   background: none;
   width: fit-content;
   height: 29px;
+  opacity: 0;
 }

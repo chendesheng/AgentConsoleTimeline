@@ -377,6 +377,28 @@ stringToEntryKind s =
             Nothing
 
 
+entryKindValue : Maybe EntryKind -> String
+entryKindValue kind =
+    case kind of
+        Just ReduxState ->
+            "0"
+
+        Just ReduxAction ->
+            "1"
+
+        Just LogMessage ->
+            "2"
+
+        Just NetworkHttp ->
+            "3"
+
+        Just Others ->
+            "4"
+
+        _ ->
+            ""
+
+
 filterByKind : Maybe EntryKind -> List Entry -> List Entry
 filterByKind kind entries =
     case kind of

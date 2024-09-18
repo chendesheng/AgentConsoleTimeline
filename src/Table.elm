@@ -643,12 +643,11 @@ scaleToWaterfallMsPerPx scale =
 tableFilterOptions : List { value : String, label : String }
 tableFilterOptions =
     [ { value = "", label = "All" }
-    , { value = "0", label = "Redux" }
-    , { value = "1", label = "Redux State" }
-    , { value = "2", label = "Redux Action" }
-    , { value = "3", label = "Log" }
-    , { value = "4", label = "Http" }
-    , { value = "5", label = "Others" }
+    , { value = "0", label = "Redux State" }
+    , { value = "1", label = "Redux Action" }
+    , { value = "2", label = "Log" }
+    , { value = "3", label = "Http" }
+    , { value = "4", label = "Others" }
     ]
 
 
@@ -690,7 +689,7 @@ tableFilterView waterfallMsPerPx filter =
             ]
             []
         , Utils.dropDownList
-            { value = Har.entryKindLabel filter.kind
+            { value = Har.entryKindValue filter.kind
             , onInput = Har.stringToEntryKind >> SelectKind
             }
             tableFilterOptions

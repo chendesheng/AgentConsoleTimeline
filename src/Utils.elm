@@ -275,9 +275,20 @@ hijack msg =
 
 dropDownList : { value : String, onInput : String -> msg } -> List { label : String, value : String } -> Html msg
 dropDownList options children =
+    let
+        lbl =
+            children
+                |> findItem (\child -> options.value == child.value)
+                |> Maybe.map .label
+                |> Maybe.withDefault (List.head children |> Maybe.map .label |> Maybe.withDefault "")
+    in
     label [ class "select" ]
-        [ div [] [ text options.value ]
-        , select [ onInput options.onInput ] <|
+        [ div [] [ text lbl ]
+        , select
+            [ onInput options.onInput
+            , style "width" <| "calc(" ++ fromInt (String.length lbl) ++ "ch + " ++ "16px)"
+            ]
+          <|
             List.map (\item -> option [ value item.value ] [ text item.label ]) children
         ]
 
