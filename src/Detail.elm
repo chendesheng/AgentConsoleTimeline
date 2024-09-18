@@ -30,6 +30,11 @@ type DetailTabName
     | Request
     | Response
     | StateChanges
+
+
+type DetailViewTool
+    = Auto
+    | JsonTree
     | Raw
 
 
@@ -39,6 +44,7 @@ type alias DetailTab =
 
 type alias DetailModel =
     { tab : DetailTabName
+    , tool : DetailViewTool
     , show : Bool
     , currentId : String
     }
@@ -47,6 +53,7 @@ type alias DetailModel =
 defaultDetailModel : DetailModel
 defaultDetailModel =
     { tab = Preview
+    , tool = Auto
     , show = False
     , currentId = ""
     }
@@ -78,27 +85,22 @@ detailTabs selected entry =
             case Har.getEntryKind entry of
                 ReduxState ->
                     [ { name = Preview, label = "Preview" }
-                    , { name = Response, label = "State" }
                     , { name = StateChanges, label = "Changes" }
-                    , { name = Raw, label = "Raw" }
                     ]
 
                 ReduxAction ->
                     [ { name = Preview, label = "Preview" }
                     , { name = Request, label = "Action" }
                     , { name = Response, label = "Trace" }
-                    , { name = Raw, label = "Raw" }
                     ]
 
                 LogMessage ->
                     [ { name = Preview, label = "Preview" }
-                    , { name = Raw, label = "Raw" }
                     ]
 
                 Others ->
                     [ { name = Preview, label = "Preview" }
                     , { name = Response, label = "Content" }
-                    , { name = Raw, label = "Raw" }
                     ]
 
                 _ ->
@@ -106,7 +108,6 @@ detailTabs selected entry =
                     , { name = Headers, label = "Headers" }
                     , { name = Request, label = "Request" }
                     , { name = Response, label = "Response" }
-                    , { name = Raw, label = "Raw" }
                     ]
 
 
@@ -118,6 +119,55 @@ jsonViewer initialExpanded className json =
         , property "initialExpanded" <| Encode.bool initialExpanded
         ]
         []
+
+
+codeEditor : String -> String -> Html msg
+codeEditor lang content =
+    Html.node "monaco-editor"
+        [ class "detail-body"
+        , property "content" <| Encode.string content
+        , property "language" <| Encode.string lang
+        ]
+        []
+
+
+jsonDataViewer : DetailViewTool -> Bool -> String -> String -> Html msg
+jsonDataViewer tool initialExpanded className json =
+    case tool of
+        Raw ->
+            codeEditor "json" json
+
+        _ ->
+            jsonViewer initialExpanded className json
+
+
+reduxStateViewer : DetailViewTool -> Bool -> List Har.Entry -> String -> String -> String -> Html DetailMsg
+reduxStateViewer tool isSortByTime entries href currentId entryId =
+    case tool of
+        Auto ->
+            agentConsoleSnapshot isSortByTime entries href currentId entryId
+
+        JsonTree ->
+            case Har.findStateEntryAndPrevStateEntry entries currentId of
+                ( _, Just entry, _ ) ->
+                    entry
+                        |> Har.getReduxState
+                        |> Maybe.map (jsonViewer True "detail-body")
+                        |> Maybe.withDefault noContent
+
+                _ ->
+                    noContent
+
+        _ ->
+            case Har.findStateEntryAndPrevStateEntry entries currentId of
+                ( _, Just entry, _ ) ->
+                    entry
+                        |> Har.getReduxState
+                        |> Maybe.map (codeEditor "json")
+                        |> Maybe.withDefault noContent
+
+                _ ->
+                    noContent
 
 
 agentConsoleSnapshotPlayer : List Har.Entry -> String -> Html DetailMsg
@@ -380,6 +430,54 @@ resolveSelectedTab tab entry =
                     tab
 
 
+viewToolToString : DetailViewTool -> String
+viewToolToString tool =
+    case tool of
+        Auto ->
+            "auto"
+
+        JsonTree ->
+            "jsonTree"
+
+        Raw ->
+            "raw"
+
+
+stringToViewTool : String -> DetailViewTool
+stringToViewTool tool =
+    case tool of
+        "auto" ->
+            Auto
+
+        "jsonTree" ->
+            JsonTree
+
+        "raw" ->
+            Raw
+
+        _ ->
+            Auto
+
+
+detailViewToolsOptions : List DetailViewTool -> List { value : String, label : String }
+detailViewToolsOptions =
+    List.map
+        (\tool ->
+            { value = viewToolToString tool
+            , label =
+                case tool of
+                    Auto ->
+                        "Auto"
+
+                    JsonTree ->
+                        "JSON Tree"
+
+                    Raw ->
+                        "Raw"
+            }
+        )
+
+
 detailView : Bool -> List Har.Entry -> DetailModel -> String -> Har.Entry -> Html DetailMsg
 detailView isSortByTime entries model href entry =
     let
@@ -388,26 +486,68 @@ detailView isSortByTime entries model href entry =
 
         entryKind =
             Har.getEntryKind entry
+
+        tools =
+            case selected of
+                Preview ->
+                    case entryKind of
+                        ReduxState ->
+                            [ Auto, JsonTree, Raw ]
+
+                        ReduxAction ->
+                            [ Auto, JsonTree, Raw ]
+
+                        NetworkHttp ->
+                            [ Auto, Raw ]
+
+                        _ ->
+                            []
+
+                Headers ->
+                    []
+
+                Request ->
+                    [ Auto, Raw ]
+
+                Response ->
+                    [ Auto, Raw ]
+
+                StateChanges ->
+                    []
     in
     section [ class "detail" ]
         [ div [ class "detail-header" ]
             [ button [ class "detail-close", onClick HideDetail ] [ Icons.close ]
             , lazy2 detailTabs selected entry
+            , if List.isEmpty tools then
+                text ""
+
+              else
+                Utils.dropDownList
+                    { value = viewToolToString model.tool
+                    , onInput = stringToViewTool >> ChangeViewTool
+                    }
+                    (detailViewToolsOptions tools)
             ]
         , case selected of
             Preview ->
                 case entryKind of
                     ReduxState ->
-                        agentConsoleSnapshot isSortByTime entries href model.currentId entry.id
+                        reduxStateViewer model.tool isSortByTime entries href model.currentId entry.id
 
                     ReduxAction ->
-                        agentConsoleSnapshot isSortByTime entries href model.currentId entry.id
+                        reduxStateViewer model.tool isSortByTime entries href model.currentId entry.id
 
                     LogMessage ->
-                        jsonViewer True "detail-body" <| Maybe.withDefault "" <| Har.getLogMessage entry
+                        entry
+                            |> Har.getLogMessage
+                            |> Maybe.map (jsonDataViewer model.tool True "detail-body")
+                            |> Maybe.withDefault noContent
 
                     _ ->
-                        jsonViewer True "detail-body" <| Maybe.withDefault "" entry.response.content.text
+                        entry.response.content.text
+                            |> Maybe.map (jsonDataViewer model.tool True "detail-body")
+                            |> Maybe.withDefault noContent
 
             Headers ->
                 div
@@ -442,13 +582,13 @@ detailView isSortByTime entries model href entry =
             Request ->
                 entry
                     |> Har.getRequestBody
-                    |> Maybe.map (jsonViewer True "detail-body")
+                    |> Maybe.map (jsonDataViewer model.tool True "detail-body")
                     |> Maybe.withDefault noContent
 
             Response ->
                 case entry.response.content.text of
                     Just t ->
-                        jsonViewer (entryKind /= ReduxState) "detail-body" t
+                        jsonDataViewer model.tool (entryKind /= ReduxState) "detail-body" t
 
                     _ ->
                         noContent
@@ -490,44 +630,6 @@ detailView isSortByTime entries model href entry =
 
                     _ ->
                         text ""
-
-            Raw ->
-                let
-                    txt =
-                        case entryKind of
-                            ReduxAction ->
-                                Har.getRequestBody entry
-
-                            LogMessage ->
-                                Har.getLogMessage entry
-
-                            _ ->
-                                entry.response.content.text
-
-                    lang =
-                        case entryKind of
-                            NetworkHttp ->
-                                case Url.fromString entry.request.url of
-                                    Just { path } ->
-                                        Utils.getLanguage path
-
-                                    _ ->
-                                        "json"
-
-                            _ ->
-                                "json"
-                in
-                case txt of
-                    Just t ->
-                        Html.node "monaco-editor"
-                            [ class "detail-body"
-                            , property "content" <| Encode.string t
-                            , property "language" <| Encode.string lang
-                            ]
-                            []
-
-                    _ ->
-                        noContent
         ]
 
 
@@ -542,6 +644,7 @@ type DetailMsg
     | SetCurrentId String
     | SetHref String
     | ScrollToCurrentId
+    | ChangeViewTool DetailViewTool
 
 
 updateDetail : DetailModel -> DetailMsg -> ( DetailModel, Cmd DetailMsg )
@@ -566,3 +669,6 @@ updateDetail model detailMsg =
 
         ScrollToCurrentId ->
             ( model, Cmd.none )
+
+        ChangeViewTool tool ->
+            ( { model | tool = tool }, Cmd.none )
