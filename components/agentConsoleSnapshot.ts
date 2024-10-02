@@ -1,5 +1,5 @@
 import { html, css, LitElement, PropertyValues, PropertyValueMap } from "lit";
-import { customElement, property, query } from "lit/decorators.js";
+import { customElement, property, query, state } from "lit/decorators.js";
 
 @customElement("agent-console-snapshot")
 export class AgentConsoleSnapshot extends LitElement {
@@ -17,19 +17,39 @@ export class AgentConsoleSnapshot extends LitElement {
   @query("iframe")
   iframe!: HTMLIFrameElement;
 
+  @state()
+  private popoutWindow?: Window | null;
+
+  private getSnapshotWindow() {
+    if (this.iframe) {
+      return this.iframe.contentWindow;
+    } else {
+      return this.popoutWindow;
+    }
+  }
+
   static styles = css`
     :host {
       display: flex;
       flex-flow: column;
       gap: 4px;
     }
-    iframe {
+    .snapshot {
       border-radius: 4px;
       box-shadow: 0 0 10px 0 rgba(0, 0, 0, 0.1);
       border: none;
       height: 100%;
       width: 100%;
       flex: auto;
+      background-color: rgb(240, 240, 240);
+    }
+    button.snapshot {
+      font-size: 80px;
+      cursor: pointer;
+      opacity: 0.5;
+      color: gray;
+      font-weight: bold;
+      text-transform: uppercase;
     }
     .header {
       flex: none;
@@ -66,6 +86,22 @@ export class AgentConsoleSnapshot extends LitElement {
     this.iframe.src = this.src;
   }
 
+  private handleClickPopoutButton() {
+    if (this.popoutWindow) {
+      this.popoutWindow.close();
+      this.popoutWindow = undefined;
+    }
+    this.popoutWindow = window.open(this.src, "snapshot");
+    console.log("popout window", this.popoutWindow);
+  }
+
+  private handleClickRestorePopoutButton() {
+    if (this.popoutWindow) {
+      this.popoutWindow.close();
+      this.popoutWindow = undefined;
+    }
+  }
+
   private handleSrcInputBlur(e: UIEvent) {
     const ele = e.target as HTMLInputElement;
     const [prefix, rest] = AgentConsoleSnapshot.splitSrc(this.src);
@@ -90,30 +126,40 @@ export class AgentConsoleSnapshot extends LitElement {
         <span class="src" contenteditable @blur=${this.handleSrcInputBlur}
           >${prefix}</span
         >${rest}
+        <button title="Popout" @click=${this.handleClickPopoutButton}>🡽</button>
       </div>
-      <iframe
-        src="${this.src}"
-        allow="clipboard-read; clipboard-write"
-      ></iframe>`;
+      ${this.popoutWindow
+        ? html`<button
+            class="snapshot"
+            @click=${this.handleClickRestorePopoutButton}
+          >
+            Restore Popout
+          </button>`
+        : html`<iframe
+            class="snapshot"
+            src="${this.src}"
+            allow="clipboard-read; clipboard-write"
+          ></iframe>`}`;
   }
 
-  private sendToIframe() {
+  private sendToSnapshot() {
     if (this.state) {
       // console.log('restore state');
-      this.iframe.contentWindow?.postMessage(
+      this.getSnapshotWindow()?.postMessage(
         { type: "restoreReduxState", payload: this.state, time: this.time },
         "*",
       );
     }
-    this.dispatchActionsToIframe(this.actions);
+    this.dispatchActionsToSnapshot(this.actions);
   }
 
-  dispatchActionsToIframe(actions: string[]) {
-    if (!this.iframe.contentWindow) return;
+  dispatchActionsToSnapshot(actions: string[]) {
+    const win = this.getSnapshotWindow();
+    if (!win) return;
 
     for (const action of actions) {
       // console.log('dispatch action', action);
-      this.iframe.contentWindow.postMessage(
+      win.postMessage(
         {
           type: "dispatchReduxAction",
           action: JSON.parse(action),
@@ -130,13 +176,17 @@ export class AgentConsoleSnapshot extends LitElement {
     super.connectedCallback();
     this.handleMessage = (e: MessageEvent) => {
       if (e.data?.type === "waitForReduxState") {
-        this.sendToIframe();
+        this.sendToSnapshot();
       }
     };
     window.addEventListener("message", this.handleMessage);
   }
 
   disconnectedCallback(): void {
+    if (this.popoutWindow) {
+      this.popoutWindow.close();
+      this.popoutWindow = undefined;
+    }
     window.removeEventListener("message", this.handleMessage);
   }
 
@@ -154,13 +204,13 @@ export class AgentConsoleSnapshot extends LitElement {
   updated(prev: PropertyValues<this>) {
     if (!prev.has("state") && prev.has("actions")) {
       const actions = this.diffActions(prev.get("actions")!);
-      if (actions) this.dispatchActionsToIframe(actions);
-      else this.sendToIframe();
+      if (actions) this.dispatchActionsToSnapshot(actions);
+      else this.sendToSnapshot();
       return;
     }
 
     if (prev.has("state")) {
-      this.sendToIframe();
+      this.sendToSnapshot();
     }
   }
 }
