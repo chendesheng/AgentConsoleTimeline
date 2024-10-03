@@ -1,5 +1,11 @@
 import { html, css, LitElement, PropertyValues, PropertyValueMap } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
+import "./agentConsoleSnapshotFrame";
+import { AgentConsoleSnapshotFrame } from "./agentConsoleSnapshotFrame";
+
+declare global {
+  var popoutWindow: Window | null;
+}
 
 @customElement("agent-console-snapshot")
 export class AgentConsoleSnapshot extends LitElement {
@@ -7,25 +13,46 @@ export class AgentConsoleSnapshot extends LitElement {
   src = "";
   @property({ type: String })
   state = "";
-
   @property({ type: Array })
   actions: string[] = [];
-
   @property({ type: String })
   time = "";
 
-  @query("iframe")
-  iframe!: HTMLIFrameElement;
+  @query("agent-console-snapshot-frame")
+  frame?: AgentConsoleSnapshotFrame;
 
   @state()
-  private popoutWindow?: Window | null;
+  private isPopout: boolean = false;
 
-  private getSnapshotWindow() {
-    if (this.iframe) {
-      return this.iframe.contentWindow;
-    } else {
-      return this.popoutWindow;
+  private getSrc() {
+    if (
+      this.src.includes("isSuperAgent=true") &&
+      this.src.includes("agentconsole.html")
+    ) {
+      return (
+        this.src.replace("agentconsole.html", "superagent.html") +
+        "&snapshot=true"
+      );
     }
+    return this.src + "&snapshot=true";
+  }
+
+  private get popoutWindow() {
+    return globalThis.popoutWindow;
+  }
+
+  private set popoutWindow(value) {
+    globalThis.popoutWindow = value;
+    this.isPopout = !!value;
+    this.dispatchPopoutEvent(this.isPopout);
+  }
+
+  private dispatchPopoutEvent(value: boolean) {
+    this.dispatchEvent(
+      new CustomEvent("popout", {
+        detail: { value },
+      }),
+    );
   }
 
   static styles = css`
@@ -83,28 +110,28 @@ export class AgentConsoleSnapshot extends LitElement {
   `;
 
   private handleClickReloadButton() {
-    this.iframe.src = this.src;
+    this.frame?.reload();
   }
 
   private handleClickPopoutButton() {
     if (this.popoutWindow) {
       this.popoutWindow.close();
-      this.popoutWindow = undefined;
+      this.popoutWindow = null;
     }
-    this.popoutWindow = window.open(this.src, "snapshot");
-    console.log("popout window", this.popoutWindow);
+    this.popoutWindow = window.open(this.getSrc(), "snapshot");
+    // console.log("popout window", this.popoutWindow);
   }
 
   private handleClickRestorePopoutButton() {
     if (this.popoutWindow) {
       this.popoutWindow.close();
-      this.popoutWindow = undefined;
+      this.popoutWindow = null;
     }
   }
 
   private handleSrcInputBlur(e: UIEvent) {
     const ele = e.target as HTMLInputElement;
-    const [prefix, rest] = AgentConsoleSnapshot.splitSrc(this.src);
+    const [prefix, rest] = AgentConsoleSnapshot.splitSrc(this.getSrc());
     if (ele.textContent!.trim() !== prefix.trim()) {
       this.dispatchEvent(
         new CustomEvent("srcChange", {
@@ -120,7 +147,8 @@ export class AgentConsoleSnapshot extends LitElement {
   }
 
   render() {
-    const [prefix, rest] = AgentConsoleSnapshot.splitSrc(this.src);
+    const src = this.getSrc();
+    const [prefix, rest] = AgentConsoleSnapshot.splitSrc(src);
     return html`<div class="header">
         <button title="Reload" @click=${this.handleClickReloadButton}>⟳</button>
         <span class="src" contenteditable @blur=${this.handleSrcInputBlur}
@@ -128,89 +156,26 @@ export class AgentConsoleSnapshot extends LitElement {
         >${rest}
         <button title="Popout" @click=${this.handleClickPopoutButton}>🡽</button>
       </div>
-      ${this.popoutWindow
+      ${this.isPopout
         ? html`<button
             class="snapshot"
             @click=${this.handleClickRestorePopoutButton}
           >
             Restore Popout
           </button>`
-        : html`<iframe
+        : html`<agent-console-snapshot-frame
             class="snapshot"
-            src="${this.src}"
-            allow="clipboard-read; clipboard-write"
-          ></iframe>`}`;
+            .src=${src}
+            .actions=${this.actions}
+            .state=${this.state}
+            .time=${this.time}
+            .isPopout=${false}
+          />`}`;
   }
-
-  private sendToSnapshot() {
-    if (this.state) {
-      // console.log('restore state');
-      this.getSnapshotWindow()?.postMessage(
-        { type: "restoreReduxState", payload: this.state, time: this.time },
-        "*",
-      );
-    }
-    this.dispatchActionsToSnapshot(this.actions);
-  }
-
-  dispatchActionsToSnapshot(actions: string[]) {
-    const win = this.getSnapshotWindow();
-    if (!win) return;
-
-    for (const action of actions) {
-      // console.log('dispatch action', action);
-      win.postMessage(
-        {
-          type: "dispatchReduxAction",
-          action: JSON.parse(action),
-          time: this.time,
-        },
-        "*",
-      );
-    }
-  }
-
-  handleMessage!: (e: MessageEvent) => void;
 
   connectedCallback(): void {
     super.connectedCallback();
-    this.handleMessage = (e: MessageEvent) => {
-      if (e.data?.type === "waitForReduxState") {
-        this.sendToSnapshot();
-      }
-    };
-    window.addEventListener("message", this.handleMessage);
-  }
 
-  disconnectedCallback(): void {
-    if (this.popoutWindow) {
-      this.popoutWindow.close();
-      this.popoutWindow = undefined;
-    }
-    window.removeEventListener("message", this.handleMessage);
-  }
-
-  private diffActions(oldActions: string[]): string[] | undefined {
-    const actions = this.actions;
-    if (oldActions.length > actions.length) {
-      return;
-    }
-    if (oldActions.some((action, i) => action !== actions[i])) {
-      return;
-    }
-    return actions.slice(oldActions.length);
-  }
-
-  updated(prev: PropertyValues<this>) {
-    if (!prev.has("state") && prev.has("actions")) {
-      const actions = this.diffActions(prev.get("actions")!);
-      if (actions) this.dispatchActionsToSnapshot(actions);
-      else this.sendToSnapshot();
-      return;
-    }
-
-    if (prev.has("state")) {
-      this.sendToSnapshot();
-    }
+    this.isPopout = !!this.popoutWindow;
   }
 }

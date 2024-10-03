@@ -47,6 +47,7 @@ type alias DetailModel =
     , tool : DetailViewTool
     , show : Bool
     , currentId : String
+    , snapshotPopout : Bool
     }
 
 
@@ -56,6 +57,7 @@ defaultDetailModel =
     , tool = Auto
     , show = False
     , currentId = ""
+    , snapshotPopout = False
     }
 
 
@@ -206,25 +208,9 @@ agentConsoleSnapshotPlayer entries initialId =
         []
 
 
-agentConsoleSnapshot : Bool -> List Har.Entry -> String -> String -> String -> Html DetailMsg
-agentConsoleSnapshot isSortByTime entries href currentId entryId =
+agentConsoleSnapshotProps : Bool -> List Har.Entry -> String -> List (Html.Attribute msg)
+agentConsoleSnapshotProps isSortByTime entries currentId =
     let
-        stateEntries =
-            entries
-                |> Har.filterEntries "" (Just Har.ReduxState)
-                |> Har.sortEntries ( "time", Har.Asc )
-
-        showPlayback =
-            case stateEntries of
-                [] ->
-                    False
-
-                [ _ ] ->
-                    False
-
-                _ ->
-                    True
-
         ( stateEntry, prevStateEntry, nonStateEntries ) =
             Har.findStateEntryAndPrevStateEntry entries currentId
 
@@ -240,54 +226,68 @@ agentConsoleSnapshot isSortByTime entries href currentId entryId =
                 -- because when entries are not sorted by time, the states/actions are not in order
                 Encode.list (\a -> a) []
 
-        { startedDateTime, state } =
+        ( startedDateTime, state ) =
             case stateEntry of
                 Just entry ->
                     case Har.getReduxState entry of
                         Just st ->
-                            { startedDateTime = entry.startedDateTime, state = st }
+                            ( entry.startedDateTime, st )
 
                         Nothing ->
-                            { startedDateTime = Time.millisToPosix 0, state = "" }
+                            ( Time.millisToPosix 0, "" )
 
                 Nothing ->
                     case prevStateEntry of
                         Just prevEntry ->
                             case Har.getReduxState prevEntry of
                                 Just prevSt ->
-                                    { startedDateTime = prevEntry.startedDateTime, state = prevSt }
+                                    ( prevEntry.startedDateTime, prevSt )
 
                                 Nothing ->
-                                    { startedDateTime = Time.millisToPosix 0, state = "" }
+                                    ( Time.millisToPosix 0, "" )
 
                         Nothing ->
-                            { startedDateTime = Time.millisToPosix 0, state = "" }
-
-        href2 =
-            if String.contains "isSuperAgent=true" href && String.contains "agentconsole.html" href then
-                String.replace "agentconsole.html" "superagent.html" href
-
-            else
-                href
+                            ( Time.millisToPosix 0, "" )
     in
-    div [ class "detail-body", class "agent-console-snapshot-container" ] <|
-        Html.node "agent-console-snapshot"
-            [ src <| href2 ++ "&snapshot=true"
-            , property "state" <| Encode.string state
-            , property "time" <| Encode.string <| Iso8601.fromTime startedDateTime
-            , property "actions" <| actions
-            , Decode.string
+    [ property "state" <| Encode.string state
+    , property "time" <| Encode.string <| Iso8601.fromTime startedDateTime
+    , property "actions" <| actions
+    ]
+
+
+agentConsoleSnapshotPopout : Bool -> List Har.Entry -> String -> Html DetailMsg
+agentConsoleSnapshotPopout isSortByTime entries currentId =
+    agentConsoleSnapshotFrame True isSortByTime entries currentId
+
+
+agentConsoleSnapshotFrame : Bool -> Bool -> List Har.Entry -> String -> Html DetailMsg
+agentConsoleSnapshotFrame isSnapshotPopout isSortByTime entries currentId =
+    Html.node "agent-console-snapshot-frame"
+        ((property "isPopout" <| Encode.bool isSnapshotPopout)
+            :: agentConsoleSnapshotProps isSortByTime entries currentId
+        )
+        []
+
+
+agentConsoleSnapshot : Bool -> List Har.Entry -> String -> String -> String -> Html DetailMsg
+agentConsoleSnapshot isSortByTime entries href currentId entryId =
+    div [ class "detail-body", class "agent-console-snapshot-container" ]
+        [ Html.node "agent-console-snapshot"
+            ([ src href
+             , Decode.string
                 |> Decode.at [ "detail", "value" ]
                 |> Decode.map (String.replace "&snapshot=true" "" >> SetHref)
                 |> on "srcChange"
-            ]
+             , Decode.bool
+                |> Decode.at [ "detail", "value" ]
+                |> Decode.map SetSnapshotPopout
+                |> on "popout"
+             ]
+                ++ agentConsoleSnapshotProps isSortByTime entries currentId
+            )
             []
-            :: (if showPlayback then
-                    [ lazy2 agentConsoleSnapshotPlayer entries entryId ]
-
-                else
-                    []
-               )
+        , lazy2 agentConsoleSnapshotPlayer entries entryId
+        ]
 
 
 keyValue : { x | name : String, value : Html msg } -> Html msg
@@ -382,15 +382,18 @@ styleVar name value =
     property "style" <| Encode.string (name ++ ": " ++ value)
 
 
-detailViewContainer : Bool -> String -> String -> List Har.Entry -> DetailModel -> Html DetailMsg
-detailViewContainer isSortByTime href selected entries detail =
+detailViewContainer : Bool -> Bool -> String -> String -> List Har.Entry -> DetailModel -> Html DetailMsg
+detailViewContainer isSnapshotPopout isSortByTime href selected entries detail =
     if detail.show then
         case Utils.findItem (\entry -> entry.id == selected) entries of
             Just entry ->
-                detailView isSortByTime entries detail href entry
+                detailView isSnapshotPopout isSortByTime entries detail href entry
 
             _ ->
                 text ""
+
+    else if isSnapshotPopout then
+        agentConsoleSnapshotPopout isSortByTime entries detail.currentId
 
     else
         text ""
@@ -478,8 +481,8 @@ detailViewToolsOptions =
         )
 
 
-detailView : Bool -> List Har.Entry -> DetailModel -> String -> Har.Entry -> Html DetailMsg
-detailView isSortByTime entries model href entry =
+detailView : Bool -> Bool -> List Har.Entry -> DetailModel -> String -> Har.Entry -> Html DetailMsg
+detailView isSnapshotPopout isSortByTime entries model href entry =
     let
         selected =
             resolveSelectedTab model.tab entry
@@ -529,6 +532,12 @@ detailView isSortByTime entries model href entry =
                     }
                     (detailViewToolsOptions tools)
             ]
+        , div [ style "display" "none" ] <|
+            if isSnapshotPopout then
+                [ agentConsoleSnapshotPopout isSortByTime entries model.currentId ]
+
+            else
+                []
         , case selected of
             Preview ->
                 case entryKind of
@@ -645,6 +654,7 @@ type DetailMsg
     | SetHref String
     | ScrollToCurrentId
     | ChangeViewTool DetailViewTool
+    | SetSnapshotPopout Bool
 
 
 updateDetail : DetailModel -> DetailMsg -> ( DetailModel, Cmd DetailMsg )
@@ -672,3 +682,6 @@ updateDetail model detailMsg =
 
         ChangeViewTool tool ->
             ( { model | tool = tool }, Cmd.none )
+
+        SetSnapshotPopout isPopout ->
+            ( { model | snapshotPopout = isPopout }, Cmd.none )
