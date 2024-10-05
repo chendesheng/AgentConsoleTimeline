@@ -27,4 +27,5 @@ type alias RecentFile =
     { key : String
     , fileName : String
     , lastOpenTime : Int
+    , size : Int
     }

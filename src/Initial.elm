@@ -8,6 +8,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import RecentFile exposing (RecentFile, clearRecentFiles, deleteRecentFile, getFileContent)
+import Utils
 
 
 
@@ -52,18 +53,19 @@ initialView model =
                         )
                     ]
                 :: List.map
-                    (\{ key, fileName } ->
+                    (\{ key, fileName, size } ->
                         li
                             []
                             [ a
                                 [ onClick (ClickRecentFile key fileName)
                                 , href "#"
                                 ]
-                                [ text fileName ]
+                                [ text <| fileName ++ " (" ++ Utils.formatSize size ++ ")"
+                                ]
                             , text " "
-                            , a
+                            , button
                                 [ onClick (ClickDeleteRecentFile key)
-                                , href "#"
+                                , class "close"
                                 ]
                                 [ text "✕" ]
                             ]

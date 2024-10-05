@@ -14,6 +14,11 @@ export async function getRecentFiles() {
   const db = await openRecentFilesDb();
   const list = await db.getAll("list");
   list.sort((a, b) => b.lastOpenTime - a.lastOpenTime);
+  for (const f of list) {
+    if (f.size === undefined) {
+      f.size = (await getFileContent(f.key)).length;
+    }
+  }
   return list;
 }
 
@@ -33,7 +38,12 @@ export async function saveRecentFile(fileName: string, content: string) {
   const contentStore = tx.objectStore("content");
 
   const exists = !!(await listStore.getKey(key));
-  await listStore.put({ key, fileName, lastOpenTime: Date.now() });
+  await listStore.put({
+    key,
+    fileName,
+    lastOpenTime: Date.now(),
+    size: content.length,
+  });
 
   const files = await listStore.getAll();
   if (!exists) await contentStore.put({ key, content });
