@@ -25,14 +25,6 @@ export class AgentConsoleSnapshotFrame extends LitElement {
   @query("iframe")
   iframe?: HTMLIFrameElement;
 
-  private get popoutWindow() {
-    return globalThis.popoutWindow;
-  }
-
-  private set popoutWindow(value) {
-    globalThis.popoutWindow = value;
-  }
-
   private getSnapshotWindow() {
     return globalThis.popoutWindow ?? this.iframe?.contentWindow;
   }
@@ -98,7 +90,7 @@ export class AgentConsoleSnapshotFrame extends LitElement {
   connectedCallback(): void {
     super.connectedCallback();
 
-    if (!!this.popoutWindow) {
+    if (!!globalThis.popoutWindow) {
       setTimeout(() => {
         this.sendToSnapshot();
       }, 10);

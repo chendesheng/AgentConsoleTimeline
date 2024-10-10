@@ -1,4 +1,4 @@
-module Main exposing (main)
+port module Main exposing (main)
 
 import Browser
 import Browser.Dom as Dom
@@ -18,6 +18,9 @@ import Table exposing (TableModel, TableMsg(..), defaultTableModel, isSortByTime
 import Task
 import Time
 import Utils
+
+
+port closePopoutWindow : () -> Cmd msg
 
 
 
@@ -137,6 +140,7 @@ initOpened fileName fileContent log navKey initialViewportHeight =
     , Cmd.batch
         [ Task.perform GotTimezone Time.here
         , Task.attempt (\_ -> TableAction Table.NoOp) <| Dom.setViewportOf "table-body" 0 0
+        , closePopoutWindow ()
         , case initialViewportHeight of
             Nothing ->
                 Task.attempt

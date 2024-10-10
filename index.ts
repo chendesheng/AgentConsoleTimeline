@@ -14,6 +14,10 @@ import {
 } from "./components/recentFiles";
 import { Elm } from "./src/Main.elm";
 
+declare global {
+  var popoutWindow: Window | null;
+}
+
 async function main() {
   const recentFiles = await getRecentFiles();
 
@@ -37,6 +41,11 @@ async function main() {
 
   app.ports.deleteRecentFile.subscribe(async (key) => {
     await deleteRecentFile(key);
+  });
+
+  app.ports.closePopoutWindow.subscribe(() => {
+    globalThis.popoutWindow?.close();
+    globalThis.popoutWindow = null;
   });
 
   // app.ports.getRecentFiles.subscribe(async () => {
