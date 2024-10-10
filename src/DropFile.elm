@@ -1,6 +1,7 @@
 module DropFile exposing (DropFileModel, DropFileMsg(..), defaultDropFileModel, dropFileUpdate, dropFileView)
 
 import File exposing (File)
+import File.Download as Download
 import Har
 import HarDecoder exposing (decodeHar)
 import Html exposing (..)
@@ -46,6 +47,7 @@ type DropFileMsg
     | GotFile File
     | GotFileContent String Har.Log
     | ReadFileError String
+    | DownloadFile
 
 
 readFile : File -> Task String String
@@ -53,7 +55,7 @@ readFile file =
     let
         name =
             File.name file
-        
+
         fail message =
             Task.fail <| "Unzip " ++ name ++ ": " ++ message
     in
@@ -127,6 +129,14 @@ dropFileUpdate msg model =
 
         ReadFileError error ->
             ( { model | error = Just error }, Cmd.none )
+
+        DownloadFile ->
+            case model.fileContentString of
+                "" ->
+                    ( model, Cmd.none )
+
+                s ->
+                    ( model, Download.string model.fileName "text/plain" s )
 
 
 

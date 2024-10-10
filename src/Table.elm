@@ -15,6 +15,8 @@ import Browser.Dom as Dom
 import Browser.Events exposing (onResize)
 import Browser.Navigation as Nav
 import Dict exposing (Dict)
+import File exposing (File)
+import File.Select as FileSelect
 import Har exposing (EntryKind(..), SortBy, SortOrder(..))
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -708,6 +710,20 @@ tableFilterView filter =
             , onInput = Har.stringToEntryKind >> SelectKind
             }
             tableFilterOptions
+        , div [ class "actions" ]
+            [ button
+                [ class "import"
+                , class "text"
+                , onClick Import
+                ]
+                [ text "⬆Import" ]
+            , button
+                [ class "export"
+                , class "text"
+                , onClick Export
+                ]
+                [ text "⬇Export" ]
+            ]
         ]
 
 
@@ -994,12 +1010,24 @@ type TableMsg
     | SetWaterfallMsPerPx Float
     | SetViewportHeight Int
     | SelectTable
+    | Import
+    | GotImportFile File
+    | Export
 
 
 updateTable : Nav.Key -> TableMsg -> Har.Log -> TableModel -> ( TableModel, Cmd TableMsg )
 updateTable navKey action log table =
     case action of
         NoOp ->
+            ( table, Cmd.none )
+
+        Import ->
+            ( table, FileSelect.file [ "*" ] GotImportFile )
+
+        GotImportFile file ->
+            ( table, Cmd.none )
+
+        Export ->
             ( table, Cmd.none )
 
         FlipSort column ->

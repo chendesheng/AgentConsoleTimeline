@@ -1,286 +1,307 @@
 .table {
-    color: var(--text-color);
-    user-select: none;
-    -webkit-user-select: none;
-    position: relative;
-    display: flex;
-    flex-flow: column;
-    width: 100%;
-    height: 100%;
-    position: relative;
+  color: var(--text-color);
+  user-select: none;
+  -webkit-user-select: none;
+  position: relative;
+  display: flex;
+  flex-flow: column;
+  width: 100%;
+  height: 100%;
+  position: relative;
 }
 
 input#table-search {
-    position: absolute;
-    top: 0px;
-    left: 0px;
-    height: 29px;
-    width: var(--table-column-name-width);
-    z-index: 1;
-    outline: none;
-    border: none;
-    box-sizing: border-box;
-    background: var(--background-color);
-    color: var(--text-color);
-    padding-left: 6px;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  height: 29px;
+  width: var(--table-column-name-width);
+  z-index: 1;
+  outline: none;
+  border: none;
+  box-sizing: border-box;
+  background: var(--background-color);
+  color: var(--text-color);
+  padding-left: 6px;
 }
 
 input#table-search:-webkit-autofill {
-    background: var(--background-color);
+  background: var(--background-color);
 }
 
 .table-body-search-row {
-    position: absolute;
-    left: 24px;
-    height: 20px;
-    line-height: 20px;
-    font-size: 11px;
-    font-family: -webkit-system-font, sans-serif;
-    border-radius: 1px;
-    white-space: nowrap;
-    pointer-events: none;
+  position: absolute;
+  left: 24px;
+  height: 20px;
+  line-height: 20px;
+  font-size: 11px;
+  font-family: -webkit-system-font, sans-serif;
+  border-radius: 1px;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .table-body-search-row .match-highlight {
-    background: var(--search-highlight-background-color-active);
-    color: var(--search-highlight-text-color-active);
+  background: var(--search-highlight-background-color-active);
+  color: var(--search-highlight-text-color-active);
 }
 .table-body-search-row .match {
-    visibility: hidden;
+  visibility: hidden;
 }
 
 section.table {
-    overflow-y: auto;
-    overflow-x: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .table-header {
-    height: 30px;
-    line-height: 30px;
-    border-bottom: solid 1px var(--border-color);
-    box-sizing: border-box;
-    background-color: var(--background-color);
-    display: flex;
-    width: 100%;
-    flex: none;
+  height: 30px;
+  line-height: 30px;
+  border-bottom: solid 1px var(--border-color);
+  box-sizing: border-box;
+  background-color: var(--background-color);
+  display: flex;
+  width: 100%;
+  flex: none;
 }
 
 .table-body {
-    overflow-y: auto;
-    overflow-x: hidden;
-    overscroll-behavior: none;
-    position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+  position: relative;
 }
 ol.table-body {
-    margin: 0;
-    padding: 0;
+  margin: 0;
+  padding: 0;
 }
 
 .table-body:focus-visible {
-    outline: none;
+  outline: none;
 }
 
 .table-header-cell {
-    padding: 0 6px;
-    user-select: none;
-    -webkit-user-select: none;
-    cursor: default;
-    text-align: left;
-    font-weight: normal;
-    min-width: 80px;
-    background-color: var(--background-color);
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    position: relative;
-    flex: none;
+  padding: 0 6px;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+  text-align: left;
+  font-weight: normal;
+  min-width: 80px;
+  background-color: var(--background-color);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  position: relative;
+  flex: none;
 }
 
 .table-header-cell.table-header-cell-method,
 .table-header-cell.table-header-cell-status {
-    min-width: 50px;
+  min-width: 50px;
 }
 
 .table-header-cell.sorted {
-    font-weight: var(--sorted-header-font-weight);
+  font-weight: var(--sorted-header-font-weight);
 }
 
 .table-header-cell .icon {
-    margin-left: auto;
+  margin-left: auto;
 }
 
 .table--selected .table-header-cell::after {
-    display: none;
+  display: none;
 }
 
 .table .table-header-cell resize-divider {
-    position: absolute;
-    right: 0;
-    top: 4px;
-    height: calc(100% - 8px);
-    width: 10px;
-    cursor: col-resize;
-    border-right: solid 1px var(--border-color);
-    box-sizing: border-box;
-    left: unset;
-    transform: unset;
+  position: absolute;
+  right: 0;
+  top: 4px;
+  height: calc(100% - 8px);
+  width: 10px;
+  cursor: col-resize;
+  border-right: solid 1px var(--border-color);
+  box-sizing: border-box;
+  left: unset;
+  transform: unset;
 }
 
 .table-header-cell:active {
-    background-color: var(--background-color-pressed);
+  background-color: var(--background-color-pressed);
 }
 
 .table-body-row {
-    height: 20px;
-    width: 100%;
-    display: flex;
+  height: 20px;
+  width: 100%;
+  display: flex;
 }
 
 .table-body-row:nth-child(odd).selected,
 .table-body-row:nth-child(even).selected {
-    background-color: var(--selected-background-color-unfocused);
-    color: var(--selected-foreground-color);
+  background-color: var(--selected-background-color-unfocused);
+  color: var(--selected-foreground-color);
 }
 
 .table-body:focus-within .table-body-row:nth-child(odd).selected,
 .table-body:focus-within .table-body-row:nth-child(even).selected {
-    background-color: var(--selected-background-color);
+  background-color: var(--selected-background-color);
 }
 
 .table-body-row:nth-child(odd) {
-    background-color: var(--odd-zebra-stripe-row-background-color);
+  background-color: var(--odd-zebra-stripe-row-background-color);
 }
 
 .table-body-row:nth-child(even) {
-    background-color: var(--even-zebra-stripe-row-background-color);
+  background-color: var(--even-zebra-stripe-row-background-color);
 }
 
 .table-body-cell {
-    vertical-align: top;
-    height: 20px;
-    line-height: 20px;
-    padding: 0 6px;
-    white-space: nowrap;
-    overflow: hidden;
-    font-family: -webkit-system-font, sans-serif;
-    font-variant-numeric: tabular-nums;
-    text-overflow: ellipsis;
-    box-sizing: border-box;
-    flex: none;
-    font-size: 11px;
-    cursor: default;
+  vertical-align: top;
+  height: 20px;
+  line-height: 20px;
+  padding: 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  font-family: -webkit-system-font, sans-serif;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+  flex: none;
+  font-size: 11px;
+  cursor: default;
 }
 
 .table-body-cell.table-body-cell-name {
-    cursor: pointer;
+  cursor: pointer;
 }
 
 .table-body-cell.table-body-cell-name .icon {
-    font-size: 14px;
-    margin-right: 4px;
+  font-size: 14px;
+  margin-right: 4px;
 }
 
 .table-body-cell-waterfall-item {
-    background-color: skyblue;
-    border-radius: 1px;
-    height: 12px;
-    margin-top: 4px;
-    min-width: 1px;
+  background-color: skyblue;
+  border-radius: 1px;
+  height: 12px;
+  margin-top: 4px;
+  min-width: 1px;
 }
 
 .table-body-cell-waterfall-item:hover {
-    background-color: lightblue;
+  background-color: lightblue;
 }
 
 .waterfall-guideline-container {
-    position: fixed;
-    top: 60px;
-    height: 100%;
-    /*background: linear-gradient(to right, rgba(255, 255, 255, .1) 0, rgba(255, 255, 255, .1) 1px, transparent 1px, transparent 100%);*/
-    background: linear-gradient(
-        to right,
-        rgba(255, 255, 255, 0.1) 1px,
-        transparent 1px
-    );
-    background-size: 100px;
-    width: 20000px;
-    pointer-events: none;
+  position: fixed;
+  top: 60px;
+  height: 100%;
+  /*background: linear-gradient(to right, rgba(255, 255, 255, .1) 0, rgba(255, 255, 255, .1) 1px, transparent 1px, transparent 100%);*/
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0.1) 1px,
+    transparent 1px
+  );
+  background-size: 100px;
+  width: 20000px;
+  pointer-events: none;
 }
 
 .waterfall-guideline {
-    position: absolute;
-    height: 100%;
-    border-left: solid 1px rgba(255, 255, 255, 0.1);
-    pointer-events: none;
+  position: absolute;
+  height: 100%;
+  border-left: solid 1px rgba(255, 255, 255, 0.1);
+  pointer-events: none;
 }
 
 .table-header-cell-waterfall {
-    width: auto;
-    flex-grow: 1;
-    padding: 0;
+  width: auto;
+  flex-grow: 1;
+  padding: 0;
 }
 
 .table-header-cell-waterfall .icon {
-    position: absolute;
-    right: 10px;
-    top: 9px;
-    z-index: 1;
+  position: absolute;
+  right: 10px;
+  top: 9px;
+  z-index: 1;
 }
 
 .table-header-cell-waterfall resize-divider {
-    display: none;
+  display: none;
 }
 
 .waterfall-scale-container {
-    width: 100%;
-    height: 100%;
-    position: relative;
+  width: 100%;
+  height: 100%;
+  position: relative;
 }
 
 .table-header-cell-waterfall .select {
-    line-height: 1;
-    display: none;
-    background-color: var(--background-color);
-    z-index: 1;
+  line-height: 1;
+  display: none;
+  background-color: var(--background-color);
+  z-index: 1;
 }
 .table-header-cell-waterfall:hover .select {
-    display: block;
+  display: block;
 }
 
 .waterfall-scale {
-    display: flex;
-    width: 100px;
-    height: 100%;
-    box-sizing: border-box;
-    position: absolute;
-    color: var(--text-color-secondary);
-    align-items: flex-end;
-    gap: 4px;
+  display: flex;
+  width: 100px;
+  height: 100%;
+  box-sizing: border-box;
+  position: absolute;
+  color: var(--text-color-secondary);
+  align-items: flex-end;
+  gap: 4px;
 }
 
 .waterfall-scale label {
-    font-size: smaller;
-    line-height: 20px;
+  font-size: smaller;
+  line-height: 20px;
 }
 
 .triangle-scale {
-    background-image: linear-gradient(
-        var(--border-color),
-        rgba(255, 255, 255, 1)
-    );
-    clip-path: polygon(50% 0, 100% 100%, 0 100%);
-    width: 1.2px;
-    height: 24px;
-    flex: none;
-    transform: translate(-50%, 0);
+  background-image: linear-gradient(
+    var(--border-color),
+    rgba(255, 255, 255, 1)
+  );
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  width: 1.2px;
+  height: 24px;
+  flex: none;
+  transform: translate(-50%, 0);
 }
 
 .table resize-divider {
-    position: absolute;
-    width: 4px;
-    height: 100%;
-    left: var(--table-column-name-width);
-    z-index: 1;
-    cursor: col-resize;
-    transform: translate(-100%, 0);
+  position: absolute;
+  width: 4px;
+  height: 100%;
+  left: var(--table-column-name-width);
+  z-index: 1;
+  cursor: col-resize;
+  transform: translate(-100%, 0);
+}
+
+.table-filter .actions {
+  margin-left: auto;
+  margin-right: 10px;
+  display: flex;
+  flex-flow: row nowrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.table-filter button.text {
+  background: none;
+  border: none;
+  color: var(--text-color-secondary);
+  cursor: pointer;
+  padding: 0;
+}
+
+.table-filter button.text:hover {
+  color: var(--text-color);
 }

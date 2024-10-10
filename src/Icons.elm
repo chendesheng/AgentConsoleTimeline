@@ -71,3 +71,13 @@ httpDoc =
 snapshotDoc : Html msg
 snapshotDoc =
     icon "snapshotdoc"
+
+
+import_ : Html msg
+import_ =
+    icon "import"
+
+
+export : Html msg
+export =
+    icon "export"

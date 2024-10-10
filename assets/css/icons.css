@@ -10,49 +10,57 @@
 }
 
 .icon.type-icons-type-object {
-  content: url('../images/TypeIcons.svg#TypeObject-dark');
+  content: url("../images/TypeIcons.svg#TypeObject-dark");
 }
 
 .icon.type-icons-type-string {
-  content: url('../images/TypeIcons.svg#TypeString-dark');
+  content: url("../images/TypeIcons.svg#TypeString-dark");
 }
 
 .icon.sort-asc {
-  content: url('../images/SortIndicatorArrows.svg#up-arrow-normal');
+  content: url("../images/SortIndicatorArrows.svg#up-arrow-normal");
 }
 
 .icon.sort-desc {
-  content: url('../images/SortIndicatorArrows.svg#down-arrow-normal');
+  content: url("../images/SortIndicatorArrows.svg#down-arrow-normal");
 }
 
 .icon.close {
-  content: url('../images/CloseLarge.svg');
+  content: url("../images/CloseLarge.svg");
 }
 
 .icon.jsdoc {
-  content: url('../images/DocumentIcons.svg#js-dark');
+  content: url("../images/DocumentIcons.svg#js-dark");
 }
 
 .icon.imagedoc {
-  content: url('../images/DocumentIcons.svg#image-dark');
+  content: url("../images/DocumentIcons.svg#image-dark");
 }
 
 .icon.networkdoc {
-  content: url('../images/DocumentIcons.svg#network-dark');
+  content: url("../images/DocumentIcons.svg#network-dark");
 }
 
 .icon.actiondoc {
-  content: url('../images/DocumentIcons.svg#action-dark');
+  content: url("../images/DocumentIcons.svg#action-dark");
 }
 
 .icon.logdoc {
-  content: url('../images/DocumentIcons.svg#log-dark');
+  content: url("../images/DocumentIcons.svg#log-dark");
 }
 
 .icon.httpdoc {
-  content: url('../images/DocumentIcons.svg#http-dark');
+  content: url("../images/DocumentIcons.svg#http-dark");
 }
 
 .icon.snapshotdoc {
-  content: url('../images/DocumentIcons.svg#snapshot-dark');
+  content: url("../images/DocumentIcons.svg#snapshot-dark");
+}
+
+.icon.import {
+  content: url("../images/Import.svg");
+}
+
+.icon.export {
+  content: url("../images/Export.svg");
 }

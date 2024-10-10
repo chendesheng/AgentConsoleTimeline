@@ -132,7 +132,7 @@ initOpened fileName fileContent log navKey initialViewportHeight =
       , navKey = navKey
       , fileName = fileName
       , log = log
-      , dropFile = defaultDropFileModel
+      , dropFile = { defaultDropFileModel | fileName = fileName, fileContentString = fileContent }
       }
     , Cmd.batch
         [ Task.perform GotTimezone Time.here
@@ -201,6 +201,12 @@ update msg model =
 updateOpened : OpenedMsg -> OpenedModel -> ( OpenedModel, Cmd OpenedMsg )
 updateOpened msg model =
     case msg of
+        TableAction (GotImportFile file) ->
+            updateOpened (DropFile (GotFile file)) model
+
+        TableAction Export ->
+            updateOpened (DropFile DownloadFile) model
+
         TableAction action ->
             let
                 oldSelectedId =
