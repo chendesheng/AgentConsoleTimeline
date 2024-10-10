@@ -1034,7 +1034,7 @@ updateTable navKey action log table =
         Import ->
             ( table, FileSelect.file [ "*" ] GotImportFile )
 
-        GotImportFile file ->
+        GotImportFile _ ->
             ( table, Cmd.none )
 
         Export ->
