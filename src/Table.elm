@@ -531,7 +531,17 @@ tableHeaderCell waterfallMsPerPx startTime firstEntryStartTime ( sortColumn, sor
     div
         [ class "table-header-cell"
         , class ("table-header-cell-" ++ column.id)
-        , onClick (FlipSort column.id)
+        , on "click"
+            (D.at [ "target", "tagName" ] D.string
+                |> D.map
+                    (\tagName ->
+                        if tagName == "SELECT" then
+                            NoOp
+
+                        else
+                            FlipSort column.id
+                    )
+            )
         , style "width" <| cssVar <| tableColumnWidthVariableName column.id
         , class <|
             if column.id == sortColumn then
@@ -549,7 +559,13 @@ tableHeaderCell waterfallMsPerPx startTime firstEntryStartTime ( sortColumn, sor
          , Utils.resizeDivider (\dx _ -> ResizeColumn column.id dx)
          ]
             ++ (if column.id == "waterfall" then
-                    [ tableHeaderCellWaterfallScales waterfallMsPerPx startTime firstEntryStartTime ]
+                    [ tableHeaderCellWaterfallScales waterfallMsPerPx startTime firstEntryStartTime
+                    , Utils.dropDownList
+                        { value = waterfallMsPerPxToScale waterfallMsPerPx
+                        , onInput = scaleToWaterfallMsPerPx >> SetWaterfallMsPerPx
+                        }
+                        waterfallScaleOptions
+                    ]
 
                 else
                     []
@@ -673,8 +689,8 @@ waterfallScaleOptions =
     ]
 
 
-tableFilterView : Float -> TableFilter -> Html TableMsg
-tableFilterView waterfallMsPerPx filter =
+tableFilterView : TableFilter -> Html TableMsg
+tableFilterView filter =
     section [ class "table-filter" ]
         [ input
             [ class "table-filter-input"
@@ -692,11 +708,6 @@ tableFilterView waterfallMsPerPx filter =
             , onInput = Har.stringToEntryKind >> SelectKind
             }
             tableFilterOptions
-        , Utils.dropDownList
-            { value = waterfallMsPerPxToScale waterfallMsPerPx
-            , onInput = scaleToWaterfallMsPerPx >> SetWaterfallMsPerPx
-            }
-            waterfallScaleOptions
         ]
 
 

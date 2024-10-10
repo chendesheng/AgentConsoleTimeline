@@ -22,7 +22,7 @@ input#table-search {
     box-sizing: border-box;
     background: var(--background-color);
     color: var(--text-color);
-    padding-left: 6px; 
+    padding-left: 6px;
 }
 
 input#table-search:-webkit-autofill {
@@ -197,7 +197,11 @@ ol.table-body {
     top: 60px;
     height: 100%;
     /*background: linear-gradient(to right, rgba(255, 255, 255, .1) 0, rgba(255, 255, 255, .1) 1px, transparent 1px, transparent 100%);*/
-    background: linear-gradient(to right, rgba(255, 255, 255, .1) 1px, transparent 1px);
+    background: linear-gradient(
+        to right,
+        rgba(255, 255, 255, 0.1) 1px,
+        transparent 1px
+    );
     background-size: 100px;
     width: 20000px;
     pointer-events: none;
@@ -206,7 +210,7 @@ ol.table-body {
 .waterfall-guideline {
     position: absolute;
     height: 100%;
-    border-left: solid 1px rgba(255, 255, 255, .1);
+    border-left: solid 1px rgba(255, 255, 255, 0.1);
     pointer-events: none;
 }
 
@@ -233,6 +237,16 @@ ol.table-body {
     position: relative;
 }
 
+.table-header-cell-waterfall .select {
+    line-height: 1;
+    display: none;
+    background-color: var(--background-color);
+    z-index: 1;
+}
+.table-header-cell-waterfall:hover .select {
+    display: block;
+}
+
 .waterfall-scale {
     display: flex;
     width: 100px;
@@ -250,7 +264,10 @@ ol.table-body {
 }
 
 .triangle-scale {
-    background-image: linear-gradient(var(--border-color), rgba(255, 255, 255, 1));
+    background-image: linear-gradient(
+        var(--border-color),
+        rgba(255, 255, 255, 1)
+    );
     clip-path: polygon(50% 0, 100% 100%, 0 100%);
     width: 1.2px;
     height: 24px;

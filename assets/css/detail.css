@@ -9,6 +9,11 @@
     box-sizing: border-box;
 }
 
+.detail-header .select {
+    margin-left: auto;
+    margin-right: 10px;
+}
+
 .detail-header-tabs {
     display: flex;
     gap: 6px;
