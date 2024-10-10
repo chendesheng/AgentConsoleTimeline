@@ -1,13 +1,16 @@
 module Initial exposing (..)
 
 import Browser.Navigation as Nav
-import DropFile exposing (DropFileModel, DropFileMsg(..), dropFileView)
+import DropFile exposing (DropFileModel, DropFileMsg, dropFileView)
 import File.Select as Select
 import HarDecoder exposing (decodeHar)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import Html.Lazy exposing (lazy3)
 import RecentFile exposing (RecentFile, clearRecentFiles, deleteRecentFile, getFileContent)
+import Table exposing (tableFilterView, tableView)
+import Time
 import Utils
 
 
@@ -36,41 +39,45 @@ defaultInitialModel navKey =
 
 initialView : InitialModel -> Html InitialMsg
 initialView model =
-    dropFileView "initial-container"
+    dropFileView "app initial-container"
         model.dropFile
         DropFile
-        [ span [ style "color" "red" ] [ text <| Maybe.withDefault "" model.dropFile.error ]
-        , ul [ class "recent-files" ]
-            (li [] [ a [ href "#", onClick Pick ] [ text "Open…" ] ]
-                :: li [] [ a [ href "#", onClick ClickClearRecentFiles ] [ text "Clear Recent Files" ] ]
-                :: li
-                    (if List.isEmpty model.recentFiles then
-                        [ style "display" "none" ]
+        [ Html.map (\_ -> NoOp) <| tableFilterView Nothing False { match = "", kind = Nothing }
+        , Html.map (\_ -> NoOp) (lazy3 tableView (Time.millisToPosix 0) Table.defaultTableModel False)
+        , div [ class "recent-files-container" ]
+            [ span [ style "color" "red" ] [ text <| Maybe.withDefault "" model.dropFile.error ]
+            , ul [ class "recent-files" ]
+                (li [] [ a [ href "#", onClick Pick ] [ text "Open…" ] ]
+                    :: li [] [ a [ href "#", onClick ClickClearRecentFiles ] [ text "Clear Recent Files" ] ]
+                    :: li
+                        (if List.isEmpty model.recentFiles then
+                            [ style "display" "none" ]
 
-                     else
-                        [ class "bar" ]
-                    )
-                    []
-                :: List.map
-                    (\{ key, fileName, size } ->
-                        li
-                            []
-                            [ a
-                                [ onClick (ClickRecentFile key fileName)
-                                , href "#"
+                         else
+                            [ class "bar" ]
+                        )
+                        []
+                    :: List.map
+                        (\{ key, fileName, size } ->
+                            li
+                                []
+                                [ a
+                                    [ onClick (ClickRecentFile key fileName)
+                                    , href "#"
+                                    ]
+                                    [ text <| fileName ++ " (" ++ Utils.formatSize size ++ ")"
+                                    ]
+                                , text " "
+                                , button
+                                    [ onClick (ClickDeleteRecentFile key)
+                                    , class "close"
+                                    ]
+                                    [ text "✕" ]
                                 ]
-                                [ text <| fileName ++ " (" ++ Utils.formatSize size ++ ")"
-                                ]
-                            , text " "
-                            , button
-                                [ onClick (ClickDeleteRecentFile key)
-                                , class "close"
-                                ]
-                                [ text "✕" ]
-                            ]
-                    )
-                    model.recentFiles
-            )
+                        )
+                        model.recentFiles
+                )
+            ]
         ]
 
 
@@ -79,7 +86,8 @@ initialView model =
 
 
 type InitialMsg
-    = Pick
+    = NoOp
+    | Pick
     | DropFile DropFileMsg
     | ClickRecentFile String String
     | ClickClearRecentFiles
@@ -89,8 +97,11 @@ type InitialMsg
 updateInitial : InitialMsg -> InitialModel -> ( InitialModel, Cmd InitialMsg )
 updateInitial msg model =
     case msg of
+        NoOp ->
+            ( model, Cmd.none )
+
         Pick ->
-            ( model, Select.file [ "*" ] (DropFile << GotFile) )
+            ( model, Select.file [ "*" ] (DropFile << DropFile.GotFile) )
 
         DropFile dropMsg ->
             let
@@ -111,8 +122,8 @@ updateInitial msg model =
                     (\str ->
                         str
                             |> decodeHar
-                            |> Maybe.map (GotFileContent str)
-                            |> Maybe.withDefault NoOp
+                            |> Maybe.map (DropFile.GotFileContent str)
+                            |> Maybe.withDefault DropFile.NoOp
                             |> DropFile
                     )
             )

@@ -23,7 +23,6 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Html.Lazy exposing (lazy3, lazy5, lazy6, lazy7)
 import Icons
-import Initial exposing (InitialMsg(..))
 import Json.Decode as D
 import List exposing (sortBy)
 import Task
@@ -691,8 +690,8 @@ waterfallScaleOptions =
     ]
 
 
-tableFilterView : Maybe String -> TableFilter -> Html TableMsg
-tableFilterView error filter =
+tableFilterView : Maybe String -> Bool -> TableFilter -> Html TableMsg
+tableFilterView error autoFocus filter =
     section [ class "table-filter" ]
         [ input
             [ class "table-filter-input"
@@ -700,7 +699,7 @@ tableFilterView error filter =
             , value filter.match
             , onInput InputFilter
             , type_ "search"
-            , autofocus True
+            , autofocus autoFocus
             , placeholder "Filter"
             , onEsc SelectTable
             ]
