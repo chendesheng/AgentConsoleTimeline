@@ -10,7 +10,7 @@ import HarDecoder exposing (decodeHar)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Html.Lazy exposing (lazy2, lazy3, lazy5, lazy6)
+import Html.Lazy exposing (lazy2, lazy3, lazy6)
 import Initial exposing (InitialModel, InitialMsg, defaultInitialModel, initialView, updateInitial)
 import List
 import RecentFile exposing (RecentFile, gotFileContent, saveRecentFile)
