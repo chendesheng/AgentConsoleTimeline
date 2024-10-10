@@ -43,15 +43,14 @@ initialView model =
         , ul [ class "recent-files" ]
             (li [] [ a [ href "#", onClick Pick ] [ text "Open…" ] ]
                 :: li [] [ a [ href "#", onClick ClickClearRecentFiles ] [ text "Clear Recent Files" ] ]
-                :: li []
-                    [ text
-                        (if List.isEmpty model.recentFiles then
-                            ""
+                :: li
+                    (if List.isEmpty model.recentFiles then
+                        [ style "display" "none" ]
 
-                         else
-                            "⸻"
-                        )
-                    ]
+                     else
+                        [ class "bar" ]
+                    )
+                    []
                 :: List.map
                     (\{ key, fileName, size } ->
                         li

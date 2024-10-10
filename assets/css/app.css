@@ -114,34 +114,45 @@
     display: flex;
     flex-flow: column;
     gap: 8px;
-    padding: 8px;
     list-style: none;
+    background: var(--background-color-content);
+    border-radius: 10px;
+    padding: 20px;
+    min-width: 460px;
 }
 
 .recent-files li {
     padding: 0;
     margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-color-secondary);
+}
+
+.recent-files li.bar {
+    border-bottom: solid 1px currentColor;
 }
 
 .recent-files li a {
-    color: var(--text-color);
     text-decoration: none;
+    margin-right: auto;
+    color: inherit;
 }
 
 .recent-files li a:hover {
-    text-decoration: underline;
+    color: var(--text-color);
 }
 
 .recent-files .close {
-    opacity: 0.6;
+    color: inherit;
     cursor: pointer;
     background: none;
     border: none;
-    color: var(--text-color);
     padding: 0;
 }
 
 .recent-files .close:hover {
     text-decoration: none;
-    opacity: 1;
+    color: var(--text-color);
 }
