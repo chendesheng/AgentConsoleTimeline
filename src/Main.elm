@@ -10,7 +10,7 @@ import HarDecoder exposing (decodeHar)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Html.Lazy exposing (lazy, lazy3, lazy6)
+import Html.Lazy exposing (lazy2, lazy3, lazy6)
 import Initial exposing (InitialModel, InitialMsg, defaultInitialModel, initialView, updateInitial)
 import List
 import RecentFile exposing (RecentFile, gotFileContent, saveRecentFile)
@@ -78,7 +78,7 @@ viewOpened model =
                 "app"
                 model.dropFile
                 DropFile
-                [ Html.map TableAction (lazy tableFilterView table.filter)
+                [ Html.map TableAction (lazy2 tableFilterView model.dropFile.error table.filter)
                 , Html.map TableAction (lazy3 tableView startTime table detail.show)
                 , Html.map DetailAction
                     (lazy6 detailViewContainer

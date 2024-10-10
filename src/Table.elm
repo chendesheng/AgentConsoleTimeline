@@ -691,8 +691,8 @@ waterfallScaleOptions =
     ]
 
 
-tableFilterView : TableFilter -> Html TableMsg
-tableFilterView filter =
+tableFilterView : Maybe String -> TableFilter -> Html TableMsg
+tableFilterView error filter =
     section [ class "table-filter" ]
         [ input
             [ class "table-filter-input"
@@ -712,10 +712,20 @@ tableFilterView filter =
             tableFilterOptions
         , div [ class "actions" ]
             [ button
-                [ class "import"
-                , class "text"
-                , onClick Import
-                ]
+                ([ class "import"
+                 , class "text"
+                 , onClick Import
+                 ]
+                    ++ (case error of
+                            Just err ->
+                                [ class "error"
+                                , title err
+                                ]
+
+                            Nothing ->
+                                []
+                       )
+                )
                 [ text "⬆Import" ]
             , button
                 [ class "export"

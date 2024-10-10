@@ -305,3 +305,8 @@ ol.table-body {
 .table-filter button.text:hover {
   color: var(--text-color);
 }
+
+.table-filter button.text.error,
+.table-filter button.text.error:hover {
+  color: var(--error-text-color);
+}
