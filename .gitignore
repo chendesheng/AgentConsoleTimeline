@@ -4,6 +4,7 @@ node_modules/
 components/*.js
 dist/
 .parcel-cache
+.vite
 app.zip
 app*.zip
 *.sublime-workspace

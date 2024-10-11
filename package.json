@@ -26,7 +26,8 @@
   "devDependencies": {
     "@types/json-diff": "^1.0.3",
     "assert": "^2.1.0",
-    "elm": "^0.19.1-5",
+    "elm": "^0.19.1-6",
+    "monaco-editor": "^0.43.0",
     "os-browserify": "^0.3.0",
     "process": "^0.11.10",
     "ts-lit-plugin": "^2.0.2",
