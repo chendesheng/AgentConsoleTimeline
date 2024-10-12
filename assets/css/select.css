@@ -6,12 +6,14 @@
   padding-right: 16px;
 }
 
-.select:hover > div {
+.select:hover > div,
+.select:focus > div,
+.select:focus-within > div {
   background-color: var(--selected-background-color);
 }
 
 .select > div:after {
-  content: url('../images/UpDownArrows.svg');
+  content: url("../images/UpDownArrows.svg");
   position: absolute;
   top: 2px;
   right: 4px;
