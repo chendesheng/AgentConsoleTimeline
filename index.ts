@@ -52,6 +52,12 @@ async function main() {
   //   const recentFiles = await getRecentFiles();
   //   app.ports.gotRecentFiles.send(recentFiles);
   // });
+
+  window.onbeforeunload = () => {
+    if (globalThis.popoutWindow) {
+      globalThis.popoutWindow.close();
+    }
+  };
 }
 
 main();
