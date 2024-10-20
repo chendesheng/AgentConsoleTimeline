@@ -81,14 +81,10 @@ export class JsonTree extends LitElement {
       overflow-wrap: break-word;
     }
 
-    json-viewer::part(key) {
-      margin-right: 1ch;
-    }
     json-viewer::part(key)::before {
       position: relative;
-      left: 1px;
-      margin-right: 2px;
-      top: -1px;
+      left: -0.7px;
+      top: 1px;
     }
     json-viewer::part(object) {
       margin-block: 0;
