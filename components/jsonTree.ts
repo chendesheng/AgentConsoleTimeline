@@ -25,7 +25,7 @@ export class JsonTree extends LitElement {
   initialExpanded = false;
 
   @query("json-viewer")
-  private _jsonViewer!: JsonViewer;
+  private _jsonViewer?: JsonViewer;
 
   @query("input")
   private _input?: HTMLInputElement;
@@ -36,8 +36,8 @@ export class JsonTree extends LitElement {
     .actions {
       line-height: 10px;
       font-size: 10px;
-      top: 10px;
-      position: relative;
+      margin-top: 10px;
+      margin-bottom: 2px;
     }
     .actions button {
       appearance: none;
@@ -90,21 +90,24 @@ export class JsonTree extends LitElement {
       margin-right: 2px;
       top: -1px;
     }
+    json-viewer::part(object) {
+      margin-block: 0;
+    }
   `;
 
   private handleCopy() {
     navigator.clipboard.writeText(this.data);
   }
   private handleExpandAll() {
-    this._jsonViewer.expandAll();
+    this._jsonViewer?.expandAll();
   }
   private handleCollapseAll() {
-    this._jsonViewer.collapseAll();
+    this._jsonViewer?.collapseAll();
   }
   private handleInput(e: Event) {
     const input = e.target as HTMLInputElement;
-    this._jsonViewer.expandAll();
-    this._jsonViewer.filter(new RegExp(input.value, "i"));
+    this._jsonViewer?.expandAll();
+    this._jsonViewer?.filter(new RegExp(input.value, "i"));
   }
 
   private handleShowFilter() {
@@ -118,7 +121,34 @@ export class JsonTree extends LitElement {
   }
 
   @state()
+  private _showNestedJson: boolean = false;
+  private handleParseNestedJson() {
+    this._showNestedJson = !this._showNestedJson;
+  }
+
+  @state()
   private _showFilter = false;
+
+  private _parsedData?: any;
+  parseData() {
+    if (this._parsedData) {
+      return this._parsedData;
+    }
+
+    try {
+      let json = JSON.parse(this.data);
+      if (this._showNestedJson) {
+        json = tryParseNestedJson(json);
+      }
+      json = sortKeys(json);
+      this._parsedData = json;
+
+      return json;
+    } catch (e) {
+      this._parsedData = this.data;
+      return this.data;
+    }
+  }
 
   render() {
     try {
@@ -138,12 +168,15 @@ export class JsonTree extends LitElement {
                   >&nbsp;<button tabindex="0" @click=${this.handleExpandAll}>
                     Expand</button
                   >&nbsp;<button tabindex="0" @click=${this.handleShowFilter}>
-                    Filter
+                    Filter</button
+                  >&nbsp;
+                  <button tabindex="0" @click=${this.handleParseNestedJson}>
+                    ${this._showNestedJson ? "▼" : "►"} Nested
                   </button>
                 </div>
               `}
         </div>
-        <json-viewer .data=${sortKeys(JSON.parse(this.data))}></json-viewer>`;
+        <json-viewer .data=${this.parseData()}></json-viewer>`;
     } catch (e: any) {
       console.error(e);
       return html`<div style="margin-top: 10px;">
@@ -158,19 +191,25 @@ export class JsonTree extends LitElement {
         this._filter = this._input?.value || "";
       }
     }
+    if (
+      changedProperties.has("data") ||
+      changedProperties.has("_showNestedJson")
+    ) {
+      this._parsedData = undefined;
+    }
     super.update(changedProperties);
   }
 
   protected updated(changedProperties: PropertyValues): void {
     super.updated(changedProperties);
     if (changedProperties.has("data")) {
-      this._jsonViewer.expandAll();
+      this._jsonViewer?.expandAll();
       this._showFilter = false;
       this._filter = "";
       if (this.initialExpanded) {
-        this._jsonViewer.expandAll();
+        this._jsonViewer?.expandAll();
       } else {
-        this._jsonViewer.collapseAll();
+        this._jsonViewer?.collapseAll();
       }
     }
 
@@ -184,8 +223,43 @@ export class JsonTree extends LitElement {
           this._input.focus();
         }
       } else {
-        this._jsonViewer.resetFilter();
+        this._jsonViewer?.resetFilter();
       }
     }
   }
+}
+
+function tryParseNestedJson(o: any): any {
+  if (typeof o === "string") {
+    if (
+      o.startsWith(
+        "eyJhbGciOiJodHRwOi8vd3d3LnczLm9yZy8yMDAxLzA0L3htbGRzaWctbW9yZSNyc2Etc2hhMjU2IiwidHlwIjoiSldUIn0",
+      )
+    ) {
+      return parseToken(o);
+    }
+
+    try {
+      return tryParseNestedJson(JSON.parse(o));
+    } catch (e) {
+      return o;
+    }
+  } else if (Array.isArray(o)) {
+    return o.map(tryParseNestedJson);
+  } else if (typeof o === "object" && o !== null) {
+    const result: any = {};
+    for (const key of Object.keys(o)) {
+      result[key] = tryParseNestedJson(o[key]);
+    }
+    return result;
+  } else {
+    return o;
+  }
+}
+
+function parseToken(o: string) {
+  const token = JSON.parse(window.atob(o.split(".")[1]));
+  if (token.exp) token.exp = new Date(token.exp * 1000).toString();
+  if (token.nbf) token.nbf = new Date(token.nbf * 1000).toString();
+  return token;
 }
