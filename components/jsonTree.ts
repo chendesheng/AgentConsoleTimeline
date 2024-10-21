@@ -234,6 +234,9 @@ function tryParseNestedJson(o: any): any {
     ) {
       return parseToken(o);
     }
+    if (/^\/Date\((\d+)\)\/$/.test(o)) {
+      return new Date(parseInt(o.match(/\/Date\((\d+)\)\//)![1])).toString();
+    }
 
     try {
       return tryParseNestedJson(JSON.parse(o));
