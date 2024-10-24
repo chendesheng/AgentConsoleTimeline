@@ -3,7 +3,7 @@ module Detail exposing (DetailModel, DetailMsg(..), defaultDetailModel, detailVi
 import Browser.Dom as Dom
 import Har exposing (EntryKind(..))
 import Html exposing (..)
-import Html.Attributes as Attr exposing (class, property, src, style)
+import Html.Attributes as Attr exposing (class, property, src, srcdoc, style)
 import Html.Events exposing (..)
 import Html.Lazy exposing (lazy2)
 import Icons
@@ -140,7 +140,18 @@ jsonDataViewer tool initialExpanded className json =
             codeEditor "json" json
 
         _ ->
-            jsonViewer initialExpanded className json
+            if Utils.isHtml json then
+                let
+                    -- FIXME: decodeString here is wired
+                    s =
+                        json
+                            |> Decode.decodeString Decode.string
+                            |> Result.withDefault ""
+                in
+                iframe [ class "preview", srcdoc s ] []
+
+            else
+                jsonViewer initialExpanded className json
 
 
 reduxStateViewer : DetailViewTool -> Bool -> List Har.Entry -> String -> String -> String -> Html DetailMsg
@@ -554,9 +565,12 @@ detailView isSnapshotPopout isSortByTime entries model href entry =
                             |> Maybe.withDefault noContent
 
                     _ ->
-                        entry.response.content.text
-                            |> Maybe.map (jsonDataViewer model.tool True "detail-body")
-                            |> Maybe.withDefault noContent
+                        case entry.response.content.text of
+                            Just t ->
+                                jsonDataViewer model.tool True "detail-body" t
+
+                            _ ->
+                                noContent
 
             Headers ->
                 div

@@ -148,3 +148,12 @@ agent-console-snapshot-player {
   height: 20px;
   user-select: none;
 }
+
+iframe.preview {
+  border: none;
+  width: calc(100% - 40px);
+  height: calc(100% - 40px);
+  margin: 20px;
+  background-color: white;
+  border-radius: 4px;
+}
