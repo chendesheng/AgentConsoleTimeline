@@ -189,6 +189,10 @@ ol.table-body {
   cursor: pointer;
 }
 
+.table-body-cell.table-body-cell-name.table-body-cell-name__failed {
+  color: var(--error-text-color);
+}
+
 .table-body-cell.table-body-cell-name .icon {
   font-size: 14px;
   margin-right: 4px;

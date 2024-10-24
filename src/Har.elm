@@ -675,3 +675,13 @@ findEntry selected entries keyword =
                         )
                     |> Maybe.withDefault Nothing
             )
+
+
+isHttpFailedEntry : Entry -> Bool
+isHttpFailedEntry entry =
+    case getEntryKind entry of
+        NetworkHttp ->
+            entry.response.status > 399
+
+        _ ->
+            False

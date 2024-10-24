@@ -506,6 +506,12 @@ tableCellView msPerPx column startTime entry =
     div
         [ class "table-body-cell"
         , class <| "table-body-cell-" ++ column.id
+        , class <|
+            if Har.isHttpFailedEntry entry then
+                "table-body-cell-name__failed"
+
+            else
+                ""
         , style "width" <| cssVar <| tableColumnWidthVariableName column.id
         , title <|
             if column.id == "name" then
