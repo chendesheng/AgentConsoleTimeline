@@ -11,10 +11,24 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Html.Lazy exposing (lazy3, lazy6)
-import Initial exposing (InitialModel, InitialMsg, defaultInitialModel, initialView, updateInitial)
+import Initial exposing (InitialModel, InitialMsg(..), defaultInitialModel, initialView, updateInitial)
+import Json.Decode as Decode
 import List
 import RecentFile exposing (RecentFile, gotFileContent, saveRecentFile)
-import Table exposing (TableModel, TableMsg(..), defaultTableModel, isSortByTime, subTable, tableFilterView, tableView, updateTable)
+import Remote
+import Table
+    exposing
+        ( TableModel
+        , TableMsg(..)
+        , defaultTableModel
+        , isScrollbarInBottom
+        , isSortByTime
+        , scrollToBottom
+        , subTable
+        , tableFilterView
+        , tableView
+        , updateTable
+        )
 import Task
 import Time
 import Utils
@@ -50,7 +64,14 @@ init navKey recentFiles =
         model =
             defaultInitialModel navKey
     in
-    ( Initial <| { model | recentFiles = recentFiles }, Cmd.none )
+    ( Initial <| { model | recentFiles = recentFiles }
+    , Remote.getSessions (GotRemoteSessions >> InitialMsg)
+    )
+
+
+isLiveSession : String -> Bool
+isLiveSession fileName =
+    String.contains ("wss://" ++ Remote.address ++ "/connect") fileName
 
 
 
@@ -120,13 +141,17 @@ type OpenedMsg
     | GotTimezone Time.Zone
     | DetailAction DetailMsg
     | DropFile DropFileMsg
+    | AddHarEntries (List Har.Entry)
 
 
 initOpened : String -> String -> Har.Log -> Nav.Key -> Maybe Int -> ( OpenedModel, Cmd OpenedMsg )
 initOpened fileName fileContent log navKey initialViewportHeight =
     let
         table =
-            { defaultTableModel | entries = log.entries, viewportHeight = Maybe.withDefault 0 initialViewportHeight }
+            { defaultTableModel
+                | entries = log.entries
+                , viewportHeight = Maybe.withDefault 0 initialViewportHeight
+            }
     in
     ( { table = table
       , timezone = Nothing
@@ -174,7 +199,7 @@ update msg model =
                                     let
                                         ( m, cmd2 ) =
                                             initOpened
-                                                newModel.dropFile.fileName
+                                                (Maybe.withDefault newModel.dropFile.fileName newModel.waitingRemoteSession)
                                                 newModel.dropFile.fileContentString
                                                 log
                                                 newModel.navKey
@@ -246,6 +271,7 @@ updateOpened msg model =
             , Cmd.map TableAction cmd
             )
 
+        -- TODO: setup timezone at the initial UI
         GotTimezone tz ->
             let
                 log =
@@ -269,7 +295,11 @@ updateOpened msg model =
                 , table = { table | entries = entries }
                 , log = { log | entries = entries }
               }
-            , Cmd.none
+            , if isLiveSession model.fileName then
+                Cmd.map TableAction <| scrollToBottom table
+
+              else
+                Cmd.none
             )
 
         DetailAction detailMsg ->
@@ -311,6 +341,51 @@ updateOpened msg model =
             in
             ( { model | dropFile = dropFile }, Cmd.map DropFile cmd )
 
+        AddHarEntries newEntries ->
+            let
+                log =
+                    model.log
+
+                table =
+                    model.table
+
+                count =
+                    List.length log.entries
+
+                entries =
+                    List.append
+                        -- log.entries should always sorted by startedDateTime
+                        log.entries
+                    <|
+                        List.indexedMap
+                            (\i entry ->
+                                { entry
+                                    | id = String.fromInt (count + i)
+                                    , startedDateTimeStr =
+                                        Utils.formatTime (Maybe.withDefault Time.utc model.timezone) entry.startedDateTime
+                                }
+                            )
+                            newEntries
+
+                newTable =
+                    { table
+                        | entries =
+                            entries
+                                |> Har.filterEntries table.filter.match table.filter.kind
+                                |> Har.sortEntries table.sortBy
+                    }
+            in
+            ( { model
+                | log = { log | entries = entries }
+                , table = newTable
+              }
+            , if isScrollbarInBottom table then
+                Cmd.map TableAction <| scrollToBottom newTable
+
+              else
+                Cmd.none
+            )
+
 
 
 -- SUBSCRIPTIONS
@@ -319,19 +394,46 @@ updateOpened msg model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     case model of
-        Initial _ ->
-            gotFileContent
-                (\str ->
-                    case decodeHar str of
-                        Just log ->
-                            InitialMsg <| Initial.DropFile <| GotFileContent str log
+        Initial { waitingRemoteSession } ->
+            Sub.batch
+                [ gotFileContent
+                    (\str ->
+                        case decodeHar str of
+                            Just log ->
+                                InitialMsg <| Initial.DropFile <| GotFileContent str log
 
-                        _ ->
-                            NoOp
-                )
+                            _ ->
+                                NoOp
+                    )
+                , case waitingRemoteSession of
+                    Just _ ->
+                        Remote.gotRemoteHarLog
+                            (\s ->
+                                s
+                                    |> Decode.decodeString HarDecoder.logDecoder
+                                    |> Result.map (\log -> InitialMsg <| Initial.DropFile <| GotFileContent s log)
+                                    |> Result.withDefault NoOp
+                            )
 
-        Opened _ ->
-            Sub.map (OpenedMsg << TableAction) subTable
+                    _ ->
+                        Sub.none
+                ]
+
+        Opened { fileName } ->
+            Sub.batch
+                [ Sub.map (OpenedMsg << TableAction) subTable
+                , if isLiveSession fileName then
+                    Remote.gotRemoteHarEntry
+                        (\s ->
+                            s
+                                |> Decode.decodeString (Decode.list HarDecoder.entryDecoder)
+                                |> Result.map (AddHarEntries >> OpenedMsg)
+                                |> Result.withDefault NoOp
+                        )
+
+                  else
+                    Sub.none
+                ]
 
 
 

@@ -106,7 +106,7 @@
   z-index: 1;
 }
 
-.recent-files-container {
+.initial-dialog-container {
   display: flex;
   flex-flow: column;
   align-items: center;
@@ -118,41 +118,67 @@
   z-index: 1;
 }
 
-.recent-files {
+.initial-dialog-container .error {
+  color: red;
+  margin-bottom: 4px;
+  padding: 4px;
+}
+
+.initial-dialog {
   display: flex;
   flex-flow: column;
-  gap: 8px;
-  list-style: none;
   background: var(--background-color-content);
   border-radius: 10px;
   padding: 20px;
   min-width: 460px;
+  color: var(--text-color-secondary);
+  box-shadow: 0px 0px 4px 0px var(--background-color-content);
+}
+.initial-dialog h3 {
+  margin: 0;
+}
+.initial-dialog ul {
+  display: flex;
+  flex-flow: column;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
 }
 
-.recent-files li {
+.initial-dialog li {
   padding: 0;
   margin: 0;
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--text-color-secondary);
 }
 
-.recent-files li.bar {
+.initial-dialog .actions {
+  display: flex;
+  margin-bottom: 10px;
+}
+.initial-dialog .actions a:not(:last-child) {
+  flex: none;
+  margin-right: 8px;
+  border-right: solid 1px var(--text-color-secondary);
+  padding-right: 8px;
+}
+
+.initial-dialog .bar {
   border-bottom: solid 1px currentColor;
 }
 
-.recent-files li a {
+.initial-dialog a {
   text-decoration: none;
   margin-right: auto;
   color: inherit;
 }
 
-.recent-files li a:hover {
+.initial-dialog a:hover {
   color: var(--text-color);
 }
 
-.recent-files .close {
+.initial-dialog .close {
   color: inherit;
   cursor: pointer;
   background: none;
@@ -160,7 +186,13 @@
   padding: 0;
 }
 
-.recent-files .close:hover {
+.initial-dialog .close:hover {
   text-decoration: none;
   color: var(--text-color);
+}
+
+.initial-dialog.waiting-remote-session {
+  display: flex;
+  gap: 4px;
+  flex-flow: row;
 }

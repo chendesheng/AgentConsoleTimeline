@@ -3,8 +3,9 @@ module Table exposing
     , TableMsg(..)
     , defaultTableModel
     , getSelectedEntry
+    , isScrollbarInBottom
     , isSortByTime
-    , scrollToEntry
+    , scrollToBottom
     , subTable
     , tableFilterView
     , tableView
@@ -134,6 +135,11 @@ defaultTableModel =
     , search = NotSearch
     , searchHistory = { present = "", past = [], future = [] }
     }
+
+
+isScrollbarInBottom : TableModel -> Bool
+isScrollbarInBottom table =
+    table.scrollTop + table.viewportHeight >= List.length table.entries * 20
 
 
 withUpdateIndex : TableModel -> (Int -> Int) -> ( TableModel, Cmd TableMsg )
@@ -1160,27 +1166,36 @@ updateTable navKey action log table =
             )
 
 
+scrollToPx : Int -> Cmd TableMsg
+scrollToPx y =
+    Task.attempt (\_ -> NoOp) <|
+        Dom.setViewportOf "table-body" 0 <|
+            toFloat y
+
+
+scrollToBottom : TableModel -> Cmd TableMsg
+scrollToBottom table =
+    scrollToPx (List.length table.entries * 20 - table.viewportHeight)
+
+
 scrollToEntry : TableModel -> String -> Cmd TableMsg
-scrollToEntry table id =
-    case Utils.indexOf (\entry -> entry.id == id) table.entries of
+scrollToEntry { scrollTop, viewportHeight, entries } id =
+    case Utils.indexOf (\entry -> entry.id == id) entries of
         Just i ->
             let
                 y =
                     i * 20
             in
-            if table.scrollTop <= y && y < table.scrollTop + table.viewportHeight then
+            if scrollTop <= y && y + 20 <= scrollTop + viewportHeight then
                 Cmd.none
 
             else
-                Task.attempt (\_ -> NoOp) <|
-                    Dom.setViewportOf "table-body"
-                        0
-                        (if y < table.scrollTop then
-                            toFloat y
+                scrollToPx <|
+                    if y < scrollTop then
+                        y
 
-                         else
-                            toFloat (y - table.viewportHeight + 20)
-                        )
+                    else
+                        y + 20 - viewportHeight
 
         _ ->
             Cmd.none

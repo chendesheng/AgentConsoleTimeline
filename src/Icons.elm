@@ -81,3 +81,7 @@ import_ =
 export : Html msg
 export =
     icon "export"
+
+spinning : Html msg
+spinning =
+    icon "spinning"

@@ -5,6 +5,7 @@
   "source": "select.html",
   "scripts": {
     "start": "vite",
+    "server": "deno run  --allow-read --allow-net server/server.ts",
     "clean": "rm -rf dist",
     "prerelease": "npm run clean",
     "release": "vite build --base=./",

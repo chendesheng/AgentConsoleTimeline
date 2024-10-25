@@ -58,6 +58,44 @@ async function main() {
       globalThis.popoutWindow.close();
     }
   };
+
+  let socket: WebSocket;
+  app.ports.connectRemoteSource.subscribe((url) => {
+    if (socket) {
+      socket.close();
+    }
+
+    socket = new WebSocket(url);
+    socket.onopen = (event) => {
+      // console.log('onopen', event);
+      socket.send(
+        JSON.stringify({
+          type: "connect",
+        })
+      );
+    };
+
+    const harEntryQueue: any[] = [];
+    socket.onmessage = (event) => {
+      // console.log('got message', event.data);
+
+      const data = JSON.parse(event.data);
+      if (data.type === "harLog") {
+        app.ports.gotRemoteHarLog.send(JSON.stringify(data.payload));
+      } else if (data.type === "harEntry") {
+        harEntryQueue.push(data.payload);
+        setTimeout(() => {
+          app.ports.gotRemoteHarEntry.send(JSON.stringify(harEntryQueue));
+          harEntryQueue.splice(0, harEntryQueue.length);
+        }, 50);
+      }
+    };
+
+    socket.onclose = (event) => {
+      // console.log(`remote source ${url} closed`);
+      app.ports.gotRemoteClose.send(url);
+    };
+  });
 }
 
 main();

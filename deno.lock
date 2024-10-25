@@ -1,6 +1,7 @@
 {
   "version": "4",
   "specifiers": {
+    "jsr:@std/path@*": "1.0.6",
     "npm:@alenaksu/json-viewer@^2.0.1": "2.1.1",
     "npm:@monaco-editor/loader@^1.4.0": "1.4.0_monaco-editor@0.43.0",
     "npm:@types/json-diff@^1.0.3": "1.0.3",
@@ -18,6 +19,11 @@
     "npm:util@~0.12.5": "0.12.5",
     "npm:vite-plugin-elm@^3.0.1": "3.0.1_vite@5.4.8",
     "npm:vite@^5.4.3": "5.4.8"
+  },
+  "jsr": {
+    "@std/path@1.0.6": {
+      "integrity": "ab2c55f902b380cf28e0eec501b4906e4c1960d13f00e11cfbcd21de15f18fed"
+    }
   },
   "npm": {
     "@alenaksu/json-viewer@2.1.1": {
