@@ -79,6 +79,7 @@ type alias TableModel =
     , columnWidths : Dict String Int
     , columns : List TableColumn
     , entries : List Har.Entry
+    , entriesCount : Int
     , selected : String
     , filter : TableFilter
     , scrollTop : Int
@@ -123,6 +124,7 @@ defaultTableModel =
         , { id = "waterfall", label = "", minWidth = 0 }
         ]
     , entries = []
+    , entriesCount = 0
     , selected = ""
     , filter =
         { match = ""
@@ -139,7 +141,7 @@ defaultTableModel =
 
 isScrollbarInBottom : TableModel -> Bool
 isScrollbarInBottom table =
-    table.scrollTop + table.viewportHeight >= List.length table.entries * 20
+    table.scrollTop + table.viewportHeight >= table.entriesCount * 20
 
 
 withUpdateIndex : TableModel -> (Int -> Int) -> ( TableModel, Cmd TableMsg )
@@ -539,8 +541,16 @@ tableSortIcon sortOrder =
             Icons.sortDesc
 
 
-tableHeaderCell : Float -> Posix -> Posix -> SortBy -> TableColumn -> Html TableMsg
-tableHeaderCell waterfallMsPerPx startTime firstEntryStartTime ( sortColumn, sortOrder ) column =
+tableHeaderCell : Int -> Float -> Posix -> Posix -> SortBy -> TableColumn -> Html TableMsg
+tableHeaderCell entriesCount waterfallMsPerPx startTime firstEntryStartTime ( sortColumn, sortOrder ) column =
+    let
+        label =
+            if column.id == "name" then
+                column.label ++ " (" ++ String.fromInt entriesCount ++ ")"
+
+            else
+                column.label
+    in
     div
         [ class "table-header-cell"
         , class ("table-header-cell-" ++ column.id)
@@ -563,7 +573,7 @@ tableHeaderCell waterfallMsPerPx startTime firstEntryStartTime ( sortColumn, sor
             else
                 ""
         ]
-        ([ text column.label
+        ([ text label
          , if column.id == sortColumn then
             tableSortIcon sortOrder
 
@@ -871,8 +881,8 @@ tableBodySearchResultView search scrollTop viewportHeight =
         )
 
 
-tableHeadersView : Float -> Posix -> Posix -> SortBy -> List TableColumn -> Bool -> Html TableMsg
-tableHeadersView waterfallMsPerPx startTime firstEntryStartTime sortBy columns showDetail =
+tableHeadersView : Int -> Float -> Posix -> Posix -> SortBy -> List TableColumn -> Bool -> Html TableMsg
+tableHeadersView entriesCount waterfallMsPerPx startTime firstEntryStartTime sortBy columns showDetail =
     let
         visibleColumns =
             if showDetail then
@@ -882,7 +892,7 @@ tableHeadersView waterfallMsPerPx startTime firstEntryStartTime sortBy columns s
                 columns
     in
     div [ class "table-header" ] <|
-        List.map (tableHeaderCell waterfallMsPerPx startTime firstEntryStartTime sortBy) visibleColumns
+        List.map (tableHeaderCell entriesCount waterfallMsPerPx startTime firstEntryStartTime sortBy) visibleColumns
 
 
 resolveSelected : String -> List Har.Entry -> String
@@ -895,7 +905,7 @@ resolveSelected selected entries =
 
 
 tableView : Posix -> TableModel -> Bool -> Html TableMsg
-tableView startTime { entries, sortBy, columns, columnWidths, selected, scrollTop, waterfallMsPerPx, viewportHeight, search, searchHistory, pendingKeys } showDetail =
+tableView startTime { entries, entriesCount, sortBy, columns, columnWidths, selected, scrollTop, waterfallMsPerPx, viewportHeight, search, searchHistory, pendingKeys } showDetail =
     let
         selected2 =
             resolveSelected selected entries
@@ -988,7 +998,7 @@ tableView startTime { entries, sortBy, columns, columnWidths, selected, scrollTo
 
             _ ->
                 text ""
-        , lazy6 tableHeadersView waterfallMsPerPx startTime firstEntryStartTime sortBy columns showDetail2
+        , lazy7 tableHeadersView entriesCount waterfallMsPerPx startTime firstEntryStartTime sortBy columns showDetail2
         , tableBodyView search pendingKeys waterfallMsPerPx startTime columns guidelineLeft selected2 showDetail2 entries scrollTop viewportHeight
         , detailFirstColumnResizeDivider
         ]
@@ -1118,7 +1128,11 @@ updateTable navKey action log table =
                 filter =
                     table.filter
             in
-            ( { table | entries = newEntries, filter = { filter | match = match } }
+            ( { table
+                | entries = newEntries
+                , entriesCount = List.length newEntries
+                , filter = { filter | match = match }
+              }
             , if match == "" && table.selected /= "" then
                 scrollToEntry table table.selected
 
@@ -1137,7 +1151,11 @@ updateTable navKey action log table =
                 filter =
                     table.filter
             in
-            ( { table | entries = newEntries, filter = { filter | kind = kind } }
+            ( { table
+                | entries = newEntries
+                , entriesCount = List.length newEntries
+                , filter = { filter | kind = kind }
+              }
             , if table.selected /= "" then
                 Cmd.batch
                     [ scrollToEntry table table.selected
@@ -1175,7 +1193,7 @@ scrollToPx y =
 
 scrollToBottom : TableModel -> Cmd TableMsg
 scrollToBottom table =
-    scrollToPx (List.length table.entries * 20 - table.viewportHeight)
+    scrollToPx (table.entriesCount * 20 - table.viewportHeight)
 
 
 scrollToEntry : TableModel -> String -> Cmd TableMsg

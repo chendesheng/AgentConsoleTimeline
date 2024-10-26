@@ -150,6 +150,7 @@ initOpened fileName fileContent log navKey initialViewportHeight =
         table =
             { defaultTableModel
                 | entries = log.entries
+                , entriesCount = List.length log.entries
                 , viewportHeight = Maybe.withDefault 0 initialViewportHeight
             }
     in
@@ -367,12 +368,15 @@ updateOpened msg model =
                             )
                             newEntries
 
+                filteredEntries =
+                    entries
+                        |> Har.filterEntries table.filter.match table.filter.kind
+                        |> Har.sortEntries table.sortBy
+
                 newTable =
                     { table
-                        | entries =
-                            entries
-                                |> Har.filterEntries table.filter.match table.filter.kind
-                                |> Har.sortEntries table.sortBy
+                        | entries = filteredEntries
+                        , entriesCount = List.length filteredEntries
                     }
             in
             ( { model
