@@ -51,7 +51,7 @@ export class AgentConsoleSnapshot extends LitElement {
     this.dispatchEvent(
       new CustomEvent("popout", {
         detail: { value },
-      }),
+      })
     );
   }
 
@@ -62,9 +62,9 @@ export class AgentConsoleSnapshot extends LitElement {
       gap: 4px;
     }
     .snapshot {
-      border-radius: 4px;
-      box-shadow: 0 0 10px 0 rgba(0, 0, 0, 0.1);
+      border-radius: 6px;
       border: none;
+      outline: solid 0.1px hsl(0, 0%, 33%);
       height: 100%;
       width: 100%;
       flex: auto;
@@ -84,10 +84,11 @@ export class AgentConsoleSnapshot extends LitElement {
       align-items: end;
       color: var(--text-color);
       height: 20px;
+      cursor: default;
     }
     .header button {
       flex: none;
-      color: inherit;
+      color: var(--text-color-secondary);
       font-size: 20px;
       padding: 0;
       margin: 0;
@@ -96,16 +97,35 @@ export class AgentConsoleSnapshot extends LitElement {
       background: none;
       border: none;
       appearance: none;
-      opacity: 0.5;
       cursor: pointer;
       margin-right: 4px;
+      outline: none;
     }
     .header button:hover,
+    .header button:focus,
     .header button:active {
-      opacity: 0.8;
+      color: var(--text-color);
     }
     .header .src {
       flex: none;
+      cursor: text;
+      border: none;
+    }
+    .header .src:hover,
+    .header .src:focus {
+      border: none;
+      border-bottom: solid 1px currentColor;
+      outline: none;
+      margin-bottom: -1px;
+    }
+    .header button.popout {
+      font-size: 12px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 0;
+      height: 12px;
+      margin-left: 2px;
     }
   `;
 
@@ -142,7 +162,7 @@ export class AgentConsoleSnapshot extends LitElement {
       this.dispatchEvent(
         new CustomEvent("srcChange", {
           detail: { value: `${ele.textContent!.trim()}${rest}` },
-        }),
+        })
       );
     }
   }
@@ -160,7 +180,13 @@ export class AgentConsoleSnapshot extends LitElement {
         <span class="src" contenteditable @blur=${this.handleSrcInputBlur}
           >${prefix}</span
         >${rest}
-        <button title="Popout" @click=${this.handleClickPopoutButton}>🡽</button>
+        <button
+          class="popout"
+          title="Popout"
+          @click=${this.handleClickPopoutButton}
+        >
+          🡽
+        </button>
       </div>
       ${this.isPopout
         ? html`<button

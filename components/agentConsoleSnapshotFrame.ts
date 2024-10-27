@@ -41,7 +41,7 @@ export class AgentConsoleSnapshotFrame extends LitElement {
     }
     iframe {
       border: none;
-      border-radius: 4px;
+      border-radius: 6px;
       height: 100%;
       width: 100%;
     }
@@ -62,7 +62,7 @@ export class AgentConsoleSnapshotFrame extends LitElement {
       // console.log('restore state');
       this.getSnapshotWindow()?.postMessage(
         { type: "restoreReduxState", payload: this.state, time: this.time },
-        "*",
+        "*"
       );
     }
     this.dispatchActionsToSnapshot(this.actions);
@@ -80,7 +80,7 @@ export class AgentConsoleSnapshotFrame extends LitElement {
           action: JSON.parse(action),
           time: this.time,
         },
-        "*",
+        "*"
       );
     }
   }

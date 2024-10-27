@@ -157,25 +157,32 @@
   display: flex;
   margin-bottom: 10px;
 }
-.initial-dialog .actions a:not(:last-child) {
-  flex: none;
+.initial-dialog .actions button:not(:last-child) {
   margin-right: 8px;
-  border-right: solid 1px var(--text-color-secondary);
   padding-right: 8px;
+  border-right: solid 1px var(--border-color);
+}
+
+.initial-dialog button {
+  color: var(--text-color-secondary);
+  background: none;
+  border: none;
+  appearance: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.initial-dialog button:hover {
+  color: var(--text-color);
 }
 
 .initial-dialog .bar {
   border-bottom: solid 1px currentColor;
+  opacity: 0.5;
 }
 
-.initial-dialog a {
-  text-decoration: none;
+.initial-dialog ul button {
   margin-right: auto;
-  color: inherit;
-}
-
-.initial-dialog a:hover {
-  color: var(--text-color);
 }
 
 .initial-dialog .close {
@@ -184,6 +191,7 @@
   background: none;
   border: none;
   padding: 0;
+  margin-right: initial;
 }
 
 .initial-dialog .close:hover {

@@ -45,6 +45,51 @@ defaultInitialModel navKey remoteAddress =
 -- VIEW
 
 
+liveSessionList : String -> List String -> Html InitialMsg
+liveSessionList remoteAddress remoteSessionIds =
+    ul [ class "remote" ]
+        (h3 [] [ text "Live Sessions" ]
+            :: List.map
+                (\sessionId ->
+                    let
+                        url =
+                            "wss://" ++ remoteAddress ++ "/connect?session=" ++ sessionId
+                    in
+                    li
+                        []
+                        [ button
+                            [ onClick (ClickRemoteSession url) ]
+                            [ text url ]
+                        ]
+                )
+                remoteSessionIds
+        )
+
+
+recentFilesList : List RecentFile -> Html InitialMsg
+recentFilesList recentFiles =
+    ul [] <|
+        h3 [] [ text "Recent Files" ]
+            :: List.map
+                (\{ key, fileName, size } ->
+                    li
+                        []
+                        [ button
+                            [ onClick (ClickRecentFile key fileName)
+                            ]
+                            [ text <| fileName ++ " (" ++ Utils.formatSize size ++ ")"
+                            ]
+                        , text " "
+                        , button
+                            [ onClick (ClickDeleteRecentFile key)
+                            , class "close"
+                            ]
+                            [ text "✕" ]
+                        ]
+                )
+                recentFiles
+
+
 initialView : InitialModel -> Html InitialMsg
 initialView model =
     dropFileView "app initial-container"
@@ -56,61 +101,25 @@ initialView model =
             case model.waitingRemoteSession of
                 Just url ->
                     [ div [ class "initial-dialog", class "waiting-remote-session" ]
-                        [ Icons.spinning, text <| "Waiting for " ++ url ++ " to connect…" ]
+                        [ Icons.spinning
+                        , text <| "Waiting for " ++ url ++ " to connect…"
+                        ]
                     ]
 
                 _ ->
                     [ span [ class "error" ] [ text <| Maybe.withDefault "" model.dropFile.error ]
                     , div [ class "initial-dialog" ]
                         [ span [ class "actions" ]
-                            [ a [ href "#", onClick Pick ] [ text "Open…" ]
-                            , a [ href "#", onClick ClickClearRecentFiles ] [ text "Clear Recent Files" ]
+                            [ button [ onClick Pick ] [ text "Open…" ]
+                            , button [ onClick ClickClearRecentFiles ] [ text "Clear Recent Files" ]
                             ]
                         , div [ class "bar" ] []
                         , if List.isEmpty model.remoteSessionIds then
                             text ""
 
                           else
-                            ul [ class "remote" ]
-                                (h3 [] [ text "Live Sessions" ]
-                                    :: List.map
-                                        (\sessionId ->
-                                            let
-                                                url =
-                                                    "wss://" ++ model.remoteAddress ++ "/connect?session=" ++ sessionId
-                                            in
-                                            li
-                                                []
-                                                [ a
-                                                    [ onClick (ClickRemoteSession url)
-                                                    , href url
-                                                    ]
-                                                    [ text url ]
-                                                ]
-                                        )
-                                        model.remoteSessionIds
-                                )
-                        , ul [] <|
-                            h3 [] [ text "Recent Files" ]
-                                :: List.map
-                                    (\{ key, fileName, size } ->
-                                        li
-                                            []
-                                            [ a
-                                                [ onClick (ClickRecentFile key fileName)
-                                                , href "#"
-                                                ]
-                                                [ text <| fileName ++ " (" ++ Utils.formatSize size ++ ")"
-                                                ]
-                                            , text " "
-                                            , button
-                                                [ onClick (ClickDeleteRecentFile key)
-                                                , class "close"
-                                                ]
-                                                [ text "✕" ]
-                                            ]
-                                    )
-                                    model.recentFiles
+                            liveSessionList model.remoteAddress model.remoteSessionIds
+                        , recentFilesList model.recentFiles
                         ]
                     ]
         ]

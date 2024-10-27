@@ -77,7 +77,7 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
       position: absolute;
       top: 0;
       bottom: 0;
-      width: 1px;
+      width: 0.1px;
       background-color: white;
       pointer-events: none;
     }
