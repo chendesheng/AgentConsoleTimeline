@@ -68,3 +68,7 @@
 .icon.spinning {
   content: url("../images/Spinning.svg");
 }
+
+.icon.live {
+  content: url("../images/live.svg");
+}

@@ -50,7 +50,7 @@ initialView model =
     dropFileView "app initial-container"
         model.dropFile
         DropFile
-        [ Html.map (\_ -> NoOp) <| tableFilterView Nothing False { match = "", kind = Nothing }
+        [ Html.map (\_ -> NoOp) <| tableFilterView False Nothing False { match = "", kind = Nothing }
         , Html.map (\_ -> NoOp) (lazy3 tableView (Time.millisToPosix 0) Table.defaultTableModel False)
         , div [ class "initial-dialog-container" ] <|
             case model.waitingRemoteSession of

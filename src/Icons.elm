@@ -82,6 +82,12 @@ export : Html msg
 export =
     icon "export"
 
+
 spinning : Html msg
 spinning =
     icon "spinning"
+
+
+live : Html msg
+live =
+    icon "live"

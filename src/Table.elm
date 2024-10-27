@@ -712,10 +712,15 @@ waterfallScaleOptions =
     ]
 
 
-tableFilterView : Maybe String -> Bool -> TableFilter -> Html TableMsg
-tableFilterView error autoFocus filter =
+tableFilterView : Bool -> Maybe String -> Bool -> TableFilter -> Html TableMsg
+tableFilterView liveSession error autoFocus filter =
     section [ class "table-filter" ]
-        [ input
+        [ if liveSession then
+            Icons.live
+
+          else
+            text ""
+        , input
             [ class "table-filter-input"
             , id "table-filter-input"
             , value filter.match
