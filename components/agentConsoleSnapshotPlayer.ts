@@ -1,6 +1,8 @@
 import { html, css, LitElement, PropertyValues } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 
+type PlayingState = "paused" | "playing" | "live";
+
 @customElement("agent-console-snapshot-player")
 export class AgentConsoleSnapshotPlayer extends LitElement {
   @property({ type: Array })
@@ -12,17 +14,21 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
   @property({ type: String })
   initialId = "";
 
+  @property({ type: Boolean })
+  allowLive = false;
+
   @state()
   private time: number = 0;
   @state()
   private index: number = 0;
   @state()
-  private isPlaying: boolean = false;
+  private playingState = "paused";
+
   @state()
   private isSeeking: boolean = false;
 
   private get isPlayingOrSeeking() {
-    return this.isPlaying || this.isSeeking;
+    return this.playingState === "playing" || this.isSeeking;
   }
 
   private timer: any;
@@ -120,18 +126,18 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
     this.dispatchEvent(
       new CustomEvent("change", {
         detail: { id },
-      }),
+      })
     );
   }
 
   private handleClickPlay() {
-    this.isPlaying = !this.isPlaying;
+    this.togglePlayingState();
   }
 
   private updateIndex(index: number) {
     // console.log("updateIndex", index);
     const i = clamp(index, 0, this.items.length - 1);
-    if (i !== index) this.isPlaying = false;
+    if (i !== index) this.playingState = "paused";
     this.index = i;
   }
 
@@ -148,6 +154,7 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
   }
 
   private handleMouseDownTrack(e: MouseEvent) {
+    if (this.playingState === "live") return;
     if (this.isSeeking) return;
 
     this.isSeeking = true;
@@ -185,9 +192,19 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
     document.addEventListener("mouseup", handleMouseUp);
   }
 
+  private togglePlayingState() {
+    if (this.playingState === "paused") {
+      this.playingState = "playing";
+    } else if (this.playingState === "playing") {
+      this.playingState = this.allowLive ? "live" : "paused";
+    } else {
+      this.playingState = "paused";
+    }
+  }
+
   private handleKeyDown(e: KeyboardEvent) {
     if (e.key === " ") {
-      this.isPlaying = !this.isPlaying;
+      this.togglePlayingState();
     } else if (e.key === "s") {
       this.handleClickScroll();
     } else if (e.key === "r") {
@@ -216,7 +233,11 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
       tabindex="0"
     >
       <button @click=${this.handleClickPlay}>
-        ${this.isPlaying && !this.isSeeking ? "❚❚" : "▶"}
+        ${this.playingState === "live"
+          ? "🔴"
+          : this.playingState === "playing" && !this.isSeeking
+          ? "❚❚"
+          : "▶"}
       </button>
       <button class="reset" @click=${this.handleClickReset}>↺</button>
       <button class="reveal" @click=${this.handleClickScroll}>⇱</button>
@@ -227,9 +248,7 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
         ></div>
         ${this.items.map(
           (item) =>
-            html`<div
-              style="left: ${this.getTimePosPercent(item.time)}"
-            ></div>`,
+            html`<div style="left: ${this.getTimePosPercent(item.time)}"></div>`
         )}
       </div>
       <time>${((this.time - this.max) / 1000).toFixed(1)}s</time>
@@ -250,7 +269,7 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
   private initById(entryId: string) {
     // console.log("initById", entryId);
 
-    this.isPlaying = false;
+    this.playingState = "paused";
     this.isSeeking = false;
     this.index = this.items.findIndex(({ id }) => id === entryId);
     this.time = this.indexToTime(this.index);
@@ -261,6 +280,9 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
 
     if (changedProperties.has("items")) {
       this.items.sort((a, b) => a.time - b.time);
+      if (this.playingState === "live") {
+        this.index = this.items.length - 1;
+      }
     }
 
     if (changedProperties.has("initialId")) {
@@ -268,10 +290,10 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
     }
 
     if (
-      changedProperties.has("isPlaying") ||
+      changedProperties.has("playingState") ||
       changedProperties.has("isSeeking")
     ) {
-      if (this.isPlaying && !this.isSeeking) {
+      if (this.playingState === "playing" && !this.isSeeking) {
         this.timer = setInterval(() => {
           this.updateTime(this.time + 50);
         }, 50);

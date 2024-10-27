@@ -10,7 +10,7 @@ import HarDecoder exposing (decodeHar)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Html.Lazy exposing (lazy3, lazy4, lazy6)
+import Html.Lazy exposing (lazy3, lazy4, lazy6, lazy7)
 import Initial exposing (InitialModel, InitialMsg(..), defaultInitialModel, initialView, updateInitial)
 import Iso8601
 import Json.Decode as Decode
@@ -103,7 +103,8 @@ viewOpened model =
                 [ Html.map TableAction (lazy4 tableFilterView (isLiveSession model.fileName) model.dropFile.error True table.filter)
                 , Html.map TableAction (lazy3 tableView startTime table detail.show)
                 , Html.map DetailAction
-                    (lazy6 detailViewContainer
+                    (lazy7 detailViewContainer
+                        (isLiveSession model.fileName)
                         model.detail.snapshotPopout
                         (isSortByTime table)
                         model.clientInfo.href
