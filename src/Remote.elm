@@ -16,13 +16,8 @@ port gotRemoteHarLog : (String -> msg) -> Sub msg
 port gotRemoteHarEntry : (String -> msg) -> Sub msg
 
 
-address : String
-address =
-    "localhost:5174"
-
-
-getSessions : (List String -> msg) -> Cmd msg
-getSessions tagger =
+getSessions : String -> (List String -> msg) -> Cmd msg
+getSessions address tagger =
     Http.get
         { url = "https://" ++ address ++ "/sessions"
         , expect =

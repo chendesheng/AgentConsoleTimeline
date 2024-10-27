@@ -59,14 +59,14 @@ type alias OpenedModel =
     }
 
 
-init : Nav.Key -> List RecentFile -> ( Model, Cmd Msg )
-init navKey recentFiles =
+init : Nav.Key -> String -> List RecentFile -> ( Model, Cmd Msg )
+init navKey remoteAddress recentFiles =
     let
         model =
-            defaultInitialModel navKey
+            defaultInitialModel navKey remoteAddress
     in
     ( Initial <| { model | recentFiles = recentFiles }
-    , Remote.getSessions (GotRemoteSessions >> InitialMsg)
+    , Remote.getSessions remoteAddress (GotRemoteSessions >> InitialMsg)
     )
 
 
@@ -457,10 +457,10 @@ subscriptions model =
 -- MAIN
 
 
-main : Program { recentFiles : List RecentFile } Model Msg
+main : Program { remoteAddress : String, recentFiles : List RecentFile } Model Msg
 main =
     Browser.application
-        { init = \flags _ key -> init key flags.recentFiles
+        { init = \flags _ key -> init key flags.remoteAddress flags.recentFiles
         , view =
             \model ->
                 { title =

@@ -23,7 +23,11 @@ async function main() {
 
   const app = Elm.Main.init({
     node: document.getElementById("app")!,
-    flags: { recentFiles },
+    flags: {
+      recentFiles,
+      remoteAddress:
+        import.meta.env.REMOTE_ADDRESS ?? "agentconsoledebugger.deno.dev",
+    },
   });
 
   app.ports.saveRecentFile.subscribe(({ fileName, fileContent }) => {

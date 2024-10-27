@@ -26,16 +26,18 @@ type alias InitialModel =
     , recentFiles : List RecentFile
     , remoteSessionIds : List String
     , waitingRemoteSession : Maybe String
+    , remoteAddress : String
     }
 
 
-defaultInitialModel : Nav.Key -> InitialModel
-defaultInitialModel navKey =
+defaultInitialModel : Nav.Key -> String -> InitialModel
+defaultInitialModel navKey remoteAddress =
     { navKey = navKey
     , dropFile = DropFile.defaultDropFileModel
     , recentFiles = []
     , remoteSessionIds = []
     , waitingRemoteSession = Nothing
+    , remoteAddress = remoteAddress
     }
 
 
@@ -75,7 +77,7 @@ initialView model =
                                         (\sessionId ->
                                             let
                                                 url =
-                                                    "wss://" ++ Remote.address ++ "/connect?session=" ++ sessionId
+                                                    "wss://" ++ model.remoteAddress ++ "/connect?session=" ++ sessionId
                                             in
                                             li
                                                 []
