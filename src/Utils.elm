@@ -4,6 +4,7 @@ import Html exposing (Attribute, Html, div, label, option, select, text)
 import Html.Attributes exposing (class, property, style, value)
 import Html.Events exposing (onInput, preventDefaultOn)
 import Html.Keyed as Keyed
+import Iso8601
 import Json.Decode as D
 import Json.Encode as Encode
 import Regex
@@ -80,6 +81,11 @@ formatTime tz time =
         ++ toIntPad2 (Time.toSecond tz time)
         ++ ","
         ++ toIntPad3 (Time.toMillis tz time)
+
+
+exportLiveSessionFileName : Time.Posix -> String
+exportLiveSessionFileName time =
+    "ac-" ++ String.replace ":" "-" (Iso8601.fromTime time) ++ ".har"
 
 
 formatSize : Int -> String

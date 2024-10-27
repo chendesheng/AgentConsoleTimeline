@@ -4,7 +4,7 @@ import Browser
 import Browser.Dom as Dom
 import Browser.Navigation as Nav
 import Detail exposing (DetailModel, DetailMsg(..), detailViewContainer)
-import DropFile exposing (DropFileModel, DropFileMsg(..), defaultDropFileModel, dropFileView)
+import DropFile exposing (DropFileModel, DropFileMsg(..), decodeFile, defaultDropFileModel, dropFileView)
 import Har exposing (ClientInfo, EntryKind(..), SortOrder(..))
 import HarDecoder exposing (decodeHar)
 import Html exposing (..)
@@ -12,6 +12,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Html.Lazy exposing (lazy3, lazy6)
 import Initial exposing (InitialModel, InitialMsg(..), defaultInitialModel, initialView, updateInitial)
+import Iso8601
 import Json.Decode as Decode
 import List
 import RecentFile exposing (RecentFile, gotFileContent, saveRecentFile)
@@ -71,7 +72,7 @@ init navKey recentFiles =
 
 isLiveSession : String -> Bool
 isLiveSession fileName =
-    String.contains ("wss://" ++ Remote.address ++ "/connect") fileName
+    String.startsWith "wss://" fileName
 
 
 
@@ -153,15 +154,30 @@ initOpened fileName fileContent log navKey initialViewportHeight =
                 , entriesCount = List.length log.entries
                 , viewportHeight = Maybe.withDefault 0 initialViewportHeight
             }
+
+        clientInfo =
+            Har.getClientInfo log.entries
+
+        isLive =
+            isLiveSession fileName
     in
     ( { table = table
       , timezone = Nothing
       , detail = Detail.defaultDetailModel
-      , clientInfo = Har.getClientInfo log.entries
+      , clientInfo = clientInfo
       , navKey = navKey
       , fileName = fileName
       , log = log
-      , dropFile = { defaultDropFileModel | fileName = fileName, fileContentString = fileContent }
+      , dropFile =
+            { defaultDropFileModel
+                | fileName =
+                    if isLive then
+                        Utils.exportLiveSessionFileName clientInfo.time
+
+                    else
+                        fileName
+                , fileContentString = fileContent
+            }
       }
     , Cmd.batch
         [ Task.perform GotTimezone Time.here
@@ -182,7 +198,11 @@ initOpened fileName fileContent log navKey initialViewportHeight =
 
             _ ->
                 Cmd.none
-        , saveRecentFile { fileName = fileName, fileContent = fileContent }
+        , if isLive then
+            Cmd.none
+
+          else
+            saveRecentFile { fileName = fileName, fileContent = fileContent }
         ]
     )
 
@@ -398,23 +418,16 @@ updateOpened msg model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     case model of
-        Initial { waitingRemoteSession } ->
+        Initial { dropFile, waitingRemoteSession } ->
             Sub.batch
                 [ gotFileContent
-                    (\str ->
-                        case decodeHar str of
-                            Just log ->
-                                InitialMsg <| Initial.DropFile <| GotFileContent str log
-
-                            _ ->
-                                NoOp
-                    )
+                    (\str -> InitialMsg <| Initial.DropFile <| decodeFile dropFile.fileName str)
                 , case waitingRemoteSession of
                     Just _ ->
                         Remote.gotRemoteHarLog
                             (\s ->
                                 s
-                                    |> Decode.decodeString HarDecoder.logDecoder
+                                    |> decodeHar
                                     |> Result.map (\log -> InitialMsg <| Initial.DropFile <| GotFileContent s log)
                                     |> Result.withDefault NoOp
                             )

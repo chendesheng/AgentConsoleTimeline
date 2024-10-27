@@ -1,7 +1,7 @@
 module Initial exposing (..)
 
 import Browser.Navigation as Nav
-import DropFile exposing (DropFileModel, DropFileMsg, dropFileView)
+import DropFile exposing (DropFileModel, DropFileMsg, decodeFile, dropFileView)
 import File.Select as Select
 import HarDecoder exposing (decodeHar)
 import Html exposing (..)
@@ -163,14 +163,7 @@ updateInitial msg model =
             ( { model | dropFile = { dropFile | fileName = fileName } }
             , key
                 |> getFileContent
-                |> Cmd.map
-                    (\str ->
-                        str
-                            |> decodeHar
-                            |> Maybe.map (DropFile.GotFileContent str)
-                            |> Maybe.withDefault DropFile.NoOp
-                            |> DropFile
-                    )
+                |> Cmd.map (\str -> DropFile <| decodeFile fileName str)
             )
 
         ClickClearRecentFiles ->

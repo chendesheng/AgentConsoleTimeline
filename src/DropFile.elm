@@ -1,4 +1,4 @@
-module DropFile exposing (DropFileModel, DropFileMsg(..), defaultDropFileModel, dropFileUpdate, dropFileView)
+module DropFile exposing (DropFileModel, DropFileMsg(..), decodeFile, defaultDropFileModel, dropFileUpdate, dropFileView)
 
 import File exposing (File)
 import File.Download as Download
@@ -95,6 +95,16 @@ readFile file =
         File.toString file
 
 
+decodeFile : String -> String -> DropFileMsg
+decodeFile fileName fileContent =
+    case decodeHar fileContent of
+        Ok log ->
+            GotFileContent fileContent log
+
+        Err _ ->
+            ReadFileError <| "Decode file " ++ fileName ++ " failed."
+
+
 dropFileUpdate : DropFileMsg -> DropFileModel -> ( DropFileModel, Cmd DropFileMsg )
 dropFileUpdate msg model =
     case msg of
@@ -113,10 +123,7 @@ dropFileUpdate msg model =
                 (\res ->
                     case res of
                         Ok str ->
-                            str
-                                |> decodeHar
-                                |> Maybe.map (GotFileContent str)
-                                |> Maybe.withDefault (ReadFileError <| "File format error: " ++ File.name file)
+                            decodeFile (File.name file) str
 
                         Err error ->
                             ReadFileError error

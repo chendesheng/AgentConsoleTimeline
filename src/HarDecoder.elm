@@ -1,4 +1,4 @@
-module HarDecoder exposing (decodeHar, entryDecoder, logDecoder)
+module HarDecoder exposing (decodeHar, entryDecoder)
 
 import Har exposing (..)
 import Iso8601
@@ -7,18 +7,18 @@ import Time
 import Url exposing (percentDecode)
 
 
-decodeHar : String -> Maybe Log
+decodeHar : String -> Result Decode.Error Log
 decodeHar str =
     case decodeString harDecoder str of
         Ok { log } ->
-            Just
+            Ok
                 { log
                     | entries =
                         List.sortBy (\entry -> Time.posixToMillis entry.startedDateTime) log.entries
                 }
 
-        Err _ ->
-            Nothing
+        Err err ->
+            Err err
 
 
 harDecoder : Decoder HarFile

@@ -458,6 +458,7 @@ type alias ClientInfo =
     , userAgent : String
     , version : String
     , commit : String
+    , time : Time.Posix
     }
 
 
@@ -465,14 +466,15 @@ getClientInfo : List Entry -> ClientInfo
 getClientInfo entries =
     let
         clientInfoDecoder =
-            D.map4 ClientInfo
+            D.map5 ClientInfo
                 (D.field "href" D.string)
                 (D.field "userAgent" D.string)
                 (D.field "version" D.string)
                 (D.field "commit" D.string)
+                (D.succeed <| Time.millisToPosix 0)
 
         emptyClientInfo =
-            ClientInfo "" "" "" ""
+            ClientInfo "" "" "" "" <| Time.millisToPosix 0
     in
     case List.filter (\entry -> entry.request.url == "/log/message") entries of
         entry :: rest ->
@@ -480,7 +482,7 @@ getClientInfo entries =
                 Just text ->
                     case D.decodeString clientInfoDecoder text of
                         Ok clientInfo ->
-                            clientInfo
+                            { clientInfo | time = entry.startedDateTime }
 
                         Err _ ->
                             getClientInfo rest

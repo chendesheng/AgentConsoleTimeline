@@ -81,7 +81,7 @@ async function main() {
 
       const data = JSON.parse(event.data);
       if (data.type === "harLog") {
-        app.ports.gotRemoteHarLog.send(JSON.stringify(data.payload));
+        app.ports.gotRemoteHarLog.send(JSON.stringify({ log: data.payload }));
       } else if (data.type === "harEntry") {
         harEntryQueue.push(data.payload);
         setTimeout(() => {
