@@ -7,15 +7,24 @@ type Session = {
   sourceSock: WebSocket;
 };
 
-const options = {
-  port: 5174,
-  cert: await Deno.readTextFile(_p("./cert.pem")),
-  key: await Deno.readTextFile(_p("./key.pem")),
-};
+const DENO_DEPLOY = Deno.env.get("DENO_DEPLOYMENT_ID") !== undefined;
 
 const sessions = new Map<string, Session>();
 
-Deno.serve(options, (req) => {
+if (DENO_DEPLOY) {
+  Deno.serve(handleReq);
+} else {
+  Deno.serve(
+    {
+      port: 5174,
+      cert: await Deno.readTextFile(_p("./cert.pem")),
+      key: await Deno.readTextFile(_p("./key.pem")),
+    },
+    handleReq
+  );
+}
+
+function handleReq(req: Request) {
   console.log(req.method, req.url);
 
   const url = new URL(req.url);
@@ -30,7 +39,7 @@ Deno.serve(options, (req) => {
   }
 
   return new Response(null, { status: 404 });
-});
+}
 
 function handleCORS(req: Request) {
   return new Response(null, {
