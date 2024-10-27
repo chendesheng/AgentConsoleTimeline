@@ -112,6 +112,7 @@ initialView model =
                         [ span [ class "actions" ]
                             [ button [ onClick Pick ] [ text "Open…" ]
                             , button [ onClick ClickClearRecentFiles ] [ text "Clear Recent Files" ]
+                            , span [ class "version" ] [ text "v1.0" ]
                             ]
                         , div [ class "bar" ] []
                         , if List.isEmpty model.remoteSessionIds then

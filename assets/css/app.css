@@ -157,6 +157,14 @@
   display: flex;
   margin-bottom: 10px;
 }
+
+.initial-dialog .actions .version {
+  margin-left: auto;
+  opacity: 0.5;
+  cursor: default;
+  user-select: none;
+}
+
 .initial-dialog .actions button:not(:last-child) {
   margin-right: 8px;
   padding-right: 8px;
