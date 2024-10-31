@@ -22,7 +22,7 @@ import Har exposing (EntryKind(..), SortBy, SortOrder(..))
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Html.Lazy exposing (lazy3, lazy5, lazy6, lazy7)
+import Html.Lazy exposing (lazy3, lazy5, lazy7)
 import Icons
 import Json.Decode as D
 import List exposing (sortBy)

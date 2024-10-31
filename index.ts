@@ -1,4 +1,5 @@
 /// <reference path="./index.d.ts" />
+/// <reference types="vite/types/importMeta.d.ts" />
 
 import "./components/jsonTree";
 import "./components/agentConsoleSnapshot";
@@ -75,7 +76,7 @@ async function main() {
       socket.send(
         JSON.stringify({
           type: "connect",
-        })
+        }),
       );
     };
 
