@@ -7,10 +7,9 @@ import HarDecoder exposing (decodeHar)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Json.Decode as D
-import Task exposing (Task)
+import Task
+import UnzipFile exposing (unzipFile)
 import Utils
-import Zip
-import Zip.Entry as ZipEntry
 
 
 
@@ -45,54 +44,10 @@ type DropFileMsg
     | DragEnter
     | DragLeave
     | GotFile File
+    | GotFileInBase64DataUrl String
     | GotFileContent String Har.Log
     | ReadFileError String
     | DownloadFile
-
-
-readFile : File -> Task String String
-readFile file =
-    let
-        name =
-            File.name file
-
-        fail message =
-            Task.fail <| "Unzip " ++ name ++ ": " ++ message
-    in
-    if String.endsWith ".zip" name then
-        -- unzip too large file is too slow
-        if File.size file > 1024 * 1024 * 50 then
-            fail "file is too large (> 50 MB)"
-
-        else
-            file
-                |> File.toBytes
-                |> Task.andThen
-                    (\bytes ->
-                        bytes
-                            |> Zip.fromBytes
-                            |> Maybe.andThen
-                                (\zip ->
-                                    case
-                                        zip
-                                            |> Zip.entries
-                                            |> List.filter (not << ZipEntry.isDirectory)
-                                            |> List.head
-                                    of
-                                        Just entry ->
-                                            entry
-                                                |> ZipEntry.toString
-                                                |> Result.toMaybe
-                                                |> Maybe.map Task.succeed
-
-                                        _ ->
-                                            Just <| fail "no files found"
-                                )
-                            |> Maybe.withDefault (fail "format error")
-                    )
-
-    else
-        File.toString file
 
 
 decodeFile : String -> String -> DropFileMsg
@@ -118,18 +73,41 @@ dropFileUpdate msg model =
             ( { model | hover = False }, Cmd.none )
 
         GotFile file ->
-            ( { model | hover = False, fileName = File.name file }
-            , Task.attempt
-                (\res ->
-                    case res of
-                        Ok str ->
-                            decodeFile (File.name file) str
+            let
+                newModel =
+                    { model | hover = False, fileName = File.name file }
 
-                        Err error ->
-                            ReadFileError error
+                name =
+                    File.name file
+            in
+            if String.endsWith ".zip" name then
+                -- unzip too large file is too slow
+                if File.size file > 1024 * 1024 * 50 then
+                    ( { newModel | error = Just "file is too large (> 50 MB)" }
+                    , Cmd.none
+                    )
+
+                else
+                    ( newModel
+                    , Task.perform GotFileInBase64DataUrl (File.toUrl file)
+                    )
+
+            else
+                ( newModel
+                , Task.attempt
+                    (\res ->
+                        case res of
+                            Ok str ->
+                                decodeFile name str
+
+                            Err error ->
+                                ReadFileError error
+                    )
+                    (File.toString file)
                 )
-                (readFile file)
-            )
+
+        GotFileInBase64DataUrl url ->
+            ( model, unzipFile url )
 
         GotFileContent fileContentString file ->
             ( { model | fileContentString = fileContentString, fileContent = Just file, error = Nothing }, Cmd.none )

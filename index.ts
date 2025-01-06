@@ -13,6 +13,7 @@ import {
   clearRecentFile,
   deleteRecentFile,
 } from "./components/recentFiles";
+import { unzipFile } from "./components/unzipFile";
 import { Elm } from "./src/Main.elm";
 
 declare global {
@@ -29,6 +30,15 @@ async function main() {
       remoteAddress:
         import.meta.env.REMOTE_ADDRESS ?? "agentconsoledebugger.deno.dev",
     },
+  });
+
+  app.ports.unzipFile.subscribe(async (dataUrl) => {
+    try {
+      const file = await unzipFile(dataUrl);
+      app.ports.gotUnzippedFile.send(file);
+    } catch (error) {
+      app.ports.gotUnzippedFileError.send(error);
+    }
   });
 
   app.ports.saveRecentFile.subscribe(({ fileName, fileContent }) => {

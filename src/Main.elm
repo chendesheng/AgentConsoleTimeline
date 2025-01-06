@@ -31,6 +31,7 @@ import Table
         )
 import Task
 import Time
+import UnzipFile exposing (gotUnzippedFile, gotUnzippedFileError)
 import Utils
 
 
@@ -422,6 +423,10 @@ subscriptions model =
             Sub.batch
                 [ gotFileContent
                     (\str -> InitialMsg <| Initial.DropFile <| decodeFile dropFile.fileName str)
+                , gotUnzippedFile
+                    (\{ fileName, content } -> InitialMsg <| Initial.DropFile <| decodeFile fileName content)
+                , gotUnzippedFileError
+                    (\error -> InitialMsg <| Initial.DropFile <| DropFile.ReadFileError error)
                 , case waitingRemoteSession of
                     Just _ ->
                         Remote.gotRemoteHarLog
@@ -450,6 +455,10 @@ subscriptions model =
 
                   else
                     Sub.none
+                , gotUnzippedFile
+                    (\file -> OpenedMsg <| DropFile <| decodeFile file.fileName file.content)
+                , gotUnzippedFileError
+                    (\error -> OpenedMsg <| DropFile <| DropFile.ReadFileError error)
                 ]
 
 
