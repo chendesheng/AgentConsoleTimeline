@@ -95,34 +95,42 @@ initialView model =
     dropFileView "app initial-container"
         model.dropFile
         DropFile
-        [ Html.map (\_ -> NoOp) <| tableFilterView False Nothing False { match = "", kind = Nothing }
+        [ Html.map (\_ -> NoOp) <| tableFilterView False model.dropFile.waitingOpenFile Nothing False { match = "", kind = Nothing }
         , Html.map (\_ -> NoOp) (lazy3 tableView (Time.millisToPosix 0) Table.defaultTableModel False)
         , div [ class "initial-dialog-container" ] <|
             case model.waitingRemoteSession of
                 Just url ->
-                    [ div [ class "initial-dialog", class "waiting-remote-session" ]
+                    [ div [ class "initial-dialog", class "waiting" ]
                         [ Icons.spinning
                         , text <| "Waiting for " ++ url ++ " to connect…"
                         ]
                     ]
 
                 _ ->
-                    [ span [ class "error" ] [ text <| Maybe.withDefault "" model.dropFile.error ]
-                    , div [ class "initial-dialog" ]
-                        [ span [ class "actions" ]
-                            [ button [ onClick Pick ] [ text "Open…" ]
-                            , button [ onClick ClickClearRecentFiles ] [ text "Clear Recent Files" ]
-                            , span [ class "version" ] [ text "v1.0" ]
+                    if model.dropFile.waitingOpenFile then
+                        [ div [ class "initial-dialog" ]
+                            [ span [ class "waiting" ]
+                                [ text "Opening…" ]
                             ]
-                        , div [ class "bar" ] []
-                        , if List.isEmpty model.remoteSessionIds then
-                            text ""
-
-                          else
-                            liveSessionList model.remoteAddress model.remoteSessionIds
-                        , recentFilesList model.recentFiles
                         ]
-                    ]
+
+                    else
+                        [ span [ class "error" ] [ text <| Maybe.withDefault "" model.dropFile.error ]
+                        , div [ class "initial-dialog" ]
+                            [ span [ class "actions" ]
+                                [ button [ onClick Pick ] [ text "Open…" ]
+                                , button [ onClick ClickClearRecentFiles ] [ text "Clear Recent Files" ]
+                                , span [ class "version" ] [ text "v1.0" ]
+                                ]
+                            , div [ class "bar" ] []
+                            , if List.isEmpty model.remoteSessionIds then
+                                text ""
+
+                              else
+                                liveSessionList model.remoteAddress model.remoteSessionIds
+                            , recentFilesList model.recentFiles
+                            ]
+                        ]
         ]
 
 

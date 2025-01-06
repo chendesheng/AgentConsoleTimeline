@@ -712,8 +712,8 @@ waterfallScaleOptions =
     ]
 
 
-tableFilterView : Bool -> Maybe String -> Bool -> TableFilter -> Html TableMsg
-tableFilterView liveSession error autoFocus filter =
+tableFilterView : Bool -> Bool -> Maybe String -> Bool -> TableFilter -> Html TableMsg
+tableFilterView liveSession waitingOpenFile error autoFocus filter =
     section [ class "table-filter" ]
         [ if liveSession then
             Icons.live
@@ -737,22 +737,26 @@ tableFilterView liveSession error autoFocus filter =
             }
             tableFilterOptions
         , div [ class "actions" ]
-            [ button
-                ([ class "import"
-                 , class "text"
-                 , onClick Import
-                 ]
-                    ++ (case error of
-                            Just err ->
-                                [ class "error"
-                                , title err
-                                ]
+            [ if waitingOpenFile then
+                text "Opening…"
 
-                            Nothing ->
-                                []
-                       )
-                )
-                [ text "⬆Import" ]
+              else
+                button
+                    ([ class "import"
+                     , class "text"
+                     , onClick Import
+                     ]
+                        ++ (case error of
+                                Just err ->
+                                    [ class "error"
+                                    , title err
+                                    ]
+
+                                Nothing ->
+                                    []
+                           )
+                    )
+                    [ text "⬆Import" ]
             , button
                 [ class "export"
                 , class "text"

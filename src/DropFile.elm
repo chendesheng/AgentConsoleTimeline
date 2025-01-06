@@ -22,6 +22,7 @@ type alias DropFileModel =
     , fileName : String
     , fileContentString : String
     , fileContent : Maybe Har.Log
+    , waitingOpenFile : Bool
     }
 
 
@@ -32,6 +33,7 @@ defaultDropFileModel =
     , fileName = ""
     , fileContentString = ""
     , fileContent = Nothing
+    , waitingOpenFile = False
     }
 
 
@@ -107,10 +109,17 @@ dropFileUpdate msg model =
                 )
 
         GotFileInBase64DataUrl url ->
-            ( model, unzipFile url )
+            ( { model | waitingOpenFile = True }, unzipFile url )
 
         GotFileContent fileContentString file ->
-            ( { model | fileContentString = fileContentString, fileContent = Just file, error = Nothing }, Cmd.none )
+            ( { model
+                | fileContentString = fileContentString
+                , fileContent = Just file
+                , error = Nothing
+                , waitingOpenFile = False
+              }
+            , Cmd.none
+            )
 
         ReadFileError error ->
             ( { model | error = Just error }, Cmd.none )

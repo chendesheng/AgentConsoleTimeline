@@ -207,7 +207,7 @@
   color: var(--text-color);
 }
 
-.initial-dialog.waiting-remote-session {
+.initial-dialog.waiting {
   display: flex;
   gap: 4px;
   flex-flow: row;
