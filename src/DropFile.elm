@@ -82,8 +82,8 @@ dropFileUpdate msg model =
             in
             if String.endsWith ".zip" name then
                 -- unzip too large file is too slow
-                if File.size file > 1024 * 1024 * 50 then
-                    ( { newModel | error = Just "file is too large (> 50 MB)" }
+                if File.size file > 1024 * 1024 * 100 then
+                    ( { newModel | error = Just "file is too large (> 100 MB)" }
                     , Cmd.none
                     )
 
