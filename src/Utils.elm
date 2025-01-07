@@ -281,22 +281,23 @@ hijack msg =
 
 
 dropDownList : { value : String, onInput : String -> msg } -> List { label : String, value : String } -> Html msg
-dropDownList options children =
+dropDownList props children =
     let
         lbl =
             children
-                |> findItem (\child -> options.value == child.value)
+                |> findItem (\child -> props.value == child.value)
                 |> Maybe.map .label
                 |> Maybe.withDefault (List.head children |> Maybe.map .label |> Maybe.withDefault "")
     in
     label [ class "select" ]
         [ div [] [ text lbl ]
-        , select
-            [ onInput options.onInput
+        , Keyed.node "select"
+            [ onInput props.onInput
             , style "width" <| "calc(" ++ fromInt (String.length lbl) ++ "ch + " ++ "16px)"
+            , value props.value
             ]
           <|
-            List.map (\item -> option [ value item.value ] [ text item.label ]) children
+            List.map (\item -> ( item.value, option [ value item.value ] [ text item.label ] )) children
         ]
 
 
