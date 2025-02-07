@@ -507,12 +507,7 @@ isReduxEntry entry =
 getReduxState : Entry -> Maybe String
 getReduxState entry =
     if isReduxStateEntry entry then
-        case entry.response.content.text of
-            Just text ->
-                Just text
-
-            _ ->
-                Nothing
+        entry.response.content.text
 
     else
         Nothing
@@ -520,17 +515,7 @@ getReduxState entry =
 
 getRequestBody : Entry -> Maybe String
 getRequestBody entry =
-    case entry.request.postData of
-        Just postData ->
-            case postData.text of
-                Just text ->
-                    Just text
-
-                _ ->
-                    Nothing
-
-        _ ->
-            Nothing
+    Maybe.andThen .text entry.request.postData
 
 
 getLogMessage : Entry -> Maybe String

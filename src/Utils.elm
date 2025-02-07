@@ -1,6 +1,6 @@
 module Utils exposing (..)
 
-import Html exposing (Attribute, Html, div, label, option, select, text)
+import Html exposing (Attribute, Html, div, label, option, text)
 import Html.Attributes exposing (class, property, style, value)
 import Html.Events exposing (onInput, preventDefaultOn)
 import Html.Keyed as Keyed

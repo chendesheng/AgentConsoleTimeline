@@ -3,7 +3,6 @@ module Initial exposing (..)
 import Browser.Navigation as Nav
 import DropFile exposing (DropFileModel, DropFileMsg, decodeFile, dropFileView)
 import File.Select as Select
-import HarDecoder exposing (decodeHar)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
