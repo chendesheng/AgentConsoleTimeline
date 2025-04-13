@@ -393,6 +393,20 @@ entryKindValue kind =
             ""
 
 
+filterByPage : String -> List Entry -> List Entry
+filterByPage page entries =
+    List.filter
+        (\entry ->
+            case entry.pageref of
+                Just pageId ->
+                    pageId == page
+
+                Nothing ->
+                    False
+        )
+        entries
+
+
 filterByKind : Maybe EntryKind -> List Entry -> List Entry
 filterByKind kind entries =
     case kind of
@@ -446,15 +460,16 @@ filterByMatch match entries =
             List.filter (entryContainsStr loweredFilter) entries
 
 
-filterEntries : String -> Maybe EntryKind -> List Entry -> List Entry
-filterEntries match kind entries =
+filterEntries : String -> String -> Maybe EntryKind -> List Entry -> List Entry
+filterEntries page match kind entries =
     entries
+        |> filterByPage page
         |> filterByKind kind
         |> filterByMatch match
 
 
 type alias ClientInfo =
-    { href : String
+    { href : String -- TODO: right now, this is need for compatibility with old har files, remove it in the future
     , userAgent : String
     , version : String
     , commit : String

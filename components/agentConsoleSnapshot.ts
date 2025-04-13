@@ -51,7 +51,7 @@ export class AgentConsoleSnapshot extends LitElement {
     this.dispatchEvent(
       new CustomEvent("popout", {
         detail: { value },
-      })
+      }),
     );
   }
 
@@ -162,7 +162,7 @@ export class AgentConsoleSnapshot extends LitElement {
       this.dispatchEvent(
         new CustomEvent("srcChange", {
           detail: { value: `${ele.textContent!.trim()}${rest}` },
-        })
+        }),
       );
     }
   }
@@ -209,5 +209,12 @@ export class AgentConsoleSnapshot extends LitElement {
     super.connectedCallback();
 
     this.isPopout = !!this.popoutWindow;
+  }
+
+  updated(prev: PropertyValues<this>) {
+    if (prev.has("src")) {
+      // TODO: allow multiple popout windows, right now we just close the popout window when src changes
+      this.handleClickRestorePopoutButton();
+    }
   }
 }

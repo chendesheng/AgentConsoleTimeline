@@ -10,7 +10,7 @@ import HarDecoder exposing (decodeHar)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Html.Lazy exposing (lazy3, lazy5, lazy7)
+import Html.Lazy exposing (lazy3, lazy6, lazy7)
 import Initial exposing (InitialModel, InitialMsg(..), defaultInitialModel, initialView, updateInitial)
 import Json.Decode as Decode
 import List
@@ -86,7 +86,7 @@ viewOpened model =
             let
                 startTime =
                     model.log.entries
-                        |> List.head
+                        |> Utils.findItem (\entry -> entry.pageref == Just model.table.filter.page)
                         |> Maybe.map .startedDateTime
                         |> Maybe.withDefault (Time.millisToPosix 0)
 
@@ -100,14 +100,23 @@ viewOpened model =
                 "app"
                 model.dropFile
                 DropFile
-                [ Html.map TableAction (lazy5 tableFilterView (isLiveSession model.fileName) model.dropFile.waitingOpenFile model.dropFile.error True table.filter)
+                [ Html.map TableAction
+                    (lazy6
+                        tableFilterView
+                        (isLiveSession model.fileName)
+                        model.dropFile.waitingOpenFile
+                        model.dropFile.error
+                        True
+                        model.log.pages
+                        table.filter
+                    )
                 , Html.map TableAction (lazy3 tableView startTime table detail.show)
                 , Html.map DetailAction
                     (lazy7 detailViewContainer
                         (isLiveSession model.fileName)
                         model.detail.snapshotPopout
                         (isSortByTime table)
-                        model.clientInfo.href
+                        table.href
                         table.selected
                         table.entries
                         model.detail
@@ -149,15 +158,30 @@ type OpenedMsg
 initOpened : String -> String -> Har.Log -> Nav.Key -> Maybe Int -> ( OpenedModel, Cmd OpenedMsg )
 initOpened fileName fileContent log navKey initialViewportHeight =
     let
+        filter =
+            defaultTableModel.filter
+
+        clientInfo =
+            Har.getClientInfo log.entries
+
         table =
             { defaultTableModel
                 | entries = log.entries
                 , entriesCount = List.length log.entries
                 , viewportHeight = Maybe.withDefault 0 initialViewportHeight
-            }
+                , filter = { filter | page = log.pages |> List.head |> Maybe.map .id |> Maybe.withDefault "" }
+                , href =
+                    case log.pages |> List.head |> Maybe.map .title of
+                        Just title ->
+                            if String.startsWith "https://" title then
+                                title
 
-        clientInfo =
-            Har.getClientInfo log.entries
+                            else
+                                clientInfo.href
+
+                        Nothing ->
+                            clientInfo.href
+            }
 
         isLive =
             isLiveSession fileName
@@ -311,10 +335,17 @@ updateOpened msg model =
                             }
                         )
                         log.entries
+
+                tableEntries =
+                    Har.filterByPage table.filter.page entries
             in
             ( { model
                 | timezone = Just tz
-                , table = { table | entries = entries }
+                , table =
+                    { table
+                        | entries = tableEntries
+                        , entriesCount = List.length tableEntries
+                    }
                 , log = { log | entries = entries }
               }
             , if isLiveSession model.fileName then
@@ -331,25 +362,16 @@ updateOpened msg model =
 
                 ( table, cmd1 ) =
                     case detailMsg of
-                        ScrollToCurrentId ->
+                        Detail.SetHref href ->
+                            updateTable model.navKey (Table.SetHref href) model.log model.table
+
+                        Detail.ScrollToCurrentId ->
                             updateTable model.navKey (Select model.detail.currentId False True True) model.log model.table
 
                         _ ->
                             ( model.table, Cmd.none )
-
-                clientInfo =
-                    let
-                        info =
-                            model.clientInfo
-                    in
-                    case detailMsg of
-                        SetHref href ->
-                            { info | href = href }
-
-                        _ ->
-                            info
             in
-            ( { model | detail = detail, table = table, clientInfo = clientInfo }
+            ( { model | detail = detail, table = table }
             , Cmd.batch [ Cmd.map DetailAction cmd, Cmd.map TableAction cmd1 ]
             )
 
@@ -391,7 +413,7 @@ updateOpened msg model =
 
                 filteredEntries =
                     entries
-                        |> Har.filterEntries table.filter.match table.filter.kind
+                        |> Har.filterEntries table.filter.page table.filter.match table.filter.kind
                         |> Har.sortEntries table.sortBy
 
                 newTable =

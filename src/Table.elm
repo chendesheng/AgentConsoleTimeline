@@ -71,6 +71,7 @@ getMinWidth columns columnId =
 type alias TableFilter =
     { match : String
     , kind : Maybe EntryKind
+    , page : String
     }
 
 
@@ -81,6 +82,7 @@ type alias TableModel =
     , entries : List Har.Entry
     , entriesCount : Int
     , selected : String
+    , href : String
     , filter : TableFilter
     , scrollTop : Int
     , waterfallMsPerPx : Float
@@ -129,7 +131,9 @@ defaultTableModel =
     , filter =
         { match = ""
         , kind = Nothing
+        , page = ""
         }
+    , href = ""
     , scrollTop = 0
     , waterfallMsPerPx = 10.0
     , viewportHeight = 0
@@ -712,8 +716,8 @@ waterfallScaleOptions =
     ]
 
 
-tableFilterView : Bool -> Bool -> Maybe String -> Bool -> TableFilter -> Html TableMsg
-tableFilterView liveSession waitingOpenFile error autoFocus filter =
+tableFilterView : Bool -> Bool -> Maybe String -> Bool -> List Har.Page -> TableFilter -> Html TableMsg
+tableFilterView liveSession waitingOpenFile error autoFocus pages filter =
     section [ class "table-filter" ]
         [ if liveSession then
             Icons.live
@@ -736,6 +740,15 @@ tableFilterView liveSession waitingOpenFile error autoFocus filter =
             , onInput = Har.stringToEntryKind >> SelectKind
             }
             tableFilterOptions
+        , if List.length pages <= 1 then
+            text ""
+
+          else
+            Utils.dropDownList
+                { value = filter.page
+                , onInput = ChangePage
+                }
+                (List.map (\page -> { value = page.id, label = page.id }) pages)
         , div [ class "actions" ]
             [ if waitingOpenFile then
                 text "Opening…"
@@ -1042,6 +1055,7 @@ type TableMsg
     | ResizeColumn String Int
       -- id, True means show detail, False means keep detail shown/hidden as is, is pushUrl
     | Select String Bool Bool Bool
+    | SetHref String
     | ExecuteAction VimAction
     | Scroll Int
     | ScrollToEntry String
@@ -1050,6 +1064,7 @@ type TableMsg
     | SetWaterfallMsPerPx Float
     | SetViewportHeight Int
     | SelectTable
+    | ChangePage String
     | Import
     | GotImportFile File
     | Export
@@ -1132,7 +1147,7 @@ updateTable navKey action log table =
         InputFilter match ->
             let
                 newEntries =
-                    Har.filterEntries match table.filter.kind log.entries
+                    Har.filterEntries table.filter.page match table.filter.kind log.entries
 
                 filter =
                     table.filter
@@ -1155,7 +1170,7 @@ updateTable navKey action log table =
         SelectKind kind ->
             let
                 newEntries =
-                    Har.filterEntries table.filter.match kind log.entries
+                    Har.filterEntries table.filter.page table.filter.match kind log.entries
 
                 filter =
                     table.filter
@@ -1191,6 +1206,31 @@ updateTable navKey action log table =
                 , focus "table-body"
                 ]
             )
+
+        ChangePage pageId ->
+            let
+                filter =
+                    table.filter
+
+                entries =
+                    Har.filterEntries pageId table.filter.match table.filter.kind log.entries
+            in
+            ( { table
+                | filter = { filter | page = pageId }
+                , entries = entries
+                , entriesCount = List.length entries
+                , href =
+                    log.pages
+                        |> List.filter (\page -> page.id == pageId)
+                        |> List.head
+                        |> Maybe.map (\page -> page.title)
+                        |> Maybe.withDefault ""
+              }
+            , Cmd.none
+            )
+
+        SetHref href ->
+            ( { table | href = href }, Cmd.none )
 
 
 scrollToPx : Int -> Cmd TableMsg

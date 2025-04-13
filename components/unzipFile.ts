@@ -1,7 +1,7 @@
 import Worker from "./unzipFile.worker.ts?worker";
 
 export async function unzipFile(
-  dataUrl: string,
+  dataUrl: string
 ): Promise<{ fileName: string; content: string }> {
   const worker = new Worker();
   worker.postMessage({ dataUrl });
