@@ -1,8 +1,41 @@
-import "@alenaksu/json-viewer";
-import { JsonViewer } from "@alenaksu/json-viewer/dist/JsonViewer";
+import { JsonViewer } from "@alenaksu/json-viewer/JsonViewer.js";
 import { html, css, LitElement, PropertyValues } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import { sort as sortKeys } from "json-keys-sort";
+
+customElements.define("json-viewer", JsonViewer);
+
+/*
+customElements.define(
+  "json-viewer",
+  class extends JsonViewer {
+    static styles = [
+      JsonViewer.styles,
+      css`
+        a {
+          color: var(--string-color);
+          text-decoration: underline;
+        }
+      `,
+    ];
+
+    static customRenderer(value: any, path: string) {
+      if (typeof value === "string") {
+        if (URL.canParse(value)) {
+          return html`"<a href="${value}" target="_blank">${value}</a>"`;
+        } else if (value.startsWith("<div>")) {
+          // set inner html
+          const div = document.createElement("div");
+          div.innerHTML = value;
+          return div;
+        }
+      }
+
+      return super.customRenderer(value, path);
+    }
+  },
+);
+*/
 
 declare global {
   interface HTMLElementTagNameMap {
@@ -225,7 +258,33 @@ export class JsonTree extends LitElement {
   }
 }
 
-function tryParseNestedJson(o: any): any {
+const equals = (a: (string | number)[], b: (string | number)[]) => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+};
+const isTimestamp = (o: any, path: (string | number)[] = []) => {
+  const timestampPath = [
+    ["agent", "loggedInTime"],
+    ["config", "preference", "lastStatusChangedTime"],
+    ["config", "preference", "loginTime"],
+    ["visitor", "lastGetSegmentChangedTime"],
+  ];
+  for (const p of timestampPath) {
+    if (equals(path, p)) {
+      return typeof o === "number";
+    }
+  }
+  return false;
+};
+
+function tryParseNestedJson(o: any, path: (string | number)[] = []): any {
+  if (isTimestamp(o, path)) {
+    return new Date(o).toString();
+  }
+
   if (typeof o === "string") {
     if (
       o.startsWith(
@@ -239,16 +298,16 @@ function tryParseNestedJson(o: any): any {
     }
 
     try {
-      return tryParseNestedJson(JSON.parse(o));
+      return tryParseNestedJson(JSON.parse(o), path);
     } catch (e) {
       return o;
     }
   } else if (Array.isArray(o)) {
-    return o.map(tryParseNestedJson);
+    return o.map((value, index) => tryParseNestedJson(value, [...path, index]));
   } else if (typeof o === "object" && o !== null) {
     const result: any = {};
     for (const key of Object.keys(o)) {
-      result[key] = tryParseNestedJson(o[key]);
+      result[key] = tryParseNestedJson(o[key], [...path, key]);
     }
     return result;
   } else {
