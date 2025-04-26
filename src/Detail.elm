@@ -568,7 +568,40 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href entry =
                     _ ->
                         case entry.response.content.text of
                             Just t ->
-                                jsonDataViewer model.tool True "detail-body" t
+                                case entry.response.content.mimeType of
+                                    "image/svg+xml" ->
+                                        case model.tool of
+                                            Raw ->
+                                                codeEditor "html" t
+
+                                            _ ->
+                                                iframe
+                                                    [ class "preview-svg"
+                                                    , srcdoc
+                                                        ("<style>"
+                                                            ++ "html,body{margin:0;padding:0;width:100%;height:100%;}"
+                                                            ++ "body{display:flex;justify-content:center;align-items:center;}"
+                                                            ++ "svg{max-width:100%;max-height:100%;margin:auto;}"
+                                                            ++ "</style>"
+                                                            ++ t
+                                                        )
+                                                    ]
+                                                    []
+
+                                    "image/jpeg" ->
+                                        img [ class "preview-image", src <| "data:image/jpeg;base64," ++ t ] []
+
+                                    "image/png" ->
+                                        img [ class "preview-image", src <| "data:image/png;base64," ++ t ] []
+
+                                    "text/javascript" ->
+                                        codeEditor "javascript" t
+
+                                    "text/css" ->
+                                        codeEditor "css" t
+
+                                    _ ->
+                                        jsonDataViewer model.tool True "detail-body" t
 
                             _ ->
                                 noContent

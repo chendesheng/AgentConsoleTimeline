@@ -157,3 +157,16 @@ iframe.preview {
   background-color: white;
   border-radius: 4px;
 }
+
+img.preview-image {
+  max-width: 500px;
+  max-height: 500px;
+  margin: auto;
+}
+
+iframe.preview-svg {
+  border: none;
+  margin: auto;
+  width: 500px;
+  height: 500px;
+}
