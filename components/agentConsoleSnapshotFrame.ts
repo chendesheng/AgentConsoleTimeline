@@ -1,10 +1,6 @@
 import { html, css, LitElement, PropertyValues } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 
-declare global {
-  var popoutWindow: Window | null;
-}
-
 @customElement("agent-console-snapshot-frame")
 export class AgentConsoleSnapshotFrame extends LitElement {
   @property({ type: String })
@@ -25,8 +21,16 @@ export class AgentConsoleSnapshotFrame extends LitElement {
   @query("iframe")
   iframe?: HTMLIFrameElement;
 
+  private get popoutWindowPathname() {
+    return new URL(this.src).pathname;
+  }
+
+  private get popoutWindow(): Window | undefined {
+    return globalThis.popoutWindows?.[this.popoutWindowPathname];
+  }
+
   private getSnapshotWindow() {
-    return globalThis.popoutWindow ?? this.iframe?.contentWindow;
+    return this.popoutWindow ?? this.iframe?.contentWindow;
   }
 
   public reload() {
@@ -62,7 +66,7 @@ export class AgentConsoleSnapshotFrame extends LitElement {
       // console.log('restore state');
       this.getSnapshotWindow()?.postMessage(
         { type: "restoreReduxState", payload: this.state, time: this.time },
-        "*"
+        "*",
       );
     }
     this.dispatchActionsToSnapshot(this.actions);
@@ -80,7 +84,7 @@ export class AgentConsoleSnapshotFrame extends LitElement {
           action: JSON.parse(action),
           time: this.time,
         },
-        "*"
+        "*",
       );
     }
   }
@@ -90,7 +94,7 @@ export class AgentConsoleSnapshotFrame extends LitElement {
   connectedCallback(): void {
     super.connectedCallback();
 
-    if (!!globalThis.popoutWindow) {
+    if (this.popoutWindow) {
       setTimeout(() => {
         this.sendToSnapshot();
       }, 10);

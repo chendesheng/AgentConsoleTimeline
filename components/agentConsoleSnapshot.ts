@@ -4,7 +4,7 @@ import "./agentConsoleSnapshotFrame";
 import { AgentConsoleSnapshotFrame } from "./agentConsoleSnapshotFrame";
 
 declare global {
-  var popoutWindow: Window | null;
+  var popoutWindows: undefined | Record<string, Window>;
 }
 
 @customElement("agent-console-snapshot")
@@ -24,6 +24,10 @@ export class AgentConsoleSnapshot extends LitElement {
   @state()
   private isPopout: boolean = false;
 
+  private get popoutWindowPathname() {
+    return new URL(this.src).pathname;
+  }
+
   private getSrc() {
     if (
       this.src.includes("isSuperAgent=true") &&
@@ -37,12 +41,18 @@ export class AgentConsoleSnapshot extends LitElement {
     return this.src + "&snapshot=true";
   }
 
-  private get popoutWindow() {
-    return globalThis.popoutWindow;
+  private get popoutWindow(): Window | undefined {
+    return globalThis.popoutWindows?.[this.popoutWindowPathname];
   }
 
-  private set popoutWindow(value) {
-    globalThis.popoutWindow = value;
+  private set popoutWindow(value: Window | null) {
+    if (value) {
+      globalThis.popoutWindows ??= {};
+      globalThis.popoutWindows[this.popoutWindowPathname] = value;
+    } else if (globalThis.popoutWindows) {
+      delete globalThis.popoutWindows[this.popoutWindowPathname];
+    }
+
     this.isPopout = !!value;
     this.dispatchPopoutEvent(this.isPopout);
   }
@@ -209,12 +219,5 @@ export class AgentConsoleSnapshot extends LitElement {
     super.connectedCallback();
 
     this.isPopout = !!this.popoutWindow;
-  }
-
-  updated(prev: PropertyValues<this>) {
-    if (prev.has("src")) {
-      // TODO: allow multiple popout windows, right now we just close the popout window when src changes
-      this.handleClickRestorePopoutButton();
-    }
   }
 }

@@ -126,7 +126,7 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
     this.dispatchEvent(
       new CustomEvent("change", {
         detail: { id },
-      })
+      }),
     );
   }
 
@@ -236,8 +236,8 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
         ${this.playingState === "live"
           ? "🔴"
           : this.playingState === "playing" && !this.isSeeking
-          ? "❚❚"
-          : "▶"}
+            ? "❚❚"
+            : "▶"}
       </button>
       <button class="reset" @click=${this.handleClickReset}>↺</button>
       <button class="reveal" @click=${this.handleClickScroll}>⇱</button>
@@ -248,7 +248,9 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
         ></div>
         ${this.items.map(
           (item) =>
-            html`<div style="left: ${this.getTimePosPercent(item.time)}"></div>`
+            html`<div
+              style="left: ${this.getTimePosPercent(item.time)}"
+            ></div>`,
         )}
       </div>
       <time>${((this.time - this.max) / 1000).toFixed(1)}s</time>

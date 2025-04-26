@@ -220,8 +220,8 @@ agentConsoleSnapshotPlayer liveSession entries initialId =
         []
 
 
-agentConsoleSnapshotProps : Bool -> List Har.Entry -> String -> List (Html.Attribute msg)
-agentConsoleSnapshotProps isSortByTime entries currentId =
+agentConsoleSnapshotProps : Bool -> String -> List Har.Entry -> String -> List (Html.Attribute msg)
+agentConsoleSnapshotProps isSortByTime href entries currentId =
     let
         ( stateEntry, prevStateEntry, nonStateEntries ) =
             Har.findStateEntryAndPrevStateEntry entries currentId
@@ -264,19 +264,20 @@ agentConsoleSnapshotProps isSortByTime entries currentId =
     [ property "state" <| Encode.string state
     , property "time" <| Encode.string <| Iso8601.fromTime startedDateTime
     , property "actions" <| actions
+    , src href
     ]
 
 
-agentConsoleSnapshotPopout : Bool -> List Har.Entry -> String -> Html DetailMsg
-agentConsoleSnapshotPopout isSortByTime entries currentId =
-    agentConsoleSnapshotFrame True isSortByTime entries currentId
+agentConsoleSnapshotPopout : Bool -> String -> List Har.Entry -> String -> Html DetailMsg
+agentConsoleSnapshotPopout isSortByTime href entries currentId =
+    agentConsoleSnapshotFrame True isSortByTime href entries currentId
 
 
-agentConsoleSnapshotFrame : Bool -> Bool -> List Har.Entry -> String -> Html DetailMsg
-agentConsoleSnapshotFrame isSnapshotPopout isSortByTime entries currentId =
+agentConsoleSnapshotFrame : Bool -> Bool -> String -> List Har.Entry -> String -> Html DetailMsg
+agentConsoleSnapshotFrame isSnapshotPopout isSortByTime href entries currentId =
     Html.node "agent-console-snapshot-frame"
         ((property "isPopout" <| Encode.bool isSnapshotPopout)
-            :: agentConsoleSnapshotProps isSortByTime entries currentId
+            :: agentConsoleSnapshotProps isSortByTime href entries currentId
         )
         []
 
@@ -285,8 +286,7 @@ agentConsoleSnapshot : Bool -> Bool -> List Har.Entry -> String -> String -> Str
 agentConsoleSnapshot liveSession isSortByTime entries href currentId entryId =
     div [ class "detail-body", class "agent-console-snapshot-container" ]
         [ Html.node "agent-console-snapshot"
-            ([ src href
-             , Decode.string
+            ([ Decode.string
                 |> Decode.at [ "detail", "value" ]
                 |> Decode.map (String.replace "&snapshot=true" "" >> SetHref)
                 |> on "srcChange"
@@ -295,7 +295,7 @@ agentConsoleSnapshot liveSession isSortByTime entries href currentId entryId =
                 |> Decode.map SetSnapshotPopout
                 |> on "popout"
              ]
-                ++ agentConsoleSnapshotProps isSortByTime entries currentId
+                ++ agentConsoleSnapshotProps isSortByTime href entries currentId
             )
             []
         , lazy3 agentConsoleSnapshotPlayer liveSession entries entryId
@@ -405,7 +405,7 @@ detailViewContainer liveSession isSnapshotPopout isSortByTime href selected entr
                 text ""
 
     else if isSnapshotPopout then
-        agentConsoleSnapshotPopout isSortByTime entries detail.currentId
+        agentConsoleSnapshotPopout isSortByTime href entries detail.currentId
 
     else
         text ""
@@ -546,7 +546,7 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href entry =
             ]
         , div [ style "display" "none" ] <|
             if isSnapshotPopout then
-                [ agentConsoleSnapshotPopout isSortByTime entries model.currentId ]
+                [ agentConsoleSnapshotPopout isSortByTime href entries model.currentId ]
 
             else
                 []
