@@ -6,10 +6,9 @@ import Har
 import HarDecoder exposing (decodeHar)
 import Html exposing (..)
 import Html.Attributes exposing (..)
+import Html.Events exposing (on)
 import Json.Decode as D
 import Task
-import UnzipFile exposing (unzipFile)
-import Utils
 
 
 
@@ -17,8 +16,7 @@ import Utils
 
 
 type alias DropFileModel =
-    { hover : Bool
-    , error : Maybe String
+    { error : Maybe String
     , fileName : String
     , fileContentString : String
     , fileContent : Maybe Har.Log
@@ -28,8 +26,7 @@ type alias DropFileModel =
 
 defaultDropFileModel : DropFileModel
 defaultDropFileModel =
-    { hover = False
-    , error = Nothing
+    { error = Nothing
     , fileName = ""
     , fileContentString = ""
     , fileContent = Nothing
@@ -43,10 +40,7 @@ defaultDropFileModel =
 
 type DropFileMsg
     = NoOp
-    | DragEnter
-    | DragLeave
     | GotFile File
-    | GotFileInBase64DataUrl String
     | GotFileContent String Har.Log
     | ReadFileError String
     | DownloadFile
@@ -68,48 +62,26 @@ dropFileUpdate msg model =
         NoOp ->
             ( model, Cmd.none )
 
-        DragEnter ->
-            ( { model | hover = True }, Cmd.none )
-
-        DragLeave ->
-            ( { model | hover = False }, Cmd.none )
-
         GotFile file ->
             let
-                newModel =
-                    { model | hover = False, fileName = File.name file }
-
                 name =
                     File.name file
+
+                newModel =
+                    { model | fileName = name }
             in
-            if String.endsWith ".zip" name then
-                -- unzip too large file is too slow
-                if File.size file > 1024 * 1024 * 100 then
-                    ( { newModel | error = Just "file is too large (> 100 MB)" }
-                    , Cmd.none
-                    )
+            ( newModel
+            , Task.attempt
+                (\res ->
+                    case res of
+                        Ok str ->
+                            decodeFile name str
 
-                else
-                    ( newModel
-                    , Task.perform GotFileInBase64DataUrl (File.toUrl file)
-                    )
-
-            else
-                ( newModel
-                , Task.attempt
-                    (\res ->
-                        case res of
-                            Ok str ->
-                                decodeFile name str
-
-                            Err error ->
-                                ReadFileError error
-                    )
-                    (File.toString file)
+                        Err error ->
+                            ReadFileError error
                 )
-
-        GotFileInBase64DataUrl url ->
-            ( { model | waitingOpenFile = True }, unzipFile url )
+                (File.toString file)
+            )
 
         GotFileContent fileContentString file ->
             ( { model
@@ -137,25 +109,11 @@ dropFileUpdate msg model =
 -- VIEW
 
 
-dropFileView : String -> DropFileModel -> (DropFileMsg -> msg) -> List (Html msg) -> Html msg
-dropFileView className model fn children =
-    div
-        [ class "drop-file-container"
-        , class <|
-            if model.hover then
-                "drop-file-container--hover"
-
-            else
-                ""
-        , class className
-        , Utils.hijackOn "dragenter" (D.succeed <| fn DragEnter)
-        , Utils.hijackOn "dragover" (D.succeed <| fn DragEnter)
-        , Utils.hijackOn "dragleave" (D.succeed <| fn DragLeave)
-        , Utils.hijackOn "drop" <| D.map fn dropDecoder
+dropFileView : String -> (DropFileMsg -> msg) -> List (Html msg) -> Html msg
+dropFileView className fn children =
+    Html.node "drop-zip-file"
+        [ class className
+        , on "change" <| D.map (fn << GotFile) <| D.field "detail" File.decoder
+        , on "error" <| D.map (fn << ReadFileError) <| D.field "detail" D.string
         ]
         children
-
-
-dropDecoder : D.Decoder DropFileMsg
-dropDecoder =
-    D.at [ "dataTransfer", "files" ] (D.oneOrMore (\f _ -> GotFile f) File.decoder)

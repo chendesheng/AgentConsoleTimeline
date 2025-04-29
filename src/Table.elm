@@ -17,7 +17,6 @@ import Browser.Events exposing (onResize)
 import Browser.Navigation as Nav
 import Dict exposing (Dict)
 import File exposing (File)
-import File.Select as FileSelect
 import Har exposing (EntryKind(..), SortBy, SortOrder(..))
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -25,6 +24,7 @@ import Html.Events exposing (..)
 import Html.Lazy exposing (lazy3, lazy5, lazy7)
 import Icons
 import Json.Decode as D
+import Json.Encode as Encode
 import List exposing (sortBy)
 import Task
 import Time exposing (Posix)
@@ -716,6 +716,28 @@ waterfallScaleOptions =
     ]
 
 
+importButton : Maybe String -> Html TableMsg
+importButton error =
+    Html.node "open-file-button"
+        ([ property "label" <| Encode.string "⬆Import"
+         , on "change" <|
+            D.map (GotImportFile << Ok) <|
+                D.field "detail" File.decoder
+         , on "error" <|
+            D.map (GotImportFile << Err) <|
+                D.field "detail" D.string
+         ]
+            ++ (case error of
+                    Just err ->
+                        [ property "error" <| Encode.string err, class "error" ]
+
+                    Nothing ->
+                        []
+               )
+        )
+        []
+
+
 tableFilterView : Bool -> Bool -> Maybe String -> Bool -> List Har.Page -> TableFilter -> Html TableMsg
 tableFilterView liveSession waitingOpenFile error autoFocus pages filter =
     section [ class "table-filter" ]
@@ -754,22 +776,7 @@ tableFilterView liveSession waitingOpenFile error autoFocus pages filter =
                 text "Opening…"
 
               else
-                button
-                    ([ class "import"
-                     , class "text"
-                     , onClick Import
-                     ]
-                        ++ (case error of
-                                Just err ->
-                                    [ class "error"
-                                    , title err
-                                    ]
-
-                                Nothing ->
-                                    []
-                           )
-                    )
-                    [ text "⬆Import" ]
+                importButton error
             , button
                 [ class "export"
                 , class "text"
@@ -1065,8 +1072,7 @@ type TableMsg
     | SetViewportHeight Int
     | SelectTable
     | ChangePage String
-    | Import
-    | GotImportFile File
+    | GotImportFile (Result String File)
     | Export
 
 
@@ -1075,9 +1081,6 @@ updateTable navKey action log table =
     case action of
         NoOp ->
             ( table, Cmd.none )
-
-        Import ->
-            ( table, FileSelect.file [ "*" ] GotImportFile )
 
         GotImportFile _ ->
             ( table, Cmd.none )

@@ -31,7 +31,6 @@ import Table
         )
 import Task
 import Time
-import UnzipFile exposing (gotUnzippedFile, gotUnzippedFileError)
 import Utils
 
 
@@ -98,7 +97,6 @@ viewOpened model =
             in
             dropFileView
                 "app"
-                model.dropFile
                 DropFile
                 [ Html.map TableAction
                     (lazy6
@@ -276,8 +274,11 @@ update msg model =
 updateOpened : OpenedMsg -> OpenedModel -> ( OpenedModel, Cmd OpenedMsg )
 updateOpened msg model =
     case msg of
-        TableAction (GotImportFile file) ->
+        TableAction (GotImportFile (Ok file)) ->
             updateOpened (DropFile (GotFile file)) model
+
+        TableAction (GotImportFile (Err error)) ->
+            updateOpened (DropFile (ReadFileError error)) model
 
         TableAction Export ->
             updateOpened (DropFile DownloadFile) model
@@ -445,10 +446,6 @@ subscriptions model =
             Sub.batch
                 [ gotFileContent
                     (\str -> InitialMsg <| Initial.DropFile <| decodeFile dropFile.fileName str)
-                , gotUnzippedFile
-                    (\{ fileName, content } -> InitialMsg <| Initial.DropFile <| decodeFile fileName content)
-                , gotUnzippedFileError
-                    (\error -> InitialMsg <| Initial.DropFile <| DropFile.ReadFileError error)
                 , case waitingRemoteSession of
                     Just _ ->
                         Remote.gotRemoteHarLog
@@ -477,10 +474,6 @@ subscriptions model =
 
                   else
                     Sub.none
-                , gotUnzippedFile
-                    (\file -> OpenedMsg <| DropFile <| decodeFile file.fileName file.content)
-                , gotUnzippedFileError
-                    (\error -> OpenedMsg <| DropFile <| DropFile.ReadFileError error)
                 ]
 
 

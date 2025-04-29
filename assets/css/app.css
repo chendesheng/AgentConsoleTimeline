@@ -156,6 +156,7 @@
 .initial-dialog .actions {
   display: flex;
   margin-bottom: 10px;
+  gap: 8px;
 }
 
 .initial-dialog .actions .version {

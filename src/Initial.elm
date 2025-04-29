@@ -2,12 +2,14 @@ module Initial exposing (..)
 
 import Browser.Navigation as Nav
 import DropFile exposing (DropFileModel, DropFileMsg, decodeFile, dropFileView)
-import File.Select as Select
+import File
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Html.Lazy exposing (lazy3)
 import Icons
+import Json.Decode as D
+import Json.Encode as Encode
 import RecentFile exposing (RecentFile, clearRecentFiles, deleteRecentFile, getFileContent)
 import Remote
 import Table exposing (tableFilterView, tableView)
@@ -89,10 +91,23 @@ recentFilesList recentFiles =
                 recentFiles
 
 
+openButton : Html InitialMsg
+openButton =
+    Html.node "open-file-button"
+        [ property "label" <| Encode.string "Open…"
+        , on "change" <|
+            D.map (DropFile << DropFile.GotFile) <|
+                D.field "detail" File.decoder
+        , on "error" <|
+            D.map (DropFile << DropFile.ReadFileError) <|
+                D.field "detail" D.string
+        ]
+        []
+
+
 initialView : InitialModel -> Html InitialMsg
 initialView model =
     dropFileView "app initial-container"
-        model.dropFile
         DropFile
         [ Html.map (\_ -> NoOp) <| tableFilterView False model.dropFile.waitingOpenFile Nothing False [] { match = "", kind = Nothing, page = "" }
         , Html.map (\_ -> NoOp) (lazy3 tableView (Time.millisToPosix 0) Table.defaultTableModel False)
@@ -117,7 +132,7 @@ initialView model =
                         [ span [ class "error" ] [ text <| Maybe.withDefault "" model.dropFile.error ]
                         , div [ class "initial-dialog" ]
                             [ span [ class "actions" ]
-                                [ button [ onClick Pick ] [ text "Open…" ]
+                                [ openButton
                                 , button [ onClick ClickClearRecentFiles ] [ text "Clear Recent Files" ]
                                 , span [ class "version" ] [ text "v1.0" ]
                                 ]
@@ -139,7 +154,6 @@ initialView model =
 
 type InitialMsg
     = NoOp
-    | Pick
     | DropFile DropFileMsg
     | ClickRecentFile String String
     | ClickClearRecentFiles
@@ -163,9 +177,6 @@ updateInitial msg model =
 
         CloseRemote ->
             ( { model | waitingRemoteSession = Nothing }, Cmd.none )
-
-        Pick ->
-            ( model, Select.file [ "*" ] (DropFile << DropFile.GotFile) )
 
         DropFile dropMsg ->
             let
