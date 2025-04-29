@@ -4,7 +4,7 @@
 import "./components/jsonTree";
 import "./components/agentConsoleSnapshot";
 import "./components/agentConsoleSnapshotPlayer";
-import "./components/resizeDivier";
+import "./components/resizeDivider";
 import "./components/monacoEditor";
 import "./components/openFileButton";
 import "./components/dropZipFile";
