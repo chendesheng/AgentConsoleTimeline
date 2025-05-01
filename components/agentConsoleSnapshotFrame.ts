@@ -1,5 +1,6 @@
 import { html, css, LitElement, PropertyValues } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
+import { getPopoutWindow, PopoutWindow } from "./windowManager";
 
 @customElement("agent-console-snapshot-frame")
 export class AgentConsoleSnapshotFrame extends LitElement {
@@ -21,12 +22,8 @@ export class AgentConsoleSnapshotFrame extends LitElement {
   @query("iframe")
   iframe?: HTMLIFrameElement;
 
-  private get popoutWindowPathname() {
-    return new URL(this.src).pathname;
-  }
-
-  private get popoutWindow(): Window | undefined {
-    return globalThis.popoutWindows?.[this.popoutWindowPathname];
+  private get popoutWindow(): PopoutWindow | undefined {
+    return getPopoutWindow(this.src);
   }
 
   private getSnapshotWindow() {

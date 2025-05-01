@@ -2,10 +2,7 @@ import { html, css, LitElement, PropertyValues, PropertyValueMap } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import "./agentConsoleSnapshotFrame";
 import { AgentConsoleSnapshotFrame } from "./agentConsoleSnapshotFrame";
-
-declare global {
-  var popoutWindows: undefined | Record<string, Window>;
-}
+import { getPopoutWindow, openWindow, PopoutWindow } from "./windowManager";
 
 @customElement("agent-console-snapshot")
 export class AgentConsoleSnapshot extends LitElement {
@@ -24,10 +21,6 @@ export class AgentConsoleSnapshot extends LitElement {
   @state()
   private isPopout: boolean = false;
 
-  private get popoutWindowPathname() {
-    return new URL(this.src).pathname;
-  }
-
   private getSrc() {
     if (
       this.src.includes("isSuperAgent=true") &&
@@ -41,20 +34,13 @@ export class AgentConsoleSnapshot extends LitElement {
     return this.src + "&snapshot=true";
   }
 
-  private get popoutWindow(): Window | undefined {
-    return globalThis.popoutWindows?.[this.popoutWindowPathname];
+  private get popoutWindow(): PopoutWindow | undefined {
+    return getPopoutWindow(this.src);
   }
 
-  private set popoutWindow(value: Window | null) {
-    if (value) {
-      globalThis.popoutWindows ??= {};
-      globalThis.popoutWindows[this.popoutWindowPathname] = value;
-    } else if (globalThis.popoutWindows) {
-      delete globalThis.popoutWindows[this.popoutWindowPathname];
-    }
-
-    this.isPopout = !!value;
-    this.dispatchPopoutEvent(this.isPopout);
+  private setIsPopout(value: boolean) {
+    this.isPopout = value;
+    this.dispatchPopoutEvent(value);
   }
 
   private dispatchPopoutEvent(value: boolean) {
@@ -95,6 +81,9 @@ export class AgentConsoleSnapshot extends LitElement {
       color: var(--text-color);
       height: 20px;
       cursor: default;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .header button {
       flex: none;
@@ -146,14 +135,20 @@ export class AgentConsoleSnapshot extends LitElement {
   private handleClickPopoutButton() {
     if (this.popoutWindow) {
       this.popoutWindow.close();
-      this.popoutWindow = null;
+      this.setIsPopout(false);
     }
-    this.popoutWindow = window.open(this.getSrc(), "snapshot");
+
+    openWindow(this.getSrc(), "snapshot");
+    this.setIsPopout(true);
+
     // FIXME: this is a workaround, the agent console should send waitForReduxState message
     if (this.popoutWindow) {
-      this.popoutWindow.onload = () => {
+      this.popoutWindow.onLoad(() => {
         window.postMessage({ type: "waitForReduxState" }, "*");
-      };
+      });
+      this.popoutWindow.onClose(() => {
+        this.handleClickRestorePopoutButton();
+      });
     }
     // console.log("popout window", this.popoutWindow);
   }
@@ -161,7 +156,7 @@ export class AgentConsoleSnapshot extends LitElement {
   private handleClickRestorePopoutButton() {
     if (this.popoutWindow) {
       this.popoutWindow.close();
-      this.popoutWindow = null;
+      this.setIsPopout(false);
     }
   }
 
@@ -219,5 +214,11 @@ export class AgentConsoleSnapshot extends LitElement {
     super.connectedCallback();
 
     this.isPopout = !!this.popoutWindow;
+  }
+
+  protected updated(changedProperties: PropertyValues): void {
+    if (changedProperties.has("src") && this.popoutWindow) {
+      this.popoutWindow?.reload(this.getSrc());
+    }
   }
 }

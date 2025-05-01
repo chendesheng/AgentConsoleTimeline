@@ -1075,6 +1075,8 @@
       "dependencies": [
         "npm:@alenaksu/json-viewer@^2.1.2",
         "npm:@monaco-editor/loader@^1.4.0",
+        "npm:@tauri-apps/api@^2.5.0",
+        "npm:@tauri-apps/cli@^2.5.0",
         "npm:@types/json-diff@^1.0.3",
         "npm:assert@^2.1.0",
         "npm:elm@~0.19.1-6",

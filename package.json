@@ -7,11 +7,11 @@
     "start": "vite",
     "server": "deno run  --allow-read --allow-net server/server.ts",
     "clean": "rm -rf dist",
-    "prerelease": "npm run clean",
     "release": "vite build --base=./",
     "postrelease": "cp -r ./node_modules/monaco-editor/min/vs ./dist && zip -r app.zip ./dist/**",
     "build": "tsc && elm make src/Main.elm --debug --output=dist/elm.js",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "tauri": "tauri"
   },
   "keywords": [],
   "author": "",
@@ -19,6 +19,7 @@
   "dependencies": {
     "@alenaksu/json-viewer": "^2.1.2",
     "@monaco-editor/loader": "^1.4.0",
+    "@tauri-apps/api": "^2.5.0",
     "idb": "^8.0.0",
     "js-md5": "^0.8.3",
     "json-keys-sort": "^2.1.0",
@@ -26,6 +27,7 @@
     "lit": "^3.1.2"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.5.0",
     "@types/json-diff": "^1.0.3",
     "assert": "^2.1.0",
     "elm": "^0.19.1-6",
