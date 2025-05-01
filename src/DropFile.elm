@@ -20,7 +20,6 @@ type alias DropFileModel =
     , fileName : String
     , fileContentString : String
     , fileContent : Maybe Har.Log
-    , waitingOpenFile : Bool
     }
 
 
@@ -30,7 +29,6 @@ defaultDropFileModel =
     , fileName = ""
     , fileContentString = ""
     , fileContent = Nothing
-    , waitingOpenFile = False
     }
 
 
@@ -88,7 +86,6 @@ dropFileUpdate msg model =
                 | fileContentString = fileContentString
                 , fileContent = Just file
                 , error = Nothing
-                , waitingOpenFile = False
               }
             , Cmd.none
             )
@@ -112,7 +109,8 @@ dropFileUpdate msg model =
 dropFileView : String -> (DropFileMsg -> msg) -> List (Html msg) -> Html msg
 dropFileView className fn children =
     Html.node "drop-zip-file"
-        [ class className
+        [ class "drop-file-container"
+        , class className
         , on "change" <| D.map (fn << GotFile) <| D.field "detail" File.decoder
         , on "error" <| D.map (fn << ReadFileError) <| D.field "detail" D.string
         ]

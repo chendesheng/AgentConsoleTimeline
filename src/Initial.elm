@@ -109,7 +109,7 @@ initialView : InitialModel -> Html InitialMsg
 initialView model =
     dropFileView "app initial-container"
         DropFile
-        [ Html.map (\_ -> NoOp) <| tableFilterView False model.dropFile.waitingOpenFile Nothing False [] { match = "", kind = Nothing, page = "" }
+        [ Html.map (\_ -> NoOp) <| tableFilterView False Nothing False [] { match = "", kind = Nothing, page = "" }
         , Html.map (\_ -> NoOp) (lazy3 tableView (Time.millisToPosix 0) Table.defaultTableModel False)
         , div [ class "initial-dialog-container" ] <|
             case model.waitingRemoteSession of
@@ -121,30 +121,22 @@ initialView model =
                     ]
 
                 _ ->
-                    if model.dropFile.waitingOpenFile then
-                        [ div [ class "initial-dialog" ]
-                            [ span [ class "waiting" ]
-                                [ text "Opening…" ]
+                    [ span [ class "error" ] [ text <| Maybe.withDefault "" model.dropFile.error ]
+                    , div [ class "initial-dialog" ]
+                        [ span [ class "actions" ]
+                            [ openButton
+                            , button [ onClick ClickClearRecentFiles ] [ text "Clear Recent Files" ]
+                            , span [ class "version" ] [ text "v1.0" ]
                             ]
-                        ]
+                        , div [ class "bar" ] []
+                        , if List.isEmpty model.remoteSessionIds then
+                            text ""
 
-                    else
-                        [ span [ class "error" ] [ text <| Maybe.withDefault "" model.dropFile.error ]
-                        , div [ class "initial-dialog" ]
-                            [ span [ class "actions" ]
-                                [ openButton
-                                , button [ onClick ClickClearRecentFiles ] [ text "Clear Recent Files" ]
-                                , span [ class "version" ] [ text "v1.0" ]
-                                ]
-                            , div [ class "bar" ] []
-                            , if List.isEmpty model.remoteSessionIds then
-                                text ""
-
-                              else
-                                liveSessionList model.remoteAddress model.remoteSessionIds
-                            , recentFilesList model.recentFiles
-                            ]
+                          else
+                            liveSessionList model.remoteAddress model.remoteSessionIds
+                        , recentFilesList model.recentFiles
                         ]
+                    ]
         ]
 
 

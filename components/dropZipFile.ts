@@ -2,8 +2,6 @@ import { unzipFilesAndCreateCustomEvent } from "./unzipFile";
 
 export class DropZipFile extends HTMLElement {
   connectedCallback() {
-    this.classList.add("drop-file-container");
-
     this.addEventListener(
       "dragenter",
       (e) => {
@@ -21,7 +19,6 @@ export class DropZipFile extends HTMLElement {
       (e: DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        e.dataTransfer!.dropEffect = "copy";
         if (!this.classList.contains("drop-file-container--hover")) {
           this.classList.add("drop-file-container--hover");
         }

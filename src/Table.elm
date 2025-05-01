@@ -738,8 +738,8 @@ importButton error =
         []
 
 
-tableFilterView : Bool -> Bool -> Maybe String -> Bool -> List Har.Page -> TableFilter -> Html TableMsg
-tableFilterView liveSession waitingOpenFile error autoFocus pages filter =
+tableFilterView : Bool -> Maybe String -> Bool -> List Har.Page -> TableFilter -> Html TableMsg
+tableFilterView liveSession error autoFocus pages filter =
     section [ class "table-filter" ]
         [ if liveSession then
             Icons.live
@@ -772,11 +772,7 @@ tableFilterView liveSession waitingOpenFile error autoFocus pages filter =
                 }
                 (List.map (\page -> { value = page.id, label = page.id }) pages)
         , div [ class "actions" ]
-            [ if waitingOpenFile then
-                text "Opening…"
-
-              else
-                importButton error
+            [ importButton error
             , button
                 [ class "export"
                 , class "text"
