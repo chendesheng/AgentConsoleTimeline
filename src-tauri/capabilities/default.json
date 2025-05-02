@@ -3,9 +3,6 @@
   "identifier": "default",
   "description": "enables the default permissions",
   "windows": ["*"],
-  "remote": {
-    "urls": ["https://*/*"]
-  },
   "permissions": [
     "core:default",
     "core:event:default",
