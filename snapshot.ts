@@ -17,27 +17,36 @@ async function main() {
   const mainWindow = wins.find((win) => win.label === "main")!;
 
   const src = new URL(location.href).searchParams.get("src")!;
+  currentWindow.setTitle(src);
   const iframe = createIframe(src);
-  iframe.onload = () => {
-    if (iframe.title) currentWindow.setTitle(iframe.title);
 
-    mainWindow.emit(
-      "proxy-message",
-      JSON.stringify({ type: "waitForReduxState" }),
-    );
-  };
+  // forward message from iframe to main window
+  globalThis.addEventListener("message", (event) => {
+    // console.log("message", event);
+    mainWindow.emit("proxy-message", JSON.stringify(event.data));
+  });
+
   document.body.appendChild(iframe);
 
   currentWindow.once("close", () => {
     mainWindow.emit("snapshot-window-closed", src);
   });
 
+  // forward message from main window to iframe
   currentWindow.listen("proxy-message", (event) => {
     if (event.payload && iframe) {
       iframe.contentWindow?.postMessage(
         JSON.parse(event.payload as string),
         "*",
       );
+    }
+  });
+
+  currentWindow.listen("reload", (event) => {
+    const src = event.payload as string;
+    if (iframe.contentWindow) {
+      currentWindow.setTitle(src);
+      iframe.contentWindow.location.href = src;
     }
   });
 }

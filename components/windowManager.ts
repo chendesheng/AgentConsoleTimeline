@@ -2,6 +2,7 @@ import {
   getCurrentWebviewWindow,
   WebviewWindow,
 } from "@tauri-apps/api/webviewWindow";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 export type PopoutWindow = {
   postMessage: (message: any) => void;
@@ -29,10 +30,8 @@ if (window.isTauri) {
 function openTauriWindow(url: string, name: string): PopoutWindow {
   const win = new WebviewWindow(name, {
     url: `snapshot.html?src=${encodeURIComponent(url)}`,
-    x: 0,
-    y: 0,
-    width: 800,
-    height: 600,
+    width: screen.availWidth * 0.8,
+    height: screen.availHeight * 0.8,
     title: "Agent Console Snapshot",
   });
 
@@ -49,7 +48,7 @@ function openTauriWindow(url: string, name: string): PopoutWindow {
     },
     onLoad: (fn: () => void) => {},
     reload: (url: string) => {
-      // todo
+      win.emit("reload", url);
     },
   };
 }
@@ -71,7 +70,7 @@ function openBrowserWindow(url: string, name: string): PopoutWindow {
       win.onload = fn;
     },
     reload: (url: string) => {
-      // todo
+      win.location.href = url;
     },
   };
 }
