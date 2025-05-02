@@ -1,8 +1,16 @@
-import { html, css, LitElement, PropertyValues, PropertyValueMap } from "lit";
+import {
+  html,
+  css,
+  LitElement,
+  PropertyValues,
+  PropertyValueMap,
+  unsafeCSS,
+} from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import "./agentConsoleSnapshotFrame";
 import { AgentConsoleSnapshotFrame } from "./agentConsoleSnapshotFrame";
 import { getPopoutWindow, openWindow, PopoutWindow } from "./windowManager";
+import upDownArrowsUrl from "../assets/images/UpDownArrows.svg";
 
 @customElement("agent-console-snapshot")
 export class AgentConsoleSnapshot extends LitElement {
@@ -145,7 +153,7 @@ export class AgentConsoleSnapshot extends LitElement {
     }
 
     .select:after {
-      content: url("../../assets/images/UpDownArrows.svg");
+      content: url("${unsafeCSS(upDownArrowsUrl)}");
       width: 5px;
       height: 12px;
       pointer-events: none;
