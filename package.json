@@ -20,6 +20,7 @@
     "@alenaksu/json-viewer": "^2.1.2",
     "@monaco-editor/loader": "^1.4.0",
     "@tauri-apps/api": "^2.5.0",
+    "@tauri-apps/plugin-window-state": "^2.2.2",
     "idb": "^8.0.0",
     "js-md5": "^0.8.3",
     "json-keys-sort": "^2.1.0",

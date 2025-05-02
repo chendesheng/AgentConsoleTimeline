@@ -6,6 +6,7 @@
     "npm:@monaco-editor/loader@^1.4.0": "1.4.0_monaco-editor@0.43.0",
     "npm:@tauri-apps/api@^2.5.0": "2.5.0",
     "npm:@tauri-apps/cli@^2.5.0": "2.5.0",
+    "npm:@tauri-apps/plugin-window-state@^2.2.2": "2.2.2",
     "npm:@types/json-diff@^1.0.3": "1.0.3",
     "npm:assert@^2.1.0": "2.1.0",
     "npm:elm@~0.19.1-6": "0.19.1-6",
@@ -363,6 +364,12 @@
         "@tauri-apps/cli-win32-x64-msvc"
       ],
       "bin": true
+    },
+    "@tauri-apps/plugin-window-state@2.2.2": {
+      "integrity": "sha512-7pFwmMtGhhhE/WgmM7PUrj0BSSWVAQMfDdYbRalphIqqF1tWBvxtlxclx8bTutpXHLJTQoCpIeWtBEIXsoAlGw==",
+      "dependencies": [
+        "@tauri-apps/api"
+      ]
     },
     "@types/estree@1.0.6": {
       "integrity": "sha512-AYnb1nQyY49te+VRAVgmzfcgjYS91mY5P0TKUDCLEM+gNnA+3T6rWITXRLYCpahpqSQbN5cE+gHpnPyXjHWxcw=="
@@ -1268,6 +1275,7 @@
         "npm:@monaco-editor/loader@^1.4.0",
         "npm:@tauri-apps/api@^2.5.0",
         "npm:@tauri-apps/cli@^2.5.0",
+        "npm:@tauri-apps/plugin-window-state@^2.2.2",
         "npm:@types/json-diff@^1.0.3",
         "npm:assert@^2.1.0",
         "npm:elm@~0.19.1-6",
