@@ -51,18 +51,17 @@ type alias OpenedModel =
     , timezone : Maybe Time.Zone
     , detail : DetailModel
     , clientInfo : ClientInfo
-    , navKey : Nav.Key
     , fileName : String
     , log : Har.Log
     , dropFile : DropFileModel
     }
 
 
-init : Nav.Key -> String -> List RecentFile -> ( Model, Cmd Msg )
-init navKey remoteAddress recentFiles =
+init : String -> List RecentFile -> ( Model, Cmd Msg )
+init remoteAddress recentFiles =
     let
         model =
-            defaultInitialModel navKey remoteAddress
+            defaultInitialModel remoteAddress
     in
     ( Initial <| { model | recentFiles = recentFiles }
     , Remote.getSessions remoteAddress (GotRemoteSessions >> InitialMsg)
@@ -114,7 +113,7 @@ viewOpened model =
                         model.detail.snapshotPopout
                         (isSortByTime table)
                         table.href
-                        table.selected
+                        table.selectHistory.present
                         table.entries
                         model.detail
                     )
@@ -152,8 +151,8 @@ type OpenedMsg
     | AddHarEntries (List Har.Entry)
 
 
-initOpened : String -> String -> Har.Log -> Nav.Key -> Maybe Int -> ( OpenedModel, Cmd OpenedMsg )
-initOpened fileName fileContent log navKey initialViewportHeight =
+initOpened : String -> String -> Har.Log -> Maybe Int -> ( OpenedModel, Cmd OpenedMsg )
+initOpened fileName fileContent log initialViewportHeight =
     let
         filter =
             defaultTableModel.filter
@@ -187,7 +186,6 @@ initOpened fileName fileContent log navKey initialViewportHeight =
       , timezone = Nothing
       , detail = Detail.defaultDetailModel
       , clientInfo = clientInfo
-      , navKey = navKey
       , fileName = fileName
       , log = log
       , dropFile =
@@ -245,7 +243,6 @@ update msg model =
                                                 (Maybe.withDefault newModel.dropFile.fileName newModel.waitingRemoteSession)
                                                 newModel.dropFile.fileContentString
                                                 log
-                                                newModel.navKey
                                                 Nothing
                                     in
                                     ( Opened m, Cmd.map OpenedMsg cmd2 )
@@ -285,27 +282,27 @@ updateOpened msg model =
         TableAction action ->
             let
                 oldSelectedId =
-                    model.table.selected
+                    model.table.selectHistory.present
 
                 ( table, cmd ) =
-                    updateTable model.navKey action model.log model.table
+                    updateTable action model.log model.table
 
                 detailModel =
                     model.detail
 
                 currentId =
-                    if table.selected == oldSelectedId then
+                    if table.selectHistory.present == oldSelectedId then
                         detailModel.currentId
 
                     else
-                        table.selected
+                        table.selectHistory.present
             in
             ( { model
                 | detail =
                     { detailModel
                         | show =
                             case action of
-                                Select _ True _ _ ->
+                                Select _ True _ ->
                                     True
 
                                 _ ->
@@ -363,10 +360,10 @@ updateOpened msg model =
                 ( table, cmd1 ) =
                     case detailMsg of
                         Detail.SetHref href ->
-                            updateTable model.navKey (Table.SetHref href) model.log model.table
+                            updateTable (Table.SetHref href) model.log model.table
 
                         Detail.ScrollToCurrentId ->
-                            updateTable model.navKey (Select model.detail.currentId False True True) model.log model.table
+                            updateTable (Select model.detail.currentId False True) model.log model.table
 
                         _ ->
                             ( model.table, Cmd.none )
@@ -376,7 +373,7 @@ updateOpened msg model =
             )
 
         DropFile (GotFileContent fileContent log) ->
-            initOpened model.dropFile.fileName fileContent log model.navKey (Just model.table.viewportHeight)
+            initOpened model.dropFile.fileName fileContent log (Just model.table.viewportHeight)
 
         DropFile dropMsg ->
             let
@@ -482,8 +479,8 @@ subscriptions model =
 
 main : Program { remoteAddress : String, recentFiles : List RecentFile } Model Msg
 main =
-    Browser.application
-        { init = \flags _ key -> init key flags.remoteAddress flags.recentFiles
+    Browser.document
+        { init = \flags -> init flags.remoteAddress flags.recentFiles
         , view =
             \model ->
                 { title =
@@ -502,18 +499,4 @@ main =
                 }
         , update = update
         , subscriptions = subscriptions
-        , onUrlRequest = \_ -> NoOp
-        , onUrlChange =
-            \url ->
-                case url.fragment of
-                    Just fragment ->
-                        case String.split "entry" fragment of
-                            [ "", entryId ] ->
-                                OpenedMsg <| TableAction (Select entryId False False True)
-
-                            _ ->
-                                NoOp
-
-                    _ ->
-                        NoOp
         }

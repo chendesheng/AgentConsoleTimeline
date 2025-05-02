@@ -22,8 +22,7 @@ import Utils
 
 
 type alias InitialModel =
-    { navKey : Nav.Key
-    , dropFile : DropFileModel
+    { dropFile : DropFileModel
     , recentFiles : List RecentFile
     , remoteSessionIds : List String
     , waitingRemoteSession : Maybe String
@@ -31,10 +30,9 @@ type alias InitialModel =
     }
 
 
-defaultInitialModel : Nav.Key -> String -> InitialModel
-defaultInitialModel navKey remoteAddress =
-    { navKey = navKey
-    , dropFile = DropFile.defaultDropFileModel
+defaultInitialModel : String -> InitialModel
+defaultInitialModel remoteAddress =
+    { dropFile = DropFile.defaultDropFileModel
     , recentFiles = []
     , remoteSessionIds = []
     , waitingRemoteSession = Nothing

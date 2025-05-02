@@ -14,7 +14,6 @@ module Table exposing
 
 import Browser.Dom as Dom
 import Browser.Events exposing (onResize)
-import Browser.Navigation as Nav
 import Dict exposing (Dict)
 import File exposing (File)
 import Har exposing (EntryKind(..), SortBy, SortOrder(..))
@@ -81,7 +80,6 @@ type alias TableModel =
     , columns : List TableColumn
     , entries : List Har.Entry
     , entriesCount : Int
-    , selected : String
     , href : String
     , filter : TableFilter
     , scrollTop : Int
@@ -90,6 +88,7 @@ type alias TableModel =
     , pendingKeys : List String
     , search : SearchingState
     , searchHistory : UndoList String
+    , selectHistory : UndoList String
     }
 
 
@@ -127,7 +126,6 @@ defaultTableModel =
         ]
     , entries = []
     , entriesCount = 0
-    , selected = ""
     , filter =
         { match = ""
         , kind = Nothing
@@ -140,6 +138,7 @@ defaultTableModel =
     , pendingKeys = []
     , search = NotSearch
     , searchHistory = { present = "", past = [], future = [] }
+    , selectHistory = { present = "", past = [], future = [] }
     }
 
 
@@ -153,7 +152,7 @@ withUpdateIndex table updateIndex =
     let
         index =
             table.entries
-                |> Utils.indexOf (\entry -> entry.id == table.selected)
+                |> Utils.indexOf (\entry -> entry.id == table.selectHistory.present)
                 |> Maybe.withDefault -1
 
         newSelected =
@@ -163,7 +162,16 @@ withUpdateIndex table updateIndex =
                 |> Maybe.map .id
                 |> Maybe.withDefault ""
     in
-    ( { table | selected = newSelected, pendingKeys = [] }, scrollToEntry table newSelected )
+    ( { table
+        | selectHistory =
+            if newSelected == table.selectHistory.present then
+                table.selectHistory
+
+            else
+                UL.new newSelected table.selectHistory
+      }
+    , scrollToEntry table newSelected
+    )
 
 
 applySearchHistory : TableModel -> TableModel
@@ -183,7 +191,7 @@ applySearchResult isNext table =
     let
         selectedIndex =
             table.entries
-                |> Utils.indexOf (\entry -> entry.id == table.selected)
+                |> Utils.indexOf (\entry -> entry.id == table.selectHistory.present)
                 |> Maybe.withDefault -1
 
         selected =
@@ -215,34 +223,34 @@ applySearchResult isNext table =
                         |> List.head
                         |> Maybe.map
                             (\{ id } ->
-                                if table.selected == id then
+                                if table.selectHistory.present == id then
                                     if i == 0 then
                                         result
                                             |> List.reverse
                                             |> List.head
                                             |> Maybe.map .id
-                                            |> Maybe.withDefault table.selected
+                                            |> Maybe.withDefault table.selectHistory.present
 
                                     else
                                         result
                                             |> List.drop (i - 1)
                                             |> List.head
                                             |> Maybe.map .id
-                                            |> Maybe.withDefault table.selected
+                                            |> Maybe.withDefault table.selectHistory.present
 
                                 else
                                     id
                             )
-                        |> Maybe.withDefault table.selected
+                        |> Maybe.withDefault table.selectHistory.present
 
                 _ ->
-                    table.selected
+                    table.selectHistory.present
     in
-    ( { table | selected = selected, pendingKeys = [] }, scrollToEntry table selected )
+    ( { table | selectHistory = UL.new selected table.selectHistory, pendingKeys = [] }, scrollToEntry table selected )
 
 
-executeVimAction : Nav.Key -> TableModel -> VimAction -> ( TableModel, Cmd TableMsg )
-executeVimAction navKey table action =
+executeVimAction : TableModel -> VimAction -> ( TableModel, Cmd TableMsg )
+executeVimAction table action =
     case action of
         ArrowUp ->
             withUpdateIndex table
@@ -293,13 +301,25 @@ executeVimAction navKey table action =
             withUpdateIndex table (\_ -> 0)
 
         Back ->
-            ( table, Nav.back navKey 1 )
+            let
+                newSelectHistory =
+                    UL.undo table.selectHistory
+            in
+            ( { table
+                | selectHistory = newSelectHistory
+              }
+            , scrollToEntry table newSelectHistory.present
+            )
 
         Forward ->
-            ( table, Nav.forward navKey 1 )
+            let
+                newSelectHistory =
+                    UL.redo table.selectHistory
+            in
+            ( { table | selectHistory = newSelectHistory }, scrollToEntry table newSelectHistory.present )
 
         Center ->
-            ( table, scrollToCenter table table.selected )
+            ( table, scrollToCenter table table.selectHistory.present )
 
         Search ->
             { table | searchHistory = UL.new "" table.searchHistory }
@@ -312,7 +332,7 @@ executeVimAction navKey table action =
                 match =
                     lineBuffer
                         |> String.dropLeft 1
-                        |> Har.findEntry table.selected table.entries
+                        |> Har.findEntry table.selectHistory.present table.entries
 
                 history =
                     table.searchHistory
@@ -396,8 +416,8 @@ executeVimAction navKey table action =
 
 
 getSelectedEntry : TableModel -> Maybe Har.Entry
-getSelectedEntry { selected, entries } =
-    Utils.findItem (\entry -> entry.id == selected) entries
+getSelectedEntry { selectHistory, entries } =
+    Utils.findItem (\entry -> entry.id == selectHistory.present) entries
 
 
 
@@ -421,7 +441,7 @@ entryView msPerPx columns selected startTime attrs entry =
                     (D.at [ "target", "className" ] D.string
                         |> D.map
                             (\className ->
-                                Select entry.id (String.contains "table-body-cell-name" className) True False
+                                Select entry.id (String.contains "table-body-cell-name" className) False
                             )
                     )
                ]
@@ -930,10 +950,10 @@ resolveSelected selected entries =
 
 
 tableView : Posix -> TableModel -> Bool -> Html TableMsg
-tableView startTime { entries, entriesCount, sortBy, columns, columnWidths, selected, scrollTop, waterfallMsPerPx, viewportHeight, search, searchHistory, pendingKeys } showDetail =
+tableView startTime { entries, entriesCount, sortBy, columns, columnWidths, selectHistory, scrollTop, waterfallMsPerPx, viewportHeight, search, searchHistory, pendingKeys } showDetail =
     let
         selected2 =
-            resolveSelected selected entries
+            resolveSelected selectHistory.present entries
 
         showDetail2 =
             selected2 /= "" && showDetail
@@ -1057,7 +1077,7 @@ type TableMsg
     | FlipSort String
     | ResizeColumn String Int
       -- id, True means show detail, False means keep detail shown/hidden as is, is pushUrl
-    | Select String Bool Bool Bool
+    | Select String Bool Bool
     | SetHref String
     | ExecuteAction VimAction
     | Scroll Int
@@ -1072,8 +1092,8 @@ type TableMsg
     | Export
 
 
-updateTable : Nav.Key -> TableMsg -> Har.Log -> TableModel -> ( TableModel, Cmd TableMsg )
-updateTable navKey action log table =
+updateTable : TableMsg -> Har.Log -> TableModel -> ( TableModel, Cmd TableMsg )
+updateTable action log table =
     case action of
         NoOp ->
             ( table, Cmd.none )
@@ -1101,19 +1121,14 @@ updateTable navKey action log table =
             in
             ( { table | sortBy = newSortBy, entries = newEntries }, Cmd.none )
 
-        Select id _ isPushUrl scrollTo ->
-            if table.selected == id then
+        Select id _ scrollTo ->
+            if table.selectHistory.present == id then
                 ( table, Cmd.none )
 
             else
-                ( { table | selected = id }
+                ( { table | selectHistory = UL.new id table.selectHistory }
                 , Cmd.batch
-                    [ if isPushUrl then
-                        Nav.pushUrl navKey ("#entry" ++ id)
-
-                      else
-                        Cmd.none
-                    , if scrollTo then
+                    [ if scrollTo then
                         scrollToEntry table id
 
                       else
@@ -1122,7 +1137,7 @@ updateTable navKey action log table =
                 )
 
         ExecuteAction act ->
-            executeVimAction navKey table act
+            executeVimAction table act
 
         ResizeColumn column dx ->
             let
@@ -1156,8 +1171,8 @@ updateTable navKey action log table =
                 , entriesCount = List.length newEntries
                 , filter = { filter | match = match }
               }
-            , if match == "" && table.selected /= "" then
-                scrollToEntry table table.selected
+            , if match == "" && table.selectHistory.present /= "" then
+                scrollToEntry table table.selectHistory.present
 
               else
                 Cmd.none
@@ -1179,9 +1194,9 @@ updateTable navKey action log table =
                 , entriesCount = List.length newEntries
                 , filter = { filter | kind = kind }
               }
-            , if table.selected /= "" then
+            , if table.selectHistory.present /= "" then
                 Cmd.batch
-                    [ scrollToEntry table table.selected
+                    [ scrollToEntry table table.selectHistory.present
                     , focus "table-body"
                     ]
 
@@ -1201,7 +1216,7 @@ updateTable navKey action log table =
         SelectTable ->
             ( table
             , Cmd.batch
-                [ scrollToEntry table table.selected
+                [ scrollToEntry table table.selectHistory.present
                 , focus "table-body"
                 ]
             )
