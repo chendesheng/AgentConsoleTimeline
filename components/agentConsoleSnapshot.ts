@@ -77,7 +77,7 @@ export class AgentConsoleSnapshot extends LitElement {
     .header {
       flex: none;
       display: flex;
-      align-items: end;
+      align-items: baseline;
       color: var(--text-color);
       height: 20px;
       cursor: default;
@@ -116,6 +116,7 @@ export class AgentConsoleSnapshot extends LitElement {
       border-bottom: solid 1px currentColor;
       outline: none;
       margin-bottom: -1px;
+      color: var(--text-color-active);
     }
     .header button.popout {
       font-size: 12px;
@@ -125,6 +126,41 @@ export class AgentConsoleSnapshot extends LitElement {
       padding: 0;
       height: 12px;
       margin-left: 2px;
+    }
+
+    .select {
+      position: relative;
+      border-radius: 2px;
+      padding: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      bottom: -2px;
+    }
+
+    .select:hover,
+    .select:focus,
+    .select:focus-within {
+      background-color: var(--selected-background-color);
+    }
+
+    .select:after {
+      content: url("../../assets/images/UpDownArrows.svg");
+      width: 5px;
+      height: 12px;
+      pointer-events: none;
+    }
+
+    .select > select {
+      border: none;
+      outline: none;
+      appearance: none;
+      background: none;
+      opacity: 0;
+      padding: 0;
+      margin: 0;
+      position: absolute;
+      inset: 0;
     }
   `;
 
@@ -160,15 +196,32 @@ export class AgentConsoleSnapshot extends LitElement {
     }
   }
 
-  private handleSrcInputBlur(e: UIEvent) {
-    const ele = e.target as HTMLInputElement;
+  private fireSrcChangeEvent(value: string) {
     const [prefix, rest] = AgentConsoleSnapshot.splitSrc(this.getSrc());
-    if (ele.textContent!.trim() !== prefix.trim()) {
+    if (value.trim() !== prefix.trim()) {
       this.dispatchEvent(
         new CustomEvent("srcChange", {
-          detail: { value: `${ele.textContent!.trim()}${rest}` },
+          detail: { value: `${value.trim()}${rest}` },
         }),
       );
+    }
+  }
+
+  private handleSrcInputBlur(e: UIEvent) {
+    const ele = e.target as HTMLInputElement;
+    this.fireSrcChangeEvent(ele.textContent!);
+  }
+
+  private handleSrcSelectInput(e: UIEvent) {
+    const ele = e.target as HTMLSelectElement;
+    this.fireSrcChangeEvent(ele.value);
+  }
+
+  private handleKeyPress(e: KeyboardEvent) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const ele = e.target as HTMLInputElement;
+      this.fireSrcChangeEvent(ele.textContent!);
     }
   }
 
@@ -182,9 +235,24 @@ export class AgentConsoleSnapshot extends LitElement {
     const [prefix, rest] = AgentConsoleSnapshot.splitSrc(src);
     return html`<div class="header">
         <button title="Reload" @click=${this.handleClickReloadButton}>⟳</button>
-        <span class="src" contenteditable @blur=${this.handleSrcInputBlur}
+        <span
+          class="src"
+          contenteditable
+          @keypress=${this.handleKeyPress}
+          @blur=${this.handleSrcInputBlur}
           >${prefix}</span
-        >${rest}
+        >
+        <div class="select">
+          <select @input=${this.handleSrcSelectInput} value=${prefix}>
+            ${platformPrefixes.map(
+              (p) =>
+                html`<option value=${p} ?selected=${p === prefix}>
+                  ${p}
+                </option>`,
+            )}
+          </select>
+        </div>
+        <span>${rest}</span>
         <button
           class="popout"
           title="Popout"
@@ -222,3 +290,24 @@ export class AgentConsoleSnapshot extends LitElement {
     }
   }
 }
+
+const platformPrefixes = [
+  "https://canvasdash.testing.comm100dev.io",
+  "https://customreportdash.testing.comm100dev.io",
+  "https://global9dash.testing.comm100dev.io",
+  "https://gptbotdash.testing.comm100dev.io",
+  "https://internal7dash.testing.comm100dev.io",
+  "https://livechat3dash.testing.comm100dev.io",
+  "https://livechat6dash.testing.comm100dev.io",
+  "https://livehelp100dash.testing.comm100dev.io",
+  "https://ticketing2dash.testing.comm100dev.io",
+  "https://ticketing3dash.testing.comm100dev.io",
+  "https://van100dash.testing.comm100dev.io",
+  "http://localhost:32400",
+  "https://dash11staging.comm100.io",
+  "https://dash11.comm100.io",
+  "https://dash12.comm100.io",
+  "https://dash13.comm100.io",
+  "https://dash15.comm100.io",
+  "https://dash17.comm100.io",
+];
