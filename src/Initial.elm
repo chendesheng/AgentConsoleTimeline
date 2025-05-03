@@ -1,6 +1,5 @@
 module Initial exposing (..)
 
-import Browser.Navigation as Nav
 import DropFile exposing (DropFileModel, DropFileMsg, decodeFile, dropFileView)
 import File
 import Html exposing (..)
