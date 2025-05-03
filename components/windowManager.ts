@@ -25,6 +25,18 @@ if (window.isTauri) {
       window.postMessage(JSON.parse(event.payload as string), "*");
     }
   });
+
+  currentWindow.listen("close", () => {
+    for (const win of Object.values(popoutWindows)) {
+      win.close();
+    }
+  });
+} else {
+  window.addEventListener("beforeunload", () => {
+    for (const win of Object.values(popoutWindows)) {
+      win.close();
+    }
+  });
 }
 
 function openTauriWindow(url: string, name: string): PopoutWindow {
