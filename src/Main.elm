@@ -2,7 +2,6 @@ port module Main exposing (main)
 
 import Browser
 import Browser.Dom as Dom
-import Browser.Navigation as Nav
 import Detail exposing (DetailModel, DetailMsg(..), detailViewContainer)
 import DropFile exposing (DropFileModel, DropFileMsg(..), decodeFile, defaultDropFileModel, dropFileView)
 import Har exposing (ClientInfo, EntryKind(..), SortOrder(..))
@@ -10,7 +9,7 @@ import HarDecoder exposing (decodeHar)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Html.Lazy exposing (lazy3, lazy5, lazy7)
+import Html.Lazy exposing (lazy3, lazy5, lazy8)
 import Initial exposing (InitialModel, InitialMsg(..), defaultInitialModel, initialView, updateInitial)
 import Json.Decode as Decode
 import List
@@ -108,11 +107,12 @@ viewOpened model =
                     )
                 , Html.map TableAction (lazy3 tableView startTime table detail.show)
                 , Html.map DetailAction
-                    (lazy7 detailViewContainer
+                    (lazy8 detailViewContainer
                         (isLiveSession model.fileName)
                         model.detail.snapshotPopout
                         (isSortByTime table)
                         table.href
+                        table.filter.page
                         table.selectHistory.present
                         table.entries
                         model.detail

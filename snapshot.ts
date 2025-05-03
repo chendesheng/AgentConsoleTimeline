@@ -23,13 +23,17 @@ async function main() {
   // forward message from iframe to main window
   globalThis.addEventListener("message", (event) => {
     // console.log("message", event);
-    mainWindow.emit("proxy-message", JSON.stringify(event.data));
+    currentWindow.emitTo(
+      mainWindow.label,
+      "proxy-message",
+      JSON.stringify(event.data),
+    );
   });
 
   document.body.appendChild(iframe);
 
   currentWindow.once("close", () => {
-    mainWindow.emit("snapshot-window-closed", src);
+    currentWindow.emitTo(mainWindow.label, "snapshot-window-closed", src);
   });
 
   // forward message from main window to iframe

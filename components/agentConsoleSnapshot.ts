@@ -26,6 +26,9 @@ export class AgentConsoleSnapshot extends LitElement {
   @query("agent-console-snapshot-frame")
   frame?: AgentConsoleSnapshotFrame;
 
+  @property({ type: String })
+  pageName = "";
+
   @state()
   private isPopout: boolean = false;
 
@@ -182,7 +185,8 @@ export class AgentConsoleSnapshot extends LitElement {
       this.setIsPopout(false);
     }
 
-    openWindow(this.getSrc(), "snapshot");
+    console.log("openWindow", this.getSrc(), this.pageName);
+    openWindow(this.getSrc(), `snapshot-${this.pageName}`);
     this.setIsPopout(true);
 
     if (this.popoutWindow) {

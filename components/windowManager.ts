@@ -47,7 +47,7 @@ function openTauriWindow(url: string, name: string): PopoutWindow {
 
   return {
     postMessage: (message: any) => {
-      win.emit("proxy-message", JSON.stringify(message));
+      win.emitTo(win.label, "proxy-message", JSON.stringify(message));
     },
     close: () => {
       win.close();
@@ -57,7 +57,7 @@ function openTauriWindow(url: string, name: string): PopoutWindow {
       win.once("tauri://destroyed", fn);
     },
     reload: (url: string) => {
-      win.emit("reload", url);
+      win.emitTo(win.label, "reload", url);
     },
   };
 }
