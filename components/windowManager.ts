@@ -53,6 +53,17 @@ function openTauriWindow(url: string, name: string): PopoutWindow {
   };
 }
 
+function monitorBrowserWindowClose(win: Window, fn: () => void) {
+  const poll = () => {
+    if (win.closed) {
+      fn();
+    } else {
+      requestAnimationFrame(poll);
+    }
+  };
+  poll();
+}
+
 function openBrowserWindow(url: string, name: string): PopoutWindow {
   const win = window.open(url, name)!;
   return {
@@ -64,7 +75,7 @@ function openBrowserWindow(url: string, name: string): PopoutWindow {
       deletePopoutWindow(url);
     },
     onClose: (fn: () => void) => {
-      win.onbeforeunload = fn;
+      monitorBrowserWindowClose(win, fn);
     },
     onLoad: (fn: () => void) => {
       win.onload = fn;
