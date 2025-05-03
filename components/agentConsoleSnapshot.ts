@@ -185,11 +185,7 @@ export class AgentConsoleSnapshot extends LitElement {
     openWindow(this.getSrc(), "snapshot");
     this.setIsPopout(true);
 
-    // FIXME: this is a workaround, the agent console should send waitForReduxState message
     if (this.popoutWindow) {
-      this.popoutWindow.onLoad(() => {
-        window.postMessage({ type: "waitForReduxState" }, "*");
-      });
       this.popoutWindow.onClose(() => {
         this.handleClickRestorePopoutButton();
       });

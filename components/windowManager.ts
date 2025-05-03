@@ -2,13 +2,11 @@ import {
   getCurrentWebviewWindow,
   WebviewWindow,
 } from "@tauri-apps/api/webviewWindow";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 
 export type PopoutWindow = {
   postMessage: (message: any) => void;
   close: () => void;
   onClose: (fn: () => void) => void;
-  onLoad: (fn: () => void) => void;
   reload: (url: string) => void;
 };
 
@@ -58,7 +56,6 @@ function openTauriWindow(url: string, name: string): PopoutWindow {
     onClose: (fn: () => void) => {
       win.once("tauri://destroyed", fn);
     },
-    onLoad: (fn: () => void) => {},
     reload: (url: string) => {
       win.emit("reload", url);
     },
@@ -88,9 +85,6 @@ function openBrowserWindow(url: string, name: string): PopoutWindow {
     },
     onClose: (fn: () => void) => {
       monitorBrowserWindowClose(win, fn);
-    },
-    onLoad: (fn: () => void) => {
-      win.onload = fn;
     },
     reload: (url: string) => {
       win.location.href = url;
