@@ -49,8 +49,12 @@ async function main() {
   currentWindow.listen("reload", (event) => {
     const src = event.payload as string;
     if (iframe.contentWindow) {
-      currentWindow.setTitle(src);
-      iframe.contentWindow.location.href = src;
+      if (src) {
+        currentWindow.setTitle(src);
+        iframe.src = src;
+      } else {
+        iframe.src = iframe.src;
+      }
     }
   });
 }

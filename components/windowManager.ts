@@ -7,7 +7,7 @@ export type PopoutWindow = {
   postMessage: (message: any) => void;
   close: () => void;
   onClose: (fn: () => void) => void;
-  reload: (url: string) => void;
+  reload: (url?: string) => void;
 };
 
 declare global {
@@ -56,7 +56,7 @@ function openTauriWindow(url: string, name: string): PopoutWindow {
     onClose: (fn: () => void) => {
       win.once("tauri://destroyed", fn);
     },
-    reload: (url: string) => {
+    reload: (url?: string) => {
       win.emitTo(win.label, "reload", url);
     },
   };
@@ -75,6 +75,7 @@ function monitorBrowserWindowClose(win: Window, fn: () => void) {
 
 function openBrowserWindow(url: string, name: string): PopoutWindow {
   const win = window.open(url, name)!;
+  let src = url;
   return {
     postMessage: (message: any) => {
       win.postMessage(message, "*");
@@ -86,8 +87,13 @@ function openBrowserWindow(url: string, name: string): PopoutWindow {
     onClose: (fn: () => void) => {
       monitorBrowserWindowClose(win, fn);
     },
-    reload: (url: string) => {
-      win.location.href = url;
+    reload: (url?: string) => {
+      if (url) {
+        src = url;
+        win.location.href = url;
+      } else {
+        win.location.href = src;
+      }
     },
   };
 }

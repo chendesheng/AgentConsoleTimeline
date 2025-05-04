@@ -177,6 +177,7 @@ export class AgentConsoleSnapshot extends LitElement {
 
   private handleClickReloadButton() {
     this.frame?.reload();
+    this.popoutWindow?.reload();
   }
 
   private handleClickPopoutButton() {
@@ -293,7 +294,7 @@ export class AgentConsoleSnapshot extends LitElement {
   }
 
   protected updated(changedProperties: PropertyValues): void {
-    if (changedProperties.has("src") && this.popoutWindow) {
+    if (changedProperties.get("src") && this.popoutWindow) {
       this.popoutWindow?.reload(this.getSrc());
     }
   }
