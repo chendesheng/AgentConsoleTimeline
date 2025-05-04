@@ -264,10 +264,10 @@ export class AgentConsoleSnapshot extends LitElement {
         <span>${rest}</span>
         <button
           class="popout"
-          title="Popout"
+          title=${this.isPopout ? "Restore Popout" : "Popout"}
           @click=${this.handleClickPopoutButton}
         >
-          🡽
+          ${this.isPopout ? "🢇" : "🢅"}
         </button>
       </div>
       ${this.isPopout
