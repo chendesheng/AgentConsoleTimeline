@@ -8,7 +8,7 @@ export async function unzipFilesAndCreateCustomEvent(files: FileList) {
     });
   }
 
-  if (file.name.endsWith(".zip") && file.size > 1024 * 1024 * 10) {
+  if (file.name.endsWith(".zip") && file.size > 1024 * 1024 * 100) {
     return new CustomEvent("error", {
       detail: "Open failed: zip file is too large (> 100 MB)",
     });
