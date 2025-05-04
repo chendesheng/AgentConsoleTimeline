@@ -125,6 +125,9 @@ export class MonacoDiffEditor extends LitElement {
       readOnly: true,
       wordWrap: "on",
       diffWordWrap: true,
+      hideUnchangedRegions: {
+        enabled: true,
+      },
     });
 
     this.setModels();
