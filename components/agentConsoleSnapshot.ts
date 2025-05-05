@@ -252,7 +252,7 @@ export class AgentConsoleSnapshot extends LitElement {
           >${prefix}</span
         >
         <div class="select">
-          <select @input=${this.handleSrcSelectInput} value=${prefix}>
+          <select @input=${this.handleSrcSelectInput}>
             ${platformPrefixes.map(
               (p) =>
                 html`<option value=${p} ?selected=${p === prefix}>
