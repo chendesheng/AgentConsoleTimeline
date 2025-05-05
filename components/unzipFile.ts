@@ -15,9 +15,53 @@ export async function unzipFilesAndCreateCustomEvent(files: FileList) {
   }
 
   if (file.name.endsWith(".zip")) {
-    return new CustomEvent("change", { detail: await unzipFiles(file) });
+    return await toJsonFile(await unzipFiles(file));
   } else {
-    return new CustomEvent("change", { detail: file });
+    return await toJsonFile(file);
+  }
+}
+
+export function analysis(json: any) {
+  try {
+    const visitors: Map<string, { id: string; name: string }> = new Map();
+    for (const entry of json.log.entries) {
+      if (entry.request.url.startsWith("/redux/state")) {
+        const state = JSON.parse(entry.response.content.text);
+        for (const visitor of Object.values(state.visitor.visitors) as any[]) {
+          visitors.set(visitor.id, {
+            id: visitor.id,
+            name: visitor.latestName,
+          });
+        }
+      }
+    }
+    json.log.comment = JSON.stringify({
+      visitors: Array.from(visitors.values()).sort((a, b) =>
+        a.name.localeCompare(b.name),
+      ),
+    });
+    console.log(json.log.comment);
+    return json;
+  } catch (e: any) {
+    console.warn(`analysis failed: ${e}`);
+    return json;
+  }
+}
+
+async function toJsonFile(file: File) {
+  try {
+    const text = await file.text();
+    return new CustomEvent("change", {
+      detail: {
+        name: file.name,
+        text,
+        json: analysis(JSON.parse(text)),
+      },
+    });
+  } catch (e) {
+    return new CustomEvent("error", {
+      detail: "Open failed: invalid JSON file",
+    });
   }
 }
 
@@ -28,6 +72,12 @@ async function unzipFiles(file: File) {
   const files = Object.values(zip.files).filter((file) => !file.dir);
   for (const file of files) {
     if (file.name.endsWith(".har")) {
+      return toFile(file);
+    }
+  }
+
+  for (const file of files) {
+    if (file.name.endsWith(".json")) {
       return toFile(file);
     }
   }

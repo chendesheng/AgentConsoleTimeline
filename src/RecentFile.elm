@@ -1,5 +1,7 @@
 port module RecentFile exposing (..)
 
+import JsonFile exposing (JsonFile)
+
 
 port saveRecentFile : { fileName : String, fileContent : String } -> Cmd msg
 
@@ -11,7 +13,7 @@ port getFileContent : String -> Cmd msg
 -- port getRecentFiles : () -> Cmd msg
 
 
-port gotFileContent : (String -> msg) -> Sub msg
+port gotFileContent : (JsonFile -> msg) -> Sub msg
 
 
 port gotRecentFiles : (List RecentFile -> msg) -> Sub msg

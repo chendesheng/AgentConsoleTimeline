@@ -1,14 +1,13 @@
-module DropFile exposing (DropFileModel, DropFileMsg(..), decodeFile, defaultDropFileModel, dropFileUpdate, dropFileView)
+module DropFile exposing (DropFileModel, DropFileMsg(..), defaultDropFileModel, dropFileUpdate, dropFileView)
 
-import File exposing (File)
 import File.Download as Download
 import Har
-import HarDecoder exposing (decodeHar)
+import HarDecoder exposing (harDecoder)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (on)
 import Json.Decode as D
-import Task
+import JsonFile exposing (JsonFile, jsonFileDecoder)
 
 
 
@@ -38,20 +37,9 @@ defaultDropFileModel =
 
 type DropFileMsg
     = NoOp
-    | GotFile File
-    | GotFileContent String Har.Log
+    | GotJsonFile JsonFile
     | ReadFileError String
     | DownloadFile
-
-
-decodeFile : String -> String -> DropFileMsg
-decodeFile fileName fileContent =
-    case decodeHar fileContent of
-        Ok log ->
-            GotFileContent fileContent log
-
-        Err _ ->
-            ReadFileError <| "Decode file " ++ fileName ++ " failed."
 
 
 dropFileUpdate : DropFileMsg -> DropFileModel -> ( DropFileModel, Cmd DropFileMsg )
@@ -60,32 +48,28 @@ dropFileUpdate msg model =
         NoOp ->
             ( model, Cmd.none )
 
-        GotFile file ->
+        GotJsonFile { name, text, json } ->
             let
-                name =
-                    File.name file
-
-                newModel =
-                    { model | fileName = name }
+                res =
+                    D.decodeValue harDecoder json
             in
-            ( newModel
-            , Task.attempt
-                (\res ->
-                    case res of
-                        Ok str ->
-                            decodeFile name str
-
-                        Err error ->
-                            ReadFileError error
-                )
-                (File.toString file)
-            )
-
-        GotFileContent fileContentString file ->
             ( { model
-                | fileContentString = fileContentString
-                , fileContent = Just file
-                , error = Nothing
+                | fileName = name
+                , fileContentString = text
+                , fileContent =
+                    case res of
+                        Ok harFile ->
+                            Just harFile.log
+
+                        Err _ ->
+                            Nothing
+                , error =
+                    case res of
+                        Ok _ ->
+                            Nothing
+
+                        Err _ ->
+                            Just <| "Decode file " ++ name ++ " failed"
               }
             , Cmd.none
             )
@@ -111,7 +95,7 @@ dropFileView className fn children =
     Html.node "drop-zip-file"
         [ class "drop-file-container"
         , class className
-        , on "change" <| D.map (fn << GotFile) <| D.field "detail" File.decoder
+        , on "change" <| D.map (fn << GotJsonFile) <| D.field "detail" jsonFileDecoder
         , on "error" <| D.map (fn << ReadFileError) <| D.field "detail" D.string
         ]
         children

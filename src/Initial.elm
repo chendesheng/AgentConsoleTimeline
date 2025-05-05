@@ -1,7 +1,6 @@
 module Initial exposing (..)
 
-import DropFile exposing (DropFileModel, DropFileMsg, decodeFile, dropFileView)
-import File
+import DropFile exposing (DropFileModel, DropFileMsg, dropFileView)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -9,6 +8,7 @@ import Html.Lazy exposing (lazy3)
 import Icons
 import Json.Decode as D
 import Json.Encode as Encode
+import JsonFile exposing (jsonFileDecoder)
 import RecentFile exposing (RecentFile, clearRecentFiles, deleteRecentFile, getFileContent)
 import Remote
 import Table exposing (tableFilterView, tableView)
@@ -93,8 +93,8 @@ openButton =
     Html.node "open-file-button"
         [ property "label" <| Encode.string "Open…"
         , on "change" <|
-            D.map (DropFile << DropFile.GotFile) <|
-                D.field "detail" File.decoder
+            D.map (DropFile << DropFile.GotJsonFile) <|
+                D.field "detail" jsonFileDecoder
         , on "error" <|
             D.map (DropFile << DropFile.ReadFileError) <|
                 D.field "detail" D.string
@@ -180,9 +180,7 @@ updateInitial msg model =
                     model.dropFile
             in
             ( { model | dropFile = { dropFile | fileName = fileName } }
-            , key
-                |> getFileContent
-                |> Cmd.map (\str -> DropFile <| decodeFile fileName str)
+            , getFileContent key
             )
 
         ClickClearRecentFiles ->

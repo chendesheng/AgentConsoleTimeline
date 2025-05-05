@@ -28,6 +28,12 @@ export async function getFileContent(key: string) {
   return content;
 }
 
+export async function getFileName(key: string) {
+  const db = await openRecentFilesDb();
+  const { fileName } = await db.get("list", key);
+  return fileName;
+}
+
 export async function saveRecentFile(fileName: string, content: string) {
   const key = md5(content);
 

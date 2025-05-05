@@ -15,7 +15,6 @@ module Table exposing
 import Browser.Dom as Dom
 import Browser.Events exposing (onResize)
 import Dict exposing (Dict)
-import File exposing (File)
 import Har exposing (EntryKind(..), SortBy, SortOrder(..))
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -24,6 +23,7 @@ import Html.Lazy exposing (lazy3, lazy5, lazy7)
 import Icons
 import Json.Decode as D
 import Json.Encode as Encode
+import JsonFile exposing (JsonFile, jsonFileDecoder)
 import List exposing (sortBy)
 import Task
 import Time exposing (Posix)
@@ -742,7 +742,7 @@ importButton error =
         ([ property "label" <| Encode.string "⬆Import"
          , on "change" <|
             D.map (GotImportFile << Ok) <|
-                D.field "detail" File.decoder
+                D.field "detail" jsonFileDecoder
          , on "error" <|
             D.map (GotImportFile << Err) <|
                 D.field "detail" D.string
@@ -1088,7 +1088,7 @@ type TableMsg
     | SetViewportHeight Int
     | SelectTable
     | ChangePage String
-    | GotImportFile (Result String File)
+    | GotImportFile (Result String JsonFile)
     | Export
 
 

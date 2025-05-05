@@ -3,9 +3,9 @@ port module Main exposing (main)
 import Browser
 import Browser.Dom as Dom
 import Detail exposing (DetailModel, DetailMsg(..), detailViewContainer)
-import DropFile exposing (DropFileModel, DropFileMsg(..), decodeFile, defaultDropFileModel, dropFileView)
+import DropFile exposing (DropFileModel, DropFileMsg(..), defaultDropFileModel, dropFileView)
 import Har exposing (ClientInfo, EntryKind(..), SortOrder(..))
-import HarDecoder exposing (decodeHar)
+import HarDecoder
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -271,7 +271,7 @@ updateOpened : OpenedMsg -> OpenedModel -> ( OpenedModel, Cmd OpenedMsg )
 updateOpened msg model =
     case msg of
         TableAction (GotImportFile (Ok file)) ->
-            updateOpened (DropFile (GotFile file)) model
+            updateOpened (DropFile (GotJsonFile file)) model
 
         TableAction (GotImportFile (Err error)) ->
             updateOpened (DropFile (ReadFileError error)) model
@@ -372,9 +372,6 @@ updateOpened msg model =
             , Cmd.batch [ Cmd.map DetailAction cmd, Cmd.map TableAction cmd1 ]
             )
 
-        DropFile (GotFileContent fileContent log) ->
-            initOpened model.dropFile.fileName fileContent log (Just model.table.viewportHeight)
-
         DropFile dropMsg ->
             let
                 ( dropFile, cmd ) =
@@ -438,17 +435,17 @@ updateOpened msg model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     case model of
-        Initial { dropFile, waitingRemoteSession } ->
+        Initial { waitingRemoteSession } ->
             Sub.batch
                 [ gotFileContent
-                    (\str -> InitialMsg <| Initial.DropFile <| decodeFile dropFile.fileName str)
+                    (\jsonFile -> InitialMsg <| Initial.DropFile <| GotJsonFile jsonFile)
                 , case waitingRemoteSession of
                     Just _ ->
                         Remote.gotRemoteHarLog
                             (\s ->
                                 s
-                                    |> decodeHar
-                                    |> Result.map (\log -> InitialMsg <| Initial.DropFile <| GotFileContent s log)
+                                    |> Decode.decodeString Decode.value
+                                    |> Result.map (\log -> InitialMsg <| Initial.DropFile <| GotJsonFile { name = s, text = s, json = log })
                                     |> Result.withDefault NoOp
                             )
 
