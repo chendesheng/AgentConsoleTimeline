@@ -7,6 +7,9 @@
   align-items: center;
   flex: none;
   box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
 }
 
 .detail-header .select {
@@ -147,6 +150,8 @@ code-editor.detail-body {
 agent-console-snapshot-player {
   height: 20px;
   user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
 }
 
 iframe.preview {
