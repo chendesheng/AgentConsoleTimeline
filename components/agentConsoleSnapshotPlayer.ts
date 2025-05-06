@@ -80,7 +80,7 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
       position: absolute;
       top: 0;
       bottom: 0;
-      width: 0.1px;
+      width: var(--hairline);
       background-color: white;
       pointer-events: none;
     }
@@ -237,6 +237,7 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
       class="container"
       @keydown=${this.handleKeyDown}
       tabindex="0"
+      style="--hairline: ${1 / window.devicePixelRatio}px"
     >
       <button @click=${this.handleClickPlay}>
         ${this.playingState === "live"
