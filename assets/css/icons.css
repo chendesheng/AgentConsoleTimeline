@@ -58,11 +58,13 @@
 }
 
 .icon.import {
-  content: url("../images/Import.svg");
+  background-color: currentColor;
+  mask: url("../images/Import.svg") no-repeat 100% 100%;
 }
 
 .icon.export {
-  content: url("../images/Export.svg");
+  background-color: currentColor;
+  mask: url("../images/Export.svg") no-repeat 100% 100%;
 }
 
 .icon.spinning {
@@ -71,4 +73,27 @@
 
 .icon.live {
   content: url("../images/live.svg");
+}
+
+.icon.reload-toolbar {
+  background-color: currentColor;
+  mask: url("../images/ReloadToolbar.svg");
+}
+
+.icon.popup {
+  background-color: currentColor;
+  mask: url("../images/Popup.svg");
+}
+
+.icon.popin {
+  background-color: currentColor;
+  mask: url("../images/Popin.svg");
+}
+
+button.icon-button {
+  display: flex;
+  align-items: center;
+}
+button.icon-button .icon {
+  margin-right: 2px;
 }
