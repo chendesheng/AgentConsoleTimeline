@@ -1,6 +1,7 @@
-import { css, html, LitElement } from "lit";
+import { css, html, LitElement, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { unzipFilesAndCreateCustomEvent } from "./unzipFile";
+import importUrl from "../assets/images/Import.svg";
 
 @customElement("open-file-button")
 export class OpenFileButton extends LitElement {
@@ -9,6 +10,9 @@ export class OpenFileButton extends LitElement {
 
   @property({ type: String })
   error = "";
+
+  @property({ type: String })
+  icon = "";
 
   async handleChange(e: Event) {
     e.preventDefault();
@@ -24,6 +28,15 @@ export class OpenFileButton extends LitElement {
   static styles = css`
     input[type="file"] {
       display: none;
+    }
+
+    button {
+      display: flex;
+      align-items: center;
+    }
+
+    button .icon {
+      margin-right: 2px;
     }
 
     button.text {
@@ -46,6 +59,22 @@ export class OpenFileButton extends LitElement {
     button.error:hover {
       color: var(--error-text-color);
     }
+
+    .icon {
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      fill: currentColor;
+      vertical-align: middle;
+      overflow: hidden;
+      flex: none;
+      color: currentColor;
+    }
+
+    .icon.import {
+      background-color: currentColor;
+      mask: url("${unsafeCSS(importUrl)}") no-repeat 100% 100%;
+    }
   `;
 
   handleClick() {
@@ -59,7 +88,7 @@ export class OpenFileButton extends LitElement {
         class="text ${this.error ? "error" : ""}"
         @click=${this.handleClick}
       >
-        ${this.label}
+        ${this.icon ? html`<i class="icon ${this.icon}"></i>` : ""}${this.label}
       </button>
     </div>`;
   }

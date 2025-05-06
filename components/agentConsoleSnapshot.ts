@@ -1,5 +1,6 @@
 import {
   html,
+  svg,
   css,
   LitElement,
   PropertyValues,
@@ -11,6 +12,9 @@ import "./agentConsoleSnapshotFrame";
 import { AgentConsoleSnapshotFrame } from "./agentConsoleSnapshotFrame";
 import { getPopoutWindow, openWindow, PopoutWindow } from "./windowManager";
 import upDownArrowsUrl from "../assets/images/UpDownArrows.svg";
+import popupUrl from "../assets/images/Popup.svg";
+import popinUrl from "../assets/images/Popin.svg";
+import reloadToolbar from "../assets/images/ReloadToolbar.svg";
 
 @customElement("agent-console-snapshot")
 export class AgentConsoleSnapshot extends LitElement {
@@ -108,7 +112,7 @@ export class AgentConsoleSnapshot extends LitElement {
       border: none;
       appearance: none;
       cursor: pointer;
-      margin-right: 4px;
+      margin-right: 2px;
       outline: none;
     }
     .header button:hover,
@@ -136,7 +140,11 @@ export class AgentConsoleSnapshot extends LitElement {
       align-items: center;
       padding: 0;
       height: 12px;
-      margin-left: 2px;
+      display: block;
+      width: 12px;
+      height: 12px;
+      position: relative;
+      top: 1px;
     }
 
     .select {
@@ -155,13 +163,6 @@ export class AgentConsoleSnapshot extends LitElement {
       background-color: var(--selected-background-color);
     }
 
-    .select:after {
-      content: url("${unsafeCSS(upDownArrowsUrl)}");
-      width: 5px;
-      height: 12px;
-      pointer-events: none;
-    }
-
     .select > select {
       border: none;
       outline: none;
@@ -172,6 +173,46 @@ export class AgentConsoleSnapshot extends LitElement {
       margin: 0;
       position: absolute;
       inset: 0;
+    }
+
+    .icon {
+      display: inline-block;
+      fill: currentColor;
+      vertical-align: middle;
+      overflow: hidden;
+      flex: none;
+      color: currentColor;
+      background-color: currentColor;
+    }
+
+    .icon.reload-toolbar {
+      mask: url("${unsafeCSS(reloadToolbar)}");
+      width: 10px;
+      height: 10px;
+      position: relative;
+      top: 1px;
+    }
+
+    .icon.popin,
+    .icon.popup {
+      width: 14px;
+      height: 14px;
+      position: relative;
+      top: 1px;
+    }
+    .icon.popin {
+      mask: url("${unsafeCSS(popinUrl)}");
+    }
+
+    .icon.popup {
+      mask: url("${unsafeCSS(popupUrl)}");
+    }
+
+    .select:after {
+      content: url("${unsafeCSS(upDownArrowsUrl)}");
+      width: 5px;
+      height: 12px;
+      pointer-events: none;
     }
   `;
 
@@ -186,7 +227,6 @@ export class AgentConsoleSnapshot extends LitElement {
       this.setIsPopout(false);
     }
 
-    console.log("openWindow", this.getSrc(), this.pageName);
     openWindow(this.getSrc(), `snapshot-${this.pageName}`);
     this.setIsPopout(true);
 
@@ -243,7 +283,13 @@ export class AgentConsoleSnapshot extends LitElement {
     const src = this.getSrc();
     const [prefix, rest] = AgentConsoleSnapshot.splitSrc(src);
     return html`<div class="header">
-        <button title="Reload" @click=${this.handleClickReloadButton}>⟳</button>
+        <button
+          class="reload"
+          title="Reload"
+          @click=${this.handleClickReloadButton}
+        >
+          <i class="icon reload-toolbar"></i>
+        </button>
         <span
           class="src"
           contenteditable
@@ -263,11 +309,10 @@ export class AgentConsoleSnapshot extends LitElement {
         </div>
         <span>${rest}</span>
         <button
-          class="popout"
           title=${this.isPopout ? "Restore Popout" : "Popout"}
           @click=${this.handleClickPopoutButton}
         >
-          ${this.isPopout ? "🢇" : "🢅"}
+          <i class=${this.isPopout ? "icon popin" : "icon popup"}></i>
         </button>
       </div>
       ${this.isPopout

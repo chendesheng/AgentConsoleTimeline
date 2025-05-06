@@ -776,7 +776,8 @@ waterfallScaleOptions =
 importButton : Maybe String -> Html TableMsg
 importButton error =
     Html.node "open-file-button"
-        ([ property "label" <| Encode.string "⬆Import"
+        ([ property "label" <| Encode.string "Import"
+         , property "icon" <| Encode.string "import"
          , on "change" <|
             D.map (GotImportFile << Ok) <|
                 D.field "detail" jsonFileDecoder
@@ -834,9 +835,10 @@ tableFilterView liveSession visitors error autoFocus pages filter =
             , button
                 [ class "export"
                 , class "text"
+                , class "icon-button"
                 , onClick Export
                 ]
-                [ text "⬇Export" ]
+                [ Icons.export, text "Export" ]
             ]
         ]
 
