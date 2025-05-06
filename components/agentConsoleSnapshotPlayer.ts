@@ -42,6 +42,9 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
       gap: 4px;
       width: 100%;
       --current-time-color: grey;
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
     }
 
     .container:focus {
