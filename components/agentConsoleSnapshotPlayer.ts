@@ -6,13 +6,16 @@ type PlayingState = "paused" | "playing" | "live";
 @customElement("agent-console-snapshot-player")
 export class AgentConsoleSnapshotPlayer extends LitElement {
   @property({ type: Array })
-  items: { id: string; time: number }[] = [];
+  items: { id: string; time: number; comment?: string }[] = [];
 
   @property({ type: Number })
   max: number = 0;
 
   @property({ type: String })
   initialId = "";
+
+  @property({ type: String })
+  highlightVisitorId = "";
 
   @property({ type: Boolean })
   allowLive = false;
@@ -103,6 +106,9 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
       width: 6px;
       height: 0px;
       border-top: 1px solid var(--current-time-color, red);
+    }
+    .track > div.darken {
+      opacity: 0.3;
     }
     button.reset,
     button.reveal {
@@ -236,8 +242,8 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
         ${this.playingState === "live"
           ? "🔴"
           : this.playingState === "playing" && !this.isSeeking
-            ? "❚❚"
-            : "▶"}
+          ? "❚❚"
+          : "▶"}
       </button>
       <button class="reset" @click=${this.handleClickReset}>↺</button>
       <button class="reveal" @click=${this.handleClickScroll}>⇱</button>
@@ -249,6 +255,11 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
         ${this.items.map(
           (item) =>
             html`<div
+              class=${this.highlightVisitorId
+                ? item.comment?.includes(this.highlightVisitorId)
+                  ? ""
+                  : "darken"
+                : ""}
               style="left: ${this.getTimePosPercent(item.time)}"
             ></div>`,
         )}

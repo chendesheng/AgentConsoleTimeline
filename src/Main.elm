@@ -9,9 +9,9 @@ import HarDecoder
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Html.Lazy exposing (lazy3, lazy5, lazy8)
+import Html.Lazy exposing (lazy3, lazy6, lazy8)
 import Initial exposing (InitialModel, InitialMsg(..), defaultInitialModel, initialView, updateInitial)
-import Json.Decode as Decode
+import Json.Decode as D
 import List
 import RecentFile exposing (RecentFile, gotFileContent, saveRecentFile)
 import Remote
@@ -97,9 +97,10 @@ viewOpened model =
                 "app"
                 DropFile
                 [ Html.map TableAction
-                    (lazy5
+                    (lazy6
                         tableFilterView
                         (isLiveSession model.fileName)
+                        table.visitors
                         model.dropFile.error
                         True
                         model.log.pages
@@ -112,7 +113,7 @@ viewOpened model =
                         model.detail.snapshotPopout
                         (isSortByTime table)
                         table.href
-                        table.filter.page
+                        table.filter
                         table.selectHistory.present
                         table.entries
                         model.detail
@@ -177,6 +178,15 @@ initOpened fileName fileContent log initialViewportHeight =
 
                         Nothing ->
                             clientInfo.href
+                , visitors =
+                    case log.comment of
+                        Just json ->
+                            json
+                                |> D.decodeString (D.field "visitors" <| D.list Table.visitorInfoDecoder)
+                                |> Result.withDefault []
+
+                        _ ->
+                            []
             }
 
         isLive =
@@ -444,7 +454,7 @@ subscriptions model =
                         Remote.gotRemoteHarLog
                             (\s ->
                                 s
-                                    |> Decode.decodeString Decode.value
+                                    |> D.decodeString D.value
                                     |> Result.map (\log -> InitialMsg <| Initial.DropFile <| GotJsonFile { name = s, text = s, json = log })
                                     |> Result.withDefault NoOp
                             )
@@ -460,7 +470,7 @@ subscriptions model =
                     Remote.gotRemoteHarEntry
                         (\s ->
                             s
-                                |> Decode.decodeString (Decode.list HarDecoder.entryDecoder)
+                                |> D.decodeString (D.list HarDecoder.entryDecoder)
                                 |> Result.map (AddHarEntries >> OpenedMsg)
                                 |> Result.withDefault NoOp
                         )

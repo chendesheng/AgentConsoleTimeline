@@ -1,8 +1,33 @@
-module Utils exposing (..)
+module Utils exposing
+    ( GroupOption
+    , compareInt
+    , comparePosix
+    , compareString
+    , dropDownList
+    , dropDownListWithGroup
+    , dropWhile
+    , dropWhileBefore
+    , exportLiveSessionFileName
+    , findItem
+    , findMaybeItem
+    , floatPx
+    , formatSize
+    , formatTime
+    , getLanguage
+    , getLast
+    , indexOf
+    , intPx
+    , isHtml
+    , isMember
+    , resizeDivider
+    , styles
+    , timespanMillis
+    , virtualizedList
+    )
 
 import Html exposing (Attribute, Html, div, label, option, text)
 import Html.Attributes exposing (class, property, style, value)
-import Html.Events exposing (onInput, preventDefaultOn)
+import Html.Events exposing (onInput)
 import Html.Keyed as Keyed
 import Iso8601
 import Json.Decode as D
@@ -110,26 +135,6 @@ toFixed n f =
             toFloat (10 ^ n)
     in
     (toFloat <| round (f * factor)) / factor
-
-
-floatToString : Int -> Float -> String
-floatToString fixed f =
-    let
-        s =
-            fromFloat (toFixed fixed f)
-
-        parts =
-            String.split "." s
-    in
-    case parts of
-        [ n ] ->
-            n ++ "." ++ String.repeat fixed "0"
-
-        [ n, fraction ] ->
-            n ++ "." ++ fraction ++ String.repeat (fixed - String.length fraction) "0"
-
-        _ ->
-            ""
 
 
 indexOfHelper : Int -> (a -> Bool) -> List a -> Maybe Int
@@ -266,18 +271,99 @@ styles ss =
     property "style" <| Encode.string css
 
 
-hijackOn : String -> D.Decoder msg -> Attribute msg
-hijackOn event decoder =
-    preventDefaultOn event (D.map hijack decoder)
-
-
-hijack : msg -> ( msg, Bool )
-hijack msg =
-    ( msg, True )
-
-
 
 -- VIEWS
+
+
+dropDownListCell : { value : String, label : String, onInput : String -> msg } -> List ( String, Html msg ) -> Html msg
+dropDownListCell props children =
+    label [ class "select" ]
+        [ div [] [ text props.label ]
+        , Keyed.node "select"
+            [ onInput props.onInput
+            , style "width" <| "calc(" ++ fromInt (String.length props.label) ++ "ch + " ++ "16px)"
+            , value props.value
+            ]
+            children
+        ]
+
+
+type alias GroupOption =
+    { label : String, subitems : List { label : String, value : String } }
+
+
+groupOptionDisplayLabel : String -> GroupOption -> String
+groupOptionDisplayLabel value groupOption =
+    groupOption.subitems
+        |> findItem (\item -> item.value == value)
+        |> Maybe.map
+            (\item ->
+                if String.isEmpty groupOption.label then
+                    item.label
+
+                else
+                    groupOption.label ++ " - " ++ item.label
+            )
+        |> Maybe.withDefault groupOption.label
+
+
+maybeOrElse : Maybe a -> Maybe a -> Maybe a
+maybeOrElse b a =
+    case ( b, a ) of
+        ( _, Just x ) ->
+            Just x
+
+        ( Just y, _ ) ->
+            Just y
+
+        _ ->
+            Nothing
+
+
+dropDownListWithGroup :
+    { value : String, onInput : String -> msg }
+    -> List GroupOption
+    -> Html msg
+dropDownListWithGroup props children =
+    let
+        lbl =
+            children
+                |> findItem
+                    (\{ subitems } ->
+                        isMember (\{ value } -> props.value == value) subitems
+                    )
+                |> maybeOrElse (List.head children)
+                |> Maybe.map (groupOptionDisplayLabel props.value)
+                |> Maybe.withDefault ""
+
+        keyedOption item =
+            ( item.value, option [ value item.value ] [ text item.label ] )
+    in
+    dropDownListCell
+        { label = lbl
+        , value = props.value
+        , onInput = props.onInput
+        }
+    <|
+        List.map
+            (\{ label, subitems } ->
+                case subitems of
+                    [ item ] ->
+                        keyedOption <|
+                            if String.isEmpty label then
+                                item
+
+                            else
+                                { label = label, value = item.value }
+
+                    _ ->
+                        ( label
+                        , Keyed.node "optgroup"
+                            [ property "label" <| Encode.string label ]
+                            (List.map keyedOption subitems)
+                        )
+            )
+            children
 
 
 dropDownList : { value : String, onInput : String -> msg } -> List { label : String, value : String } -> Html msg
@@ -289,16 +375,13 @@ dropDownList props children =
                 |> Maybe.map .label
                 |> Maybe.withDefault (List.head children |> Maybe.map .label |> Maybe.withDefault "")
     in
-    label [ class "select" ]
-        [ div [] [ text lbl ]
-        , Keyed.node "select"
-            [ onInput props.onInput
-            , style "width" <| "calc(" ++ fromInt (String.length lbl) ++ "ch + " ++ "16px)"
-            , value props.value
-            ]
-          <|
-            List.map (\item -> ( item.value, option [ value item.value ] [ text item.label ] )) children
-        ]
+    dropDownListCell
+        { label = lbl
+        , value = props.value
+        , onInput = props.onInput
+        }
+    <|
+        List.map (\item -> ( item.value, option [ value item.value ] [ text item.label ] )) children
 
 
 virtualizedList :

@@ -5,14 +5,14 @@ import Har exposing (EntryKind(..))
 import Html exposing (..)
 import Html.Attributes as Attr exposing (class, property, src, srcdoc, style)
 import Html.Events exposing (..)
-import Html.Lazy exposing (lazy2, lazy3)
+import Html.Lazy exposing (lazy2, lazy4)
 import Icons
 import Iso8601
 import Json.Decode as Decode
 import Json.Encode as Encode
 import List
 import String
-import Table exposing (isSortByTime)
+import Table exposing (TableFilter, isSortByTime)
 import Task
 import Time
 import TokenDecoder exposing (parseToken)
@@ -154,11 +154,11 @@ jsonDataViewer tool initialExpanded className json =
                 jsonViewer initialExpanded className json
 
 
-reduxStateViewer : Bool -> DetailViewTool -> Bool -> List Har.Entry -> String -> String -> String -> String -> Html DetailMsg
-reduxStateViewer liveSession tool isSortByTime entries href pageName currentId entryId =
+reduxStateViewer : Bool -> DetailViewTool -> Bool -> List Har.Entry -> String -> String -> String -> String -> Maybe String -> Html DetailMsg
+reduxStateViewer liveSession tool isSortByTime entries href pageName currentId entryId highlightVisitorId =
     case tool of
         Auto ->
-            agentConsoleSnapshot liveSession isSortByTime entries href pageName currentId entryId
+            agentConsoleSnapshot liveSession isSortByTime entries href pageName currentId entryId highlightVisitorId
 
         JsonTree ->
             case Har.findStateEntryAndPrevStateEntry entries currentId of
@@ -183,8 +183,8 @@ reduxStateViewer liveSession tool isSortByTime entries href pageName currentId e
                     noContent
 
 
-agentConsoleSnapshotPlayer : Bool -> List Har.Entry -> String -> Html DetailMsg
-agentConsoleSnapshotPlayer liveSession entries initialId =
+agentConsoleSnapshotPlayer : Bool -> List Har.Entry -> String -> Maybe String -> Html DetailMsg
+agentConsoleSnapshotPlayer liveSession entries initialId highlightVisitorId =
     let
         stateEntries =
             entries
@@ -202,16 +202,18 @@ agentConsoleSnapshotPlayer liveSession entries initialId =
     Html.node "agent-console-snapshot-player"
         [ stateEntries
             |> Encode.list
-                (\{ id, startedDateTime } ->
+                (\{ id, startedDateTime, comment } ->
                     Encode.object
                         [ ( "time", Encode.int <| Utils.timespanMillis firstEntryStartTime startedDateTime )
                         , ( "id", Encode.string id )
+                        , ( "comment", Encode.string <| Maybe.withDefault "" comment )
                         ]
                 )
             |> property "items"
         , Attr.max <| String.fromInt <| Utils.timespanMillis firstEntryStartTime lastEntryStartTime
         , property "initialId" <| Encode.string initialId
         , property "allowLive" <| Encode.bool liveSession
+        , property "highlightVisitorId" <| Encode.string <| Maybe.withDefault "" <| highlightVisitorId
         , on "change" <|
             Decode.map SetCurrentId <|
                 Decode.at [ "detail", "id" ] Decode.string
@@ -283,8 +285,8 @@ agentConsoleSnapshotFrame isSnapshotPopout isSortByTime href pageName entries cu
         []
 
 
-agentConsoleSnapshot : Bool -> Bool -> List Har.Entry -> String -> String -> String -> String -> Html DetailMsg
-agentConsoleSnapshot liveSession isSortByTime entries href pageName currentId entryId =
+agentConsoleSnapshot : Bool -> Bool -> List Har.Entry -> String -> String -> String -> String -> Maybe String -> Html DetailMsg
+agentConsoleSnapshot liveSession isSortByTime entries href pageName currentId entryId highlightVisitorId =
     div [ class "detail-body", class "agent-console-snapshot-container" ]
         [ Html.node "agent-console-snapshot"
             ([ Decode.string
@@ -299,7 +301,7 @@ agentConsoleSnapshot liveSession isSortByTime entries href pageName currentId en
                 ++ agentConsoleSnapshotProps isSortByTime href pageName entries currentId
             )
             []
-        , lazy3 agentConsoleSnapshotPlayer liveSession entries entryId
+        , lazy4 agentConsoleSnapshotPlayer liveSession entries entryId highlightVisitorId
         ]
 
 
@@ -395,18 +397,18 @@ styleVar name value =
     property "style" <| Encode.string (name ++ ": " ++ value)
 
 
-detailViewContainer : Bool -> Bool -> Bool -> String -> String -> String -> List Har.Entry -> DetailModel -> Html DetailMsg
-detailViewContainer liveSession isSnapshotPopout isSortByTime href pageName selected entries detail =
+detailViewContainer : Bool -> Bool -> Bool -> String -> TableFilter -> String -> List Har.Entry -> DetailModel -> Html DetailMsg
+detailViewContainer liveSession isSnapshotPopout isSortByTime href filter selected entries detail =
     if detail.show then
         case Utils.findItem (\entry -> entry.id == selected) entries of
             Just entry ->
-                detailView liveSession isSnapshotPopout isSortByTime entries detail href pageName entry
+                detailView liveSession isSnapshotPopout isSortByTime entries detail href filter.page filter.highlightVisitorId entry
 
             _ ->
                 text ""
 
     else if isSnapshotPopout then
-        agentConsoleSnapshotPopout isSortByTime href pageName entries detail.currentId
+        agentConsoleSnapshotPopout isSortByTime href filter.page entries detail.currentId
 
     else
         text ""
@@ -494,8 +496,8 @@ detailViewToolsOptions =
         )
 
 
-detailView : Bool -> Bool -> Bool -> List Har.Entry -> DetailModel -> String -> String -> Har.Entry -> Html DetailMsg
-detailView liveSession isSnapshotPopout isSortByTime entries model href pageName entry =
+detailView : Bool -> Bool -> Bool -> List Har.Entry -> DetailModel -> String -> String -> Maybe String -> Har.Entry -> Html DetailMsg
+detailView liveSession isSnapshotPopout isSortByTime entries model href pageName highlightVisitorId entry =
     let
         selected =
             resolveSelectedTab model.tab entry
@@ -555,10 +557,10 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
             Preview ->
                 case entryKind of
                     ReduxState ->
-                        reduxStateViewer liveSession model.tool isSortByTime entries href pageName model.currentId entry.id
+                        reduxStateViewer liveSession model.tool isSortByTime entries href pageName model.currentId entry.id highlightVisitorId
 
                     ReduxAction ->
-                        reduxStateViewer liveSession model.tool isSortByTime entries href pageName model.currentId entry.id
+                        reduxStateViewer liveSession model.tool isSortByTime entries href pageName model.currentId entry.id highlightVisitorId
 
                     LogMessage ->
                         entry

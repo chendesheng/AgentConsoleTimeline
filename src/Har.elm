@@ -355,30 +355,39 @@ entryKindLabel kind =
             "Others"
 
 
-stringToEntryKind : String -> Maybe EntryKind
-stringToEntryKind s =
+stringToEntryKindAndHighlightVisitorId : String -> ( Maybe EntryKind, Maybe String )
+stringToEntryKindAndHighlightVisitorId s =
     case s of
         "0" ->
-            Just ReduxState
+            ( Just ReduxState, Nothing )
 
         "1" ->
-            Just LogMessage
+            ( Just LogMessage, Nothing )
 
         "2" ->
-            Just NetworkHttp
+            ( Just NetworkHttp, Nothing )
 
         "3" ->
-            Just Others
+            ( Just Others, Nothing )
 
         _ ->
-            Nothing
+            if String.startsWith "0-" s then
+                ( Just ReduxState, Just (String.dropLeft 2 s) )
+
+            else
+                ( Nothing, Nothing )
 
 
-entryKindValue : Maybe EntryKind -> String
-entryKindValue kind =
-    case kind of
+entryKindAndHighlightVisitorIdValue : Maybe EntryKind -> Maybe String -> String
+entryKindAndHighlightVisitorIdValue entryKind highlightVisitorId =
+    case entryKind of
         Just ReduxState ->
-            "0"
+            case highlightVisitorId of
+                Just visitorId ->
+                    "0-" ++ visitorId
+
+                Nothing ->
+                    "0"
 
         Just LogMessage ->
             "1"
@@ -684,6 +693,16 @@ isHttpFailedEntry entry =
     case getEntryKind entry of
         NetworkHttp ->
             entry.response.status > 399
+
+        _ ->
+            False
+
+
+entryContainsVisitorId : Entry -> String -> Bool
+entryContainsVisitorId entry visitorId =
+    case entry.comment of
+        Just info ->
+            String.contains visitorId info
 
         _ ->
             False

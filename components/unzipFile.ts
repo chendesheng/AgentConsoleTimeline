@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import { diff } from "jsondiffpatch";
 
 export async function unzipFilesAndCreateCustomEvent(files: FileList) {
   const file = files?.[0];
@@ -21,17 +22,30 @@ export async function unzipFilesAndCreateCustomEvent(files: FileList) {
   }
 }
 
+// FIXME: the redux state be json parsed more than once
 export function analysis(json: any) {
   try {
-    const visitors: Map<string, { id: string; name: string }> = new Map();
+    const visitors: Map<
+      string,
+      { id: string; name: string; chatIds: Set<string>; siteId?: number }
+    > = new Map();
     for (const entry of json.log.entries) {
       if (entry.request.url.startsWith("/redux/state")) {
-        const state = JSON.parse(entry.response.content.text);
+        const state = getState(entry);
         for (const visitor of Object.values(state.visitor.visitors) as any[]) {
-          visitors.set(visitor.id, {
-            id: visitor.id,
-            name: visitor.latestName,
-          });
+          const existingVisitor = visitors.get(visitor.id);
+          if (existingVisitor) {
+            if (visitor.chatId) existingVisitor.chatIds.add(visitor.chatId);
+            existingVisitor.siteId = visitor.siteId;
+            existingVisitor.name = visitor.latestName;
+          } else {
+            visitors.set(visitor.id, {
+              id: visitor.id,
+              name: visitor.latestName,
+              chatIds: new Set([visitor.chatId].filter(Boolean)),
+              siteId: visitor.siteId,
+            });
+          }
         }
       }
     }
@@ -41,11 +55,56 @@ export function analysis(json: any) {
       ),
     });
     console.log(json.log.comment);
+    let prevStateEntry;
+    for (const entry of json.log.entries) {
+      if (entry.request.url === "/redux/state") {
+        if (prevStateEntry) {
+          const prevState = getState(prevStateEntry);
+          const state = getState(entry);
+          const delta = JSON.stringify(diff(prevState, state));
+          const relatedVisitorIds = getRelatedVisitorIds(delta, visitors);
+          if (relatedVisitorIds.length > 0) {
+            entry.comment = JSON.stringify({ relatedVisitorIds });
+            console.log("related visitor ids", relatedVisitorIds);
+          }
+        }
+
+        prevStateEntry = entry;
+      } else if (entry.request.url.startsWith("/redux/")) {
+        const action = entry.request.text ?? entry.request.postData?.text;
+        const relatedVisitorIds = getRelatedVisitorIds(action, visitors);
+        if (relatedVisitorIds.length > 0) {
+          entry.comment = JSON.stringify({ relatedVisitorIds });
+          console.log("related visitor ids2", relatedVisitorIds);
+        }
+      }
+    }
     return json;
   } catch (e: any) {
     console.warn(`analysis failed: ${e}`);
     return json;
   }
+}
+
+function getState(entry: any) {
+  return JSON.parse(entry.response.content.text);
+}
+
+function getRelatedVisitorIds(
+  action: string,
+  visitors: Map<string, { id: string; chatIds: Set<string> }>,
+) {
+  const relatedVisitorIds = [];
+  for (const visitor of visitors.values()) {
+    if (action.includes(visitor.id)) {
+      relatedVisitorIds.push(visitor.id);
+    } else if (
+      Array.from(visitor.chatIds).some((chatId) => action.includes(chatId))
+    ) {
+      relatedVisitorIds.push(visitor.id);
+    }
+  }
+  return relatedVisitorIds;
 }
 
 async function toJsonFile(file: File) {

@@ -1,6 +1,9 @@
 module Table exposing
-    ( TableModel
+    ( TableFilter
+    , TableModel
     , TableMsg(..)
+    , VisitorInfo
+    , defaultTableFilter
     , defaultTableModel
     , getSelectedEntry
     , isScrollbarInBottom
@@ -10,16 +13,17 @@ module Table exposing
     , tableFilterView
     , tableView
     , updateTable
+    , visitorInfoDecoder
     )
 
 import Browser.Dom as Dom
 import Browser.Events exposing (onResize)
 import Dict exposing (Dict)
-import Har exposing (EntryKind(..), SortBy, SortOrder(..))
+import Har exposing (EntryKind(..), SortBy, SortOrder(..), entryContainsVisitorId)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Html.Lazy exposing (lazy3, lazy5, lazy7)
+import Html.Lazy exposing (lazy3, lazy5, lazy7, lazy8)
 import Icons
 import Json.Decode as D
 import Json.Encode as Encode
@@ -28,7 +32,7 @@ import List exposing (sortBy)
 import Task
 import Time exposing (Posix)
 import UndoList as UL exposing (UndoList)
-import Utils exposing (floatPx, intPx)
+import Utils exposing (GroupOption, floatPx, intPx)
 import Vim exposing (..)
 
 
@@ -70,8 +74,20 @@ getMinWidth columns columnId =
 type alias TableFilter =
     { match : String
     , kind : Maybe EntryKind
+    , highlightVisitorId : Maybe String
     , page : String
     }
+
+
+type alias VisitorInfo =
+    { id : String, name : String }
+
+
+visitorInfoDecoder : D.Decoder VisitorInfo
+visitorInfoDecoder =
+    D.map2 VisitorInfo
+        (D.field "id" D.string)
+        (D.field "name" D.string)
 
 
 type alias TableModel =
@@ -89,6 +105,7 @@ type alias TableModel =
     , search : SearchingState
     , searchHistory : UndoList String
     , selectHistory : UndoList String
+    , visitors : List VisitorInfo
     }
 
 
@@ -100,6 +117,15 @@ isSortByTime table =
 
         _ ->
             False
+
+
+defaultTableFilter : TableFilter
+defaultTableFilter =
+    { match = ""
+    , kind = Nothing
+    , highlightVisitorId = Nothing
+    , page = ""
+    }
 
 
 defaultTableModel : TableModel
@@ -126,11 +152,7 @@ defaultTableModel =
         ]
     , entries = []
     , entriesCount = 0
-    , filter =
-        { match = ""
-        , kind = Nothing
-        , page = ""
-        }
+    , filter = defaultTableFilter
     , href = ""
     , scrollTop = 0
     , waterfallMsPerPx = 10.0
@@ -139,6 +161,7 @@ defaultTableModel =
     , search = NotSearch
     , searchHistory = { present = "", past = [], future = [] }
     , selectHistory = { present = "", past = [], future = [] }
+    , visitors = []
     }
 
 
@@ -424,8 +447,8 @@ getSelectedEntry { selectHistory, entries } =
 -- VIEW
 
 
-entryView : Float -> List TableColumn -> String -> Posix -> List (Attribute TableMsg) -> Har.Entry -> Html TableMsg
-entryView msPerPx columns selected startTime attrs entry =
+entryView : Float -> List TableColumn -> String -> Posix -> List (Attribute TableMsg) -> Har.Entry -> String -> Html TableMsg
+entryView msPerPx columns selected startTime attrs entry highlightVisitorId =
     div
         (attrs
             ++ [ class
@@ -434,6 +457,16 @@ entryView msPerPx columns selected startTime attrs entry =
 
                      else
                         ""
+                    )
+               , class
+                    (if String.isEmpty highlightVisitorId then
+                        ""
+
+                     else if entryContainsVisitorId entry highlightVisitorId then
+                        ""
+
+                     else
+                        "darken"
                     )
                , id <| "entry" ++ entry.id
                , class "table-body-row"
@@ -703,13 +736,17 @@ scaleToWaterfallMsPerPx scale =
         |> Maybe.withDefault 10.0
 
 
-tableFilterOptions : List { value : String, label : String }
-tableFilterOptions =
-    [ { value = "", label = "All" }
-    , { value = "0", label = "Redux" }
-    , { value = "1", label = "Log" }
-    , { value = "2", label = "Http" }
-    , { value = "3", label = "Others" }
+tableFilterOptions : List VisitorInfo -> List GroupOption
+tableFilterOptions visitors =
+    [ { label = "", subitems = [ { value = "", label = "All" } ] }
+    , { label = "Redux"
+      , subitems =
+            { value = "0", label = "All" }
+                :: List.map (\{ id, name } -> { value = "0-" ++ id, label = name }) visitors
+      }
+    , { label = "", subitems = [ { value = "1", label = "Log" } ] }
+    , { label = "", subitems = [ { value = "2", label = "Http" } ] }
+    , { label = "", subitems = [ { value = "3", label = "Others" } ] }
     ]
 
 
@@ -758,8 +795,8 @@ importButton error =
         []
 
 
-tableFilterView : Bool -> Maybe String -> Bool -> List Har.Page -> TableFilter -> Html TableMsg
-tableFilterView liveSession error autoFocus pages filter =
+tableFilterView : Bool -> List VisitorInfo -> Maybe String -> Bool -> List Har.Page -> TableFilter -> Html TableMsg
+tableFilterView liveSession visitors error autoFocus pages filter =
     section [ class "table-filter" ]
         [ if liveSession then
             Icons.live
@@ -777,11 +814,12 @@ tableFilterView liveSession error autoFocus pages filter =
             , onEsc SelectTable
             ]
             []
-        , Utils.dropDownList
-            { value = Har.entryKindValue filter.kind
-            , onInput = Har.stringToEntryKind >> SelectKind
+        , Utils.dropDownListWithGroup
+            { value = Har.entryKindAndHighlightVisitorIdValue filter.kind filter.highlightVisitorId
+            , onInput = Har.stringToEntryKindAndHighlightVisitorId >> SelectKind
             }
-            tableFilterOptions
+          <|
+            tableFilterOptions visitors
         , if List.length pages <= 1 then
             text ""
 
@@ -803,8 +841,8 @@ tableFilterView liveSession error autoFocus pages filter =
         ]
 
 
-tableBodyEntriesView : Float -> List TableColumn -> String -> Bool -> Int -> List Har.Entry -> Int -> Html TableMsg
-tableBodyEntriesView msPerPx columns selected showDetail scrollTop entries viewportHeight =
+tableBodyEntriesView : Float -> List TableColumn -> String -> Bool -> Int -> List Har.Entry -> Int -> String -> Html TableMsg
+tableBodyEntriesView msPerPx columns selected showDetail scrollTop entries viewportHeight highlightVisitorId =
     let
         visibleColumns =
             if showDetail then
@@ -821,7 +859,9 @@ tableBodyEntriesView msPerPx columns selected showDetail scrollTop entries viewp
         , viewportHeight = viewportHeight
         , itemHeight = 20
         , items = entries
-        , renderItem = \attrs entry -> ( entry.id, entryView msPerPx visibleColumns selected startTime attrs entry )
+        , renderItem =
+            \attrs entry ->
+                ( entry.id, entryView msPerPx visibleColumns selected startTime attrs entry highlightVisitorId )
         }
 
 
@@ -851,8 +891,8 @@ waterfallGuideline msPerPx startTime guidelineLeft entries scrollTop =
         ]
 
 
-tableBodyView : SearchingState -> List String -> Float -> Posix -> List TableColumn -> Int -> String -> Bool -> List Har.Entry -> Int -> Int -> Html TableMsg
-tableBodyView search pendingKeys msPerPx startTime columns guidelineLeft selected showDetail entries scrollTop viewportHeight =
+tableBodyView : SearchingState -> List String -> Float -> Posix -> List TableColumn -> Int -> String -> Bool -> List Har.Entry -> Int -> Int -> Maybe String -> Html TableMsg
+tableBodyView search pendingKeys msPerPx startTime columns guidelineLeft selected showDetail entries scrollTop viewportHeight highlightVisitorId =
     div
         [ class "table-body"
         , id "table-body"
@@ -860,7 +900,7 @@ tableBodyView search pendingKeys msPerPx startTime columns guidelineLeft selecte
         , preventDefaultOn "keydown" (D.map (Tuple.mapFirst ExecuteAction) (keyDecoder scrollTop showDetail pendingKeys))
         , on "scroll" <| D.map (round >> Scroll) <| D.at [ "target", "scrollTop" ] D.float
         ]
-        [ lazy7 tableBodyEntriesView msPerPx columns selected showDetail scrollTop entries viewportHeight
+        [ lazy8 tableBodyEntriesView msPerPx columns selected showDetail scrollTop entries viewportHeight (Maybe.withDefault "" highlightVisitorId)
         , lazy3 tableBodySearchResultView search scrollTop viewportHeight
         , if showDetail then
             text ""
@@ -950,7 +990,7 @@ resolveSelected selected entries =
 
 
 tableView : Posix -> TableModel -> Bool -> Html TableMsg
-tableView startTime { entries, entriesCount, sortBy, columns, columnWidths, selectHistory, scrollTop, waterfallMsPerPx, viewportHeight, search, searchHistory, pendingKeys } showDetail =
+tableView startTime { entries, filter, entriesCount, sortBy, columns, columnWidths, selectHistory, scrollTop, waterfallMsPerPx, viewportHeight, search, searchHistory, pendingKeys } showDetail =
     let
         selected2 =
             resolveSelected selectHistory.present entries
@@ -1044,7 +1084,7 @@ tableView startTime { entries, entriesCount, sortBy, columns, columnWidths, sele
             _ ->
                 text ""
         , lazy7 tableHeadersView entriesCount waterfallMsPerPx startTime firstEntryStartTime sortBy columns showDetail2
-        , tableBodyView search pendingKeys waterfallMsPerPx startTime columns guidelineLeft selected2 showDetail2 entries scrollTop viewportHeight
+        , tableBodyView search pendingKeys waterfallMsPerPx startTime columns guidelineLeft selected2 showDetail2 entries scrollTop viewportHeight filter.highlightVisitorId
         , detailFirstColumnResizeDivider
         ]
 
@@ -1083,7 +1123,7 @@ type TableMsg
     | Scroll Int
     | ScrollToEntry String
     | InputFilter String
-    | SelectKind (Maybe EntryKind)
+    | SelectKind ( Maybe EntryKind, Maybe String )
     | SetWaterfallMsPerPx Float
     | SetViewportHeight Int
     | SelectTable
@@ -1181,7 +1221,7 @@ updateTable action log table =
         Scroll top ->
             ( { table | scrollTop = top }, Cmd.none )
 
-        SelectKind kind ->
+        SelectKind ( kind, highlightVisitorId ) ->
             let
                 newEntries =
                     Har.filterEntries table.filter.page table.filter.match kind log.entries
@@ -1192,7 +1232,7 @@ updateTable action log table =
             ( { table
                 | entries = newEntries
                 , entriesCount = List.length newEntries
-                , filter = { filter | kind = kind }
+                , filter = { filter | kind = kind, highlightVisitorId = highlightVisitorId }
               }
             , if table.selectHistory.present /= "" then
                 Cmd.batch

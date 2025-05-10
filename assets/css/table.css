@@ -156,6 +156,10 @@ ol.table-body {
   color: var(--selected-foreground-color);
 }
 
+.table-body-row.darken {
+  opacity: 0.5;
+}
+
 .table-body:focus-within .table-body-row:nth-child(odd).selected,
 .table-body:focus-within .table-body-row:nth-child(even).selected {
   background-color: var(--selected-background-color);
