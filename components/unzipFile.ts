@@ -4,13 +4,13 @@ export async function unzipFilesAndCreateCustomEvent(files: FileList) {
   const file = files?.[0];
   if (!file) {
     return new CustomEvent("error", {
-      detail: "Open failed: no file selected",
+      detail: "Open failed: no file selected"
     });
   }
 
   if (file.name.endsWith(".zip") && file.size > 1024 * 1024 * 100) {
     return new CustomEvent("error", {
-      detail: "Open failed: zip file is too large (> 100 MB)",
+      detail: "Open failed: zip file is too large (> 100 MB)"
     });
   }
 
@@ -23,22 +23,34 @@ export async function unzipFilesAndCreateCustomEvent(files: FileList) {
 
 export function analysis(json: any) {
   try {
-    const visitors: Map<string, { id: string; name: string }> = new Map();
+    const visitors: Map<
+      string,
+      { id: string; name: string; chatIds: Set<string>; siteId?: number }
+    > = new Map();
     for (const entry of json.log.entries) {
       if (entry.request.url.startsWith("/redux/state")) {
         const state = JSON.parse(entry.response.content.text);
         for (const visitor of Object.values(state.visitor.visitors) as any[]) {
-          visitors.set(visitor.id, {
-            id: visitor.id,
-            name: visitor.latestName,
-          });
+          const existingVisitor = visitors.get(visitor.id);
+          if (existingVisitor) {
+            if (visitor.chatId) existingVisitor.chatIds.add(visitor.chatId);
+            existingVisitor.siteId = visitor.siteId;
+            existingVisitor.name = visitor.latestName;
+          } else {
+            visitors.set(visitor.id, {
+              id: visitor.id,
+              name: visitor.latestName,
+              chatIds: new Set([visitor.chatId].filter(Boolean)),
+              siteId: visitor.siteId
+            });
+          }
         }
       }
     }
     json.log.comment = JSON.stringify({
       visitors: Array.from(visitors.values()).sort((a, b) =>
-        a.name.localeCompare(b.name),
-      ),
+        a.name.localeCompare(b.name)
+      )
     });
     console.log(json.log.comment);
     return json;
@@ -55,12 +67,12 @@ async function toJsonFile(file: File) {
       detail: {
         name: file.name,
         text,
-        json: analysis(JSON.parse(text)),
-      },
+        json: analysis(JSON.parse(text))
+      }
     });
   } catch (e) {
     return new CustomEvent("error", {
-      detail: "Open failed: invalid JSON file",
+      detail: "Open failed: invalid JSON file"
     });
   }
 }

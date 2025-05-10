@@ -1,6 +1,7 @@
 module Table exposing
     ( TableModel
     , TableMsg(..)
+    , VisitorInfo
     , defaultTableModel
     , getSelectedEntry
     , isScrollbarInBottom
@@ -10,6 +11,7 @@ module Table exposing
     , tableFilterView
     , tableView
     , updateTable
+    , visitorInfoDecoder
     )
 
 import Browser.Dom as Dom
@@ -28,7 +30,7 @@ import List exposing (sortBy)
 import Task
 import Time exposing (Posix)
 import UndoList as UL exposing (UndoList)
-import Utils exposing (floatPx, intPx)
+import Utils exposing (GroupOption, floatPx, intPx)
 import Vim exposing (..)
 
 
@@ -74,6 +76,17 @@ type alias TableFilter =
     }
 
 
+type alias VisitorInfo =
+    { id : String, name : String }
+
+
+visitorInfoDecoder : D.Decoder VisitorInfo
+visitorInfoDecoder =
+    D.map2 VisitorInfo
+        (D.field "id" D.string)
+        (D.field "name" D.string)
+
+
 type alias TableModel =
     { sortBy : SortBy
     , columnWidths : Dict String Int
@@ -89,6 +102,7 @@ type alias TableModel =
     , search : SearchingState
     , searchHistory : UndoList String
     , selectHistory : UndoList String
+    , visitors : List VisitorInfo
     }
 
 
@@ -139,6 +153,7 @@ defaultTableModel =
     , search = NotSearch
     , searchHistory = { present = "", past = [], future = [] }
     , selectHistory = { present = "", past = [], future = [] }
+    , visitors = []
     }
 
 
@@ -703,13 +718,17 @@ scaleToWaterfallMsPerPx scale =
         |> Maybe.withDefault 10.0
 
 
-tableFilterOptions : List { value : String, label : String }
-tableFilterOptions =
-    [ { value = "", label = "All" }
-    , { value = "0", label = "Redux" }
-    , { value = "1", label = "Log" }
-    , { value = "2", label = "Http" }
-    , { value = "3", label = "Others" }
+tableFilterOptions : List VisitorInfo -> List GroupOption
+tableFilterOptions visitors =
+    [ { label = "", subitems = [ { value = "", label = "All" } ] }
+    , { label = "Redux"
+      , subitems =
+            { value = "0", label = "All" }
+                :: List.map (\{ id, name } -> { value = "0-" ++ id, label = name }) visitors
+      }
+    , { label = "", subitems = [ { value = "1", label = "Log" } ] }
+    , { label = "", subitems = [ { value = "2", label = "Http" } ] }
+    , { label = "", subitems = [ { value = "3", label = "Others" } ] }
     ]
 
 
@@ -758,8 +777,8 @@ importButton error =
         []
 
 
-tableFilterView : Bool -> Maybe String -> Bool -> List Har.Page -> TableFilter -> Html TableMsg
-tableFilterView liveSession error autoFocus pages filter =
+tableFilterView : Bool -> List VisitorInfo -> Maybe String -> Bool -> List Har.Page -> TableFilter -> Html TableMsg
+tableFilterView liveSession visitors error autoFocus pages filter =
     section [ class "table-filter" ]
         [ if liveSession then
             Icons.live
@@ -777,11 +796,12 @@ tableFilterView liveSession error autoFocus pages filter =
             , onEsc SelectTable
             ]
             []
-        , Utils.dropDownList
+        , Utils.dropDownListWithGroup
             { value = Har.entryKindValue filter.kind
             , onInput = Har.stringToEntryKind >> SelectKind
             }
-            tableFilterOptions
+          <|
+            tableFilterOptions visitors
         , if List.length pages <= 1 then
             text ""
 
