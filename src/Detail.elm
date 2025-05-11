@@ -213,7 +213,7 @@ svgViewer svg =
         [ class "preview-svg"
         , srcdoc
             ("<style>"
-                ++ "html,body{margin:0;padding:0;width:100%;height:100%;}"
+                ++ "html,body{margin:0;padding:0;width:100%;height:100%;color-scheme: dark;}"
                 ++ "body{display:flex;justify-content:center;align-items:center;}"
                 -- safari browser need min-width 100%, otherwise some svg with no width will be too small
                 ++ "svg{max-width:100%;max-height:100%;margin:auto;min-width:100%;}"

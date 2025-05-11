@@ -1,3 +1,7 @@
+:root {
+  /* this affect scrollbar color on macOS */
+  color-scheme: dark;
+}
 .app {
   height: 100%;
   display: grid;
