@@ -5,7 +5,7 @@ import Har exposing (EntryKind(..))
 import Html exposing (..)
 import Html.Attributes as Attr exposing (class, property, src, srcdoc, style)
 import Html.Events exposing (..)
-import Html.Lazy exposing (lazy2, lazy3, lazy4, lazy5)
+import Html.Lazy exposing (lazy, lazy2, lazy3, lazy4, lazy5)
 import Icons
 import Iso8601
 import Json.Decode as Decode
@@ -141,6 +141,17 @@ codeEditor lang format content =
         , property "content" <| Encode.string content
         , property "language" <| Encode.string lang
         , property "format" <| Encode.bool format
+        ]
+        []
+
+
+codeDiffEditor : String -> String -> String -> Html msg
+codeDiffEditor lang original modified =
+    Html.node "monaco-diff-editor"
+        [ class "detail-body"
+        , property "original" <| Encode.string original
+        , property "modified" <| Encode.string modified
+        , property "language" <| Encode.string lang
         ]
         []
 
@@ -571,8 +582,8 @@ detailViewToolsOptions =
         )
 
 
-responseViewer : DetailViewTool -> Har.Entry -> Html msg
-responseViewer tool entry =
+responseView : DetailViewTool -> Har.Entry -> Html msg
+responseView tool entry =
     case entry.response.content.text of
         Just t ->
             case entry.response.content.mimeType of
@@ -698,6 +709,63 @@ toolsSelect tabName entryKind tool =
             (detailViewToolsOptions tools)
 
 
+stateChangeViewer : Har.Entry -> List Har.Entry -> Html msg
+stateChangeViewer entry entries =
+    case Har.getReduxState entry of
+        Just modified ->
+            case Har.findStateEntryAndPrevStateEntry entries entry.id of
+                ( _, Just prevEntry, _ ) ->
+                    case Har.getReduxState prevEntry of
+                        Just original ->
+                            codeDiffEditor "json" original modified
+
+                        _ ->
+                            text ""
+
+                _ ->
+                    text ""
+
+        _ ->
+            text ""
+
+
+headersView : Har.Entry -> Html msg
+headersView entry =
+    div
+        [ class "detail-body", class "detail-body-headers-container" ]
+        [ h3 [] [ text "Summary" ]
+        , div [ styleVar "--color" "var(--network-system-color)", class "detail-body-headers" ]
+            [ keyValueText { name = "URL", value = entry.request.url }
+            , keyValueText { name = "Method", value = String.toUpper entry.request.method }
+            , keyValueText { name = "Status", value = String.fromInt entry.response.status }
+            , keyValueText { name = "Address", value = Maybe.withDefault "" entry.serverIPAddress }
+            ]
+        , h3 [] [ text "Request Headers" ]
+        , div
+            [ styleVar "--color" "var(--network-header-color)"
+            , class "detail-body-headers"
+            ]
+            (List.map requestHeaderKeyValue entry.request.headers)
+        , h3 [] [ text "Response Headers" ]
+        , div
+            [ styleVar "--color" "var(--network-header-color)"
+            , class "detail-body-headers"
+            ]
+            (List.map keyValueText entry.response.headers)
+        , h3 [] [ text "Query String Parameters" ]
+        , div
+            [ styleVar "--color" "var(--text-color-tertiary)"
+            , class "detail-body-headers"
+            ]
+            (List.map keyValueText entry.request.queryString)
+        ]
+
+
+detailCloseButton : Html DetailMsg
+detailCloseButton =
+    button [ class "detail-close", onClick HideDetail ] [ Icons.close ]
+
+
 detailView : Bool -> Bool -> Bool -> List Har.Entry -> DetailModel -> String -> String -> Maybe String -> Har.Entry -> Html DetailMsg
 detailView liveSession isSnapshotPopout isSortByTime entries model href pageName highlightVisitorId entry =
     let
@@ -712,16 +780,16 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
     in
     section [ class "detail" ]
         [ div [ class "detail-header" ]
-            [ button [ class "detail-close", onClick HideDetail ] [ Icons.close ]
+            [ detailCloseButton
             , lazy2 detailTabs selected entry
             , lazy3 toolsSelect selected entryKind model.tool
             ]
-        , div [ style "display" "none" ] <|
-            if isSnapshotPopout then
+        , if isSnapshotPopout then
+            div [ style "display" "none" ]
                 [ lazy5 agentConsoleSnapshotPopout isSortByTime href pageName entries model.currentId ]
 
-            else
-                []
+          else
+            text ""
         , case selected of
             Preview ->
                 case entryKind of
@@ -738,63 +806,15 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
                             |> Maybe.withDefault noContent
 
                     _ ->
-                        responseViewer Auto entry
+                        responseView Auto entry
 
             Headers ->
-                div
-                    [ class "detail-body", class "detail-body-headers-container" ]
-                    [ h3 [] [ text "Summary" ]
-                    , div [ styleVar "--color" "var(--network-system-color)", class "detail-body-headers" ]
-                        [ keyValueText { name = "URL", value = entry.request.url }
-                        , keyValueText { name = "Method", value = String.toUpper entry.request.method }
-                        , keyValueText { name = "Status", value = String.fromInt entry.response.status }
-                        , keyValueText { name = "Address", value = Maybe.withDefault "" entry.serverIPAddress }
-                        ]
-                    , h3 [] [ text "Request Headers" ]
-                    , div
-                        [ styleVar "--color" "var(--network-header-color)"
-                        , class "detail-body-headers"
-                        ]
-                        (List.map requestHeaderKeyValue entry.request.headers)
-                    , h3 [] [ text "Response Headers" ]
-                    , div
-                        [ styleVar "--color" "var(--network-header-color)"
-                        , class "detail-body-headers"
-                        ]
-                        (List.map keyValueText entry.response.headers)
-                    , h3 [] [ text "Query String Parameters" ]
-                    , div
-                        [ styleVar "--color" "var(--text-color-tertiary)"
-                        , class "detail-body-headers"
-                        ]
-                        (List.map keyValueText entry.request.queryString)
-                    ]
+                lazy headersView entry
 
             Request ->
                 case entryKind of
                     ReduxState ->
-                        case Har.getReduxState entry of
-                            Just modified ->
-                                case Har.findStateEntryAndPrevStateEntry entries entry.id of
-                                    ( _, Just prevEntry, _ ) ->
-                                        case Har.getReduxState prevEntry of
-                                            Just original ->
-                                                Html.node "monaco-diff-editor"
-                                                    [ class "detail-body"
-                                                    , property "original" <| Encode.string original
-                                                    , property "modified" <| Encode.string modified
-                                                    , property "language" <| Encode.string "json"
-                                                    ]
-                                                    []
-
-                                            _ ->
-                                                text ""
-
-                                    _ ->
-                                        text ""
-
-                            _ ->
-                                text ""
+                        stateChangeViewer entry entries
 
                     _ ->
                         entry
@@ -803,7 +823,7 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
                             |> Maybe.withDefault noContent
 
             Response ->
-                responseViewer tool entry
+                responseView tool entry
         ]
 
 
