@@ -1,5 +1,10 @@
-import { html, css, LitElement, PropertyValues } from "lit";
+import { html, css, LitElement, PropertyValues, unsafeCSS } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
+import reloadToolbar from "../assets/images/ReloadToolbar.svg";
+import crosshair from "../assets/images/Crosshair.svg";
+import record from "../assets/images/Record.svg";
+import auditStart from "../assets/images/AuditStart.svg";
+import auditStop from "../assets/images/AuditStop.svg";
 
 type PlayingState = "paused" | "playing" | "live";
 
@@ -114,27 +119,68 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
       line-height: 0px;
       padding: 0;
     }
+
+    .icon {
+      display: inline-block;
+      fill: currentColor;
+      vertical-align: middle;
+      overflow: hidden;
+      flex: none;
+      color: currentColor;
+      background-color: currentColor;
+      width: 13px;
+      height: 13px;
+    }
+
+    .icon.reset {
+      mask: url("${unsafeCSS(reloadToolbar)}");
+      transform: rotate(200deg) scaleY(-1);
+    }
+    .icon.crosshair {
+      mask: url("${unsafeCSS(crosshair)}");
+    }
+    .icon.auditStart {
+      mask: url("${unsafeCSS(auditStart)}");
+    }
+    .icon.auditStop {
+      mask: url("${unsafeCSS(auditStop)}");
+    }
+    .icon.auditStart,
+    .icon.auditStop,
+    .icon.record {
+      position: relative;
+      top: -1px;
+      width: 12px;
+      height: 12px;
+    }
+    .icon.record {
+      content: url("${unsafeCSS(record)}");
+      background: none;
+    }
   `;
 
   private handleClickReset() {
     this.initById(this.initialId);
+    this.container?.focus();
   }
 
   private handleClickScroll() {
     this.dispatchEvent(new CustomEvent("scrollToCurrent", { detail: {} }));
+    this.container?.focus();
   }
 
   private fireIndexChange() {
     const id = this.items[this.index]!.id;
     this.dispatchEvent(
       new CustomEvent("change", {
-        detail: { id },
-      }),
+        detail: { id }
+      })
     );
   }
 
   private handleClickPlay() {
     this.togglePlayingState();
+    this.container?.focus();
   }
 
   private updateIndex(index: number) {
@@ -229,6 +275,9 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
     return `${(time / this.max) * 100}%`;
   }
 
+  @query(".container")
+  private container?: HTMLDivElement;
+
   render() {
     return html`<div
       class="container"
@@ -238,13 +287,17 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
     >
       <button @click=${this.handleClickPlay}>
         ${this.playingState === "live"
-          ? "🔴"
+          ? html`<i class="icon record"></i>`
           : this.playingState === "playing" && !this.isSeeking
-            ? "❚❚"
-            : "▶"}
+          ? html`<i class="icon auditStop"></i>`
+          : html`<i class="icon auditStart"></i>`}
       </button>
-      <button class="reset" @click=${this.handleClickReset}>↺</button>
-      <button class="reveal" @click=${this.handleClickScroll}>⇱</button>
+      <button class="reset" @click=${this.handleClickReset}>
+        <i class="icon reset"></i>
+      </button>
+      <button class="reveal" @click=${this.handleClickScroll}>
+        <i class="icon crosshair"></i>
+      </button>
       <div class="track" @mousedown=${this.handleMouseDownTrack}>
         <div
           class="currentTime"
@@ -252,9 +305,7 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
         ></div>
         ${this.items.map(
           (item) =>
-            html`<div
-              style="left: ${this.getTimePosPercent(item.time)}"
-            ></div>`,
+            html`<div style="left: ${this.getTimePosPercent(item.time)}"></div>`
         )}
       </div>
       <time>${((this.time - this.max) / 1000).toFixed(1)}s</time>
