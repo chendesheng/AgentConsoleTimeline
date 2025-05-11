@@ -31,6 +31,14 @@ export class OpenFileButton extends LitElement {
     span[data-position]:focus {
       color: var(--text-color-tertiary);
     }
+    .hex-row-data > main:nth-child(4),
+    .hex-row-data > main:nth-child(8),
+    .hex-row-data > main:nth-child(12),
+    .hex-row-data > main:nth-child(16),
+    .hex-row-data > main:nth-child(20),
+    .hex-row-data > main:nth-child(24) {
+      margin-right: 1ch;
+    }
     ${unsafeCSS(hexEditCss)}
   `;
 
@@ -42,7 +50,7 @@ export class OpenFileButton extends LitElement {
       this.editor = new HexEditor({
         target: this.shadowRoot,
         props: {
-          bytesPerLine: 16,
+          bytesPerLine: 28,
           readonly: true,
           width: "100%",
           height: "100%",
