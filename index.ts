@@ -9,6 +9,7 @@ import "./components/monacoEditor";
 import "./components/openFileButton";
 import "./components/dropZipFile";
 import { analysis } from "./components/unzipFile";
+import "./components/hexEditor";
 import {
   saveRecentFile,
   getFileContent,

@@ -24,3 +24,7 @@ declare module "*?worker" {
   };
   export default workerConstructor;
 }
+declare module "*.css?inline" {
+  const content: string;
+  export default content;
+}

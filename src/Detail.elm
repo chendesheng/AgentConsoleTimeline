@@ -138,6 +138,15 @@ codeEditor lang content =
         []
 
 
+hexEditor : String -> Html msg
+hexEditor content =
+    Html.node "hex-editor"
+        [ class "detail-body"
+        , property "data" <| Encode.string content
+        ]
+        []
+
+
 htmlViewer : String -> Html msg
 htmlViewer html =
     let
@@ -148,6 +157,31 @@ htmlViewer html =
                 |> Result.withDefault html
     in
     iframe [ class "preview", srcdoc s ] []
+
+
+fontViewer : String -> Html msg
+fontViewer font =
+    iframe
+        [ class "preview"
+        , srcdoc
+            ("<style>"
+                ++ "@font-face{font-family: preview;src: url(data:application/x-font-woff2;charset=utf-8;base64,"
+                ++ font
+                ++ ") format('woff2');}"
+                ++ "html,body{margin:0;padding:0;width:100%;height:100%;}"
+                ++ "body{text-align:center;white-space:wrap;display:flex;flex-direction:column;justify-content:center;}"
+                ++ "p{font-family:preview;font-size:50px;word-break:break-all;margin:0;}"
+                ++ "</style>"
+                ++ "<body>"
+                ++ "<p>ABCDEFGHIJKLM</p>"
+                ++ "<p>NOPQRSTUVWXYZ</p>"
+                ++ "<p>abcdefghijklm</p>"
+                ++ "<p>nopqrstuvwxyz</p>"
+                ++ "<p>1234567890</p>"
+                ++ "</body>"
+            )
+        ]
+        []
 
 
 svgViewer : String -> Html msg
@@ -536,12 +570,25 @@ responseViewer tool entry =
                             svgViewer t
 
                 "image/jpeg" ->
-                    imageViewer t
+                    case tool of
+                        Raw ->
+                            hexEditor t
+
+                        _ ->
+                            imageViewer t
 
                 "image/png" ->
-                    imageViewer t
+                    case tool of
+                        Raw ->
+                            hexEditor t
+
+                        _ ->
+                            imageViewer t
 
                 "text/javascript" ->
+                    codeEditor "javascript" t
+
+                "application/javascript" ->
                     codeEditor "javascript" t
 
                 "text/css" ->
@@ -554,6 +601,14 @@ responseViewer tool entry =
 
                         _ ->
                             htmlViewer t
+
+                "font/woff2" ->
+                    case tool of
+                        Raw ->
+                            hexEditor t
+
+                        _ ->
+                            fontViewer t
 
                 _ ->
                     jsonDataViewer tool (entryKind /= ReduxState) "detail-body" t

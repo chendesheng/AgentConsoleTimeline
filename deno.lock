@@ -11,6 +11,7 @@
     "npm:assert@^2.1.0": "2.1.0",
     "npm:elm@~0.19.1-6": "0.19.1-6",
     "npm:idb@8": "8.0.0",
+    "npm:js-hex-editor@0.1": "0.1.0",
     "npm:js-md5@~0.8.3": "0.8.3",
     "npm:json-keys-sort@^2.1.0": "2.1.0",
     "npm:jsondiffpatch@~0.7.3": "0.7.3",
@@ -782,6 +783,9 @@
     "isexe@2.0.0": {
       "integrity": "sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw=="
     },
+    "js-hex-editor@0.1.0": {
+      "integrity": "sha512-BsvPiWcMCeBb7JQ9WcwG8uSA1IPumlc1jZ5wEkL5B54+3eB41wIH8qEXF8uA343rvuXH8+pwosjBuPkBmh5RWQ=="
+    },
     "js-md5@0.8.3": {
       "integrity": "sha512-qR0HB5uP6wCuRMrWPTrkMaev7MJZwJuuw4fnwAzRgP4J4/F8RwtodOKpGp4XpqsLBFzzgqIO42efFAyz2Et6KQ=="
     },
@@ -1290,6 +1294,7 @@
         "npm:assert@^2.1.0",
         "npm:elm@~0.19.1-6",
         "npm:idb@8",
+        "npm:js-hex-editor@0.1",
         "npm:js-md5@~0.8.3",
         "npm:json-keys-sort@^2.1.0",
         "npm:jsondiffpatch@~0.7.3",
