@@ -160,6 +160,24 @@ htmlViewer html =
     iframe [ class "preview", srcdoc s ] []
 
 
+pdfViewer : String -> String -> Html msg
+pdfViewer html url =
+    iframe
+        [ class "preview"
+        , srcdoc <|
+            "<html><head><script>"
+                ++ "window.onload = function() {"
+                ++ "   document.body.innerHTML = window.atob(\""
+                ++ html
+                ++ "\").replace('about:blank', '"
+                ++ url
+                ++ "');"
+                ++ "}"
+                ++ "</script></head><body></body></html>"
+        ]
+        []
+
+
 fontViewer : String -> String -> Html msg
 fontViewer font format =
     iframe
@@ -631,6 +649,14 @@ responseViewer tool entry =
 
                         _ ->
                             fontViewer t "truetype"
+
+                "application/pdf" ->
+                    case tool of
+                        Raw ->
+                            hexEditor t
+
+                        _ ->
+                            pdfViewer t entry.request.url
 
                 _ ->
                     jsonDataViewer tool (entryKind /= ReduxState) "detail-body" t
