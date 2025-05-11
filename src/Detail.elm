@@ -5,7 +5,7 @@ import Har exposing (EntryKind(..))
 import Html exposing (..)
 import Html.Attributes as Attr exposing (class, property, src, srcdoc, style)
 import Html.Events exposing (..)
-import Html.Lazy exposing (lazy2, lazy4)
+import Html.Lazy exposing (lazy2, lazy3, lazy4, lazy5)
 import Icons
 import Iso8601
 import Json.Decode as Decode
@@ -29,7 +29,6 @@ type DetailTabName
     | Headers
     | Request
     | Response
-    | StateChanges
 
 
 type DetailViewTool
@@ -80,37 +79,44 @@ detailTab selected { name, label } =
         [ text label ]
 
 
+detailTabsByEntryKind : EntryKind -> List DetailTab
+detailTabsByEntryKind entryKind =
+    case entryKind of
+        ReduxState ->
+            [ { name = Preview, label = "Preview" }
+            , { name = Request, label = "Changes" }
+            , { name = Response, label = "Content" }
+            ]
+
+        ReduxAction ->
+            [ { name = Preview, label = "Preview" }
+            , { name = Request, label = "Action" }
+            , { name = Response, label = "Trace" }
+            ]
+
+        NetworkHttp ->
+            [ { name = Preview, label = "Preview" }
+            , { name = Headers, label = "Headers" }
+            , { name = Request, label = "Request" }
+            , { name = Response, label = "Response" }
+            ]
+
+        LogMessage ->
+            [ { name = Preview, label = "Preview" }
+            , { name = Response, label = "Content" }
+            ]
+
+        Others ->
+            [ { name = Preview, label = "Preview" }
+            , { name = Response, label = "Content" }
+            ]
+
+
 detailTabs : DetailTabName -> Har.Entry -> Html DetailMsg
 detailTabs selected entry =
     div [ class "detail-header-tabs" ] <|
         List.map (detailTab selected) <|
-            case Har.getEntryKind entry of
-                ReduxState ->
-                    [ { name = Preview, label = "Preview" }
-                    , { name = StateChanges, label = "Changes" }
-                    ]
-
-                ReduxAction ->
-                    [ { name = Preview, label = "Preview" }
-                    , { name = Request, label = "Action" }
-                    , { name = Response, label = "Trace" }
-                    ]
-
-                LogMessage ->
-                    [ { name = Preview, label = "Preview" }
-                    ]
-
-                Others ->
-                    [ { name = Preview, label = "Preview" }
-                    , { name = Response, label = "Content" }
-                    ]
-
-                _ ->
-                    [ { name = Preview, label = "Preview" }
-                    , { name = Headers, label = "Headers" }
-                    , { name = Request, label = "Request" }
-                    , { name = Response, label = "Response" }
-                    ]
+            detailTabsByEntryKind (Har.getEntryKind entry)
 
 
 jsonViewer : Bool -> String -> String -> Html msg
@@ -224,11 +230,11 @@ svgViewer svg =
         []
 
 
-jsonDataViewer : DetailViewTool -> Bool -> String -> String -> Html msg
-jsonDataViewer tool initialExpanded className json =
+jsonDataViewer : DetailViewTool -> Bool -> Bool -> String -> String -> Html msg
+jsonDataViewer tool initialExpanded format className json =
     case tool of
         Raw ->
-            codeEditor "json" False json
+            codeEditor "json" format json
 
         _ ->
             jsonViewer initialExpanded className json
@@ -494,38 +500,27 @@ detailViewContainer liveSession isSnapshotPopout isSortByTime href filter select
         text ""
 
 
-resolveSelectedTab : DetailTabName -> Har.Entry -> DetailTabName
-resolveSelectedTab tab entry =
-    case Har.getEntryKind entry of
-        ReduxState ->
-            case tab of
-                Request ->
-                    Preview
+resolveSelectedTab : DetailTabName -> EntryKind -> DetailTabName
+resolveSelectedTab tab entryKind =
+    entryKind
+        |> detailTabsByEntryKind
+        |> Utils.findItem (\{ name } -> name == tab)
+        |> Maybe.map .name
+        |> Maybe.withDefault Preview
 
-                Headers ->
-                    Preview
 
-                _ ->
-                    tab
-
-        ReduxAction ->
-            case tab of
-                Headers ->
-                    Preview
-
-                StateChanges ->
-                    Preview
+resolveSelectedTool : DetailTabName -> EntryKind -> DetailViewTool -> DetailViewTool
+resolveSelectedTool tabName entryKind tool =
+    getTools tabName entryKind
+        |> Utils.findItem (\t -> t == tool)
+        |> Maybe.withDefault
+            (case entryKind of
+                ReduxState ->
+                    Auto
 
                 _ ->
-                    tab
-
-        _ ->
-            case tab of
-                StateChanges ->
-                    Preview
-
-                _ ->
-                    tab
+                    Raw
+            )
 
 
 viewToolToString : DetailViewTool -> String
@@ -578,10 +573,6 @@ detailViewToolsOptions =
 
 responseViewer : DetailViewTool -> Har.Entry -> Html msg
 responseViewer tool entry =
-    let
-        entryKind =
-            Har.getEntryKind entry
-    in
     case entry.response.content.text of
         Just t ->
             case entry.response.content.mimeType of
@@ -659,66 +650,75 @@ responseViewer tool entry =
                             pdfViewer t entry.request.url
 
                 _ ->
-                    jsonDataViewer tool (entryKind /= ReduxState) "detail-body" t
+                    let
+                        entryKind =
+                            Har.getEntryKind entry
+                    in
+                    jsonDataViewer
+                        tool
+                        (entryKind /= ReduxState)
+                        (entryKind /= NetworkHttp)
+                        "detail-body"
+                        t
 
         _ ->
             noContent
 
 
+getTools : DetailTabName -> EntryKind -> List DetailViewTool
+getTools tabName entryKind =
+    case ( tabName, entryKind ) of
+        ( Request, ReduxAction ) ->
+            [ JsonTree, Raw ]
+
+        ( Response, ReduxAction ) ->
+            [ JsonTree, Raw ]
+
+        ( Response, ReduxState ) ->
+            [ JsonTree, Raw ]
+
+        _ ->
+            []
+
+
+toolsSelect : DetailTabName -> EntryKind -> DetailViewTool -> Html DetailMsg
+toolsSelect tabName entryKind tool =
+    let
+        tools =
+            getTools tabName entryKind
+    in
+    if List.isEmpty tools then
+        text ""
+
+    else
+        Utils.dropDownList
+            { value = viewToolToString tool
+            , onInput = stringToViewTool >> ChangeViewTool
+            }
+            (detailViewToolsOptions tools)
+
+
 detailView : Bool -> Bool -> Bool -> List Har.Entry -> DetailModel -> String -> String -> Maybe String -> Har.Entry -> Html DetailMsg
 detailView liveSession isSnapshotPopout isSortByTime entries model href pageName highlightVisitorId entry =
     let
-        selected =
-            resolveSelectedTab model.tab entry
-
         entryKind =
             Har.getEntryKind entry
 
-        tools =
-            case selected of
-                Preview ->
-                    case entryKind of
-                        ReduxState ->
-                            [ Auto, JsonTree, Raw ]
+        selected =
+            resolveSelectedTab model.tab entryKind
 
-                        ReduxAction ->
-                            [ Auto, JsonTree, Raw ]
-
-                        NetworkHttp ->
-                            [ Auto, Raw ]
-
-                        _ ->
-                            []
-
-                Headers ->
-                    []
-
-                Request ->
-                    [ Auto, Raw ]
-
-                Response ->
-                    [ Auto, Raw ]
-
-                StateChanges ->
-                    []
+        tool =
+            resolveSelectedTool selected entryKind model.tool
     in
     section [ class "detail" ]
         [ div [ class "detail-header" ]
             [ button [ class "detail-close", onClick HideDetail ] [ Icons.close ]
             , lazy2 detailTabs selected entry
-            , if List.isEmpty tools then
-                text ""
-
-              else
-                Utils.dropDownList
-                    { value = viewToolToString model.tool
-                    , onInput = stringToViewTool >> ChangeViewTool
-                    }
-                    (detailViewToolsOptions tools)
+            , lazy3 toolsSelect selected entryKind model.tool
             ]
         , div [ style "display" "none" ] <|
             if isSnapshotPopout then
-                [ agentConsoleSnapshotPopout isSortByTime href pageName entries model.currentId ]
+                [ lazy5 agentConsoleSnapshotPopout isSortByTime href pageName entries model.currentId ]
 
             else
                 []
@@ -734,11 +734,11 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
                     LogMessage ->
                         entry
                             |> Har.getLogMessage
-                            |> Maybe.map (jsonDataViewer model.tool True "detail-body")
+                            |> Maybe.map (jsonViewer True "detail-body")
                             |> Maybe.withDefault noContent
 
                     _ ->
-                        responseViewer model.tool entry
+                        responseViewer Auto entry
 
             Headers ->
                 div
@@ -771,42 +771,24 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
                     ]
 
             Request ->
-                entry
-                    |> Har.getRequestBody
-                    |> Maybe.map (jsonDataViewer model.tool True "detail-body")
-                    |> Maybe.withDefault noContent
+                case entryKind of
+                    ReduxState ->
+                        case Har.getReduxState entry of
+                            Just modified ->
+                                case Har.findStateEntryAndPrevStateEntry entries entry.id of
+                                    ( _, Just prevEntry, _ ) ->
+                                        case Har.getReduxState prevEntry of
+                                            Just original ->
+                                                Html.node "monaco-diff-editor"
+                                                    [ class "detail-body"
+                                                    , property "original" <| Encode.string original
+                                                    , property "modified" <| Encode.string modified
+                                                    , property "language" <| Encode.string "json"
+                                                    ]
+                                                    []
 
-            Response ->
-                responseViewer model.tool entry
-
-            StateChanges ->
-                let
-                    lang =
-                        case entryKind of
-                            NetworkHttp ->
-                                case Url.fromString entry.request.url of
-                                    Just { path } ->
-                                        Utils.getLanguage path
-
-                                    _ ->
-                                        "json"
-
-                            _ ->
-                                "json"
-                in
-                case Har.getReduxState entry of
-                    Just modified ->
-                        case Har.findStateEntryAndPrevStateEntry entries entry.id of
-                            ( _, Just prevEntry, _ ) ->
-                                case Har.getReduxState prevEntry of
-                                    Just original ->
-                                        Html.node "monaco-diff-editor"
-                                            [ class "detail-body"
-                                            , property "original" <| Encode.string original
-                                            , property "modified" <| Encode.string modified
-                                            , property "language" <| Encode.string lang
-                                            ]
-                                            []
+                                            _ ->
+                                                text ""
 
                                     _ ->
                                         text ""
@@ -815,7 +797,13 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
                                 text ""
 
                     _ ->
-                        text ""
+                        entry
+                            |> Har.getRequestBody
+                            |> Maybe.map (jsonDataViewer tool True True "detail-body")
+                            |> Maybe.withDefault noContent
+
+            Response ->
+                responseViewer tool entry
         ]
 
 
