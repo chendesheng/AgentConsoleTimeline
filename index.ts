@@ -8,12 +8,13 @@ import "./components/resizeDivider";
 import "./components/monacoEditor";
 import "./components/openFileButton";
 import "./components/dropZipFile";
+import "./components/hexEditor";
 import {
   saveRecentFile,
   getFileContent,
   getRecentFiles,
   clearRecentFile,
-  deleteRecentFile,
+  deleteRecentFile
 } from "./components/recentFiles";
 import { Elm } from "./src/Main.elm";
 
@@ -29,8 +30,8 @@ async function main() {
     flags: {
       recentFiles,
       remoteAddress:
-        import.meta.env.REMOTE_ADDRESS ?? "agentconsoledebugger.deno.dev",
-    },
+        import.meta.env.REMOTE_ADDRESS ?? "agentconsoledebugger.deno.dev"
+    }
   });
 
   app.ports.saveRecentFile.subscribe(({ fileName, fileContent }) => {
@@ -77,8 +78,8 @@ async function main() {
       // console.log('onopen', event);
       socket.send(
         JSON.stringify({
-          type: "connect",
-        }),
+          type: "connect"
+        })
       );
     };
 
