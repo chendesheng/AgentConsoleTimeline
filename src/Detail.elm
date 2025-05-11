@@ -128,12 +128,13 @@ imageViewer image =
     img [ class "preview-image", src <| "data:image/jpeg;base64," ++ image ] []
 
 
-codeEditor : String -> String -> Html msg
-codeEditor lang content =
+codeEditor : String -> Bool -> String -> Html msg
+codeEditor lang format content =
     Html.node "monaco-editor"
         [ class "detail-body"
         , property "content" <| Encode.string content
         , property "language" <| Encode.string lang
+        , property "format" <| Encode.bool format
         ]
         []
 
@@ -159,15 +160,19 @@ htmlViewer html =
     iframe [ class "preview", srcdoc s ] []
 
 
-fontViewer : String -> Html msg
-fontViewer font =
+fontViewer : String -> String -> Html msg
+fontViewer font format =
     iframe
         [ class "preview"
         , srcdoc
             ("<style>"
-                ++ "@font-face{font-family: preview;src: url(data:application/x-font-woff2;charset=utf-8;base64,"
+                ++ "@font-face{font-family: preview;src: url(data:application/x-font-"
+                ++ format
+                ++ ";charset=utf-8;base64,"
                 ++ font
-                ++ ") format('woff2');}"
+                ++ ") format('"
+                ++ format
+                ++ "');}"
                 ++ "html,body{margin:0;padding:0;width:100%;height:100%;}"
                 ++ "body{text-align:center;white-space:wrap;display:flex;flex-direction:column;justify-content:center;}"
                 ++ "p{font-family:preview;font-size:50px;word-break:break-all;margin:0;}"
@@ -205,7 +210,7 @@ jsonDataViewer : DetailViewTool -> Bool -> String -> String -> Html msg
 jsonDataViewer tool initialExpanded className json =
     case tool of
         Raw ->
-            codeEditor "json" json
+            codeEditor "json" False json
 
         _ ->
             jsonViewer initialExpanded className json
@@ -233,7 +238,7 @@ reduxStateViewer liveSession tool isSortByTime entries href pageName currentId e
                 ( _, Just entry, _ ) ->
                     entry
                         |> Har.getReduxState
-                        |> Maybe.map (codeEditor "json")
+                        |> Maybe.map (codeEditor "json" True)
                         |> Maybe.withDefault noContent
 
                 _ ->
@@ -565,7 +570,7 @@ responseViewer tool entry =
                 "image/svg+xml" ->
                     case tool of
                         Raw ->
-                            codeEditor "html" t
+                            codeEditor "html" False t
 
                         _ ->
                             svgViewer t
@@ -587,18 +592,18 @@ responseViewer tool entry =
                             imageViewer t
 
                 "text/javascript" ->
-                    codeEditor "javascript" t
+                    codeEditor "javascript" (tool /= Raw) t
 
                 "application/javascript" ->
-                    codeEditor "javascript" t
+                    codeEditor "javascript" (tool /= Raw) t
 
                 "text/css" ->
-                    codeEditor "css" t
+                    codeEditor "css" (tool /= Raw) t
 
                 "text/html" ->
                     case tool of
                         Raw ->
-                            codeEditor "html" t
+                            codeEditor "html" False t
 
                         _ ->
                             htmlViewer t
@@ -609,7 +614,23 @@ responseViewer tool entry =
                             hexEditor t
 
                         _ ->
-                            fontViewer t
+                            fontViewer t "woff2"
+
+                "font/woff" ->
+                    case tool of
+                        Raw ->
+                            hexEditor t
+
+                        _ ->
+                            fontViewer t "woff"
+
+                "font/ttf" ->
+                    case tool of
+                        Raw ->
+                            hexEditor t
+
+                        _ ->
+                            fontViewer t "truetype"
 
                 _ ->
                     jsonDataViewer tool (entryKind /= ReduxState) "detail-body" t
