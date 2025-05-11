@@ -17,7 +17,6 @@ module Utils exposing
     , getLast
     , indexOf
     , intPx
-    , isHtml
     , isMember
     , resizeDivider
     , styles

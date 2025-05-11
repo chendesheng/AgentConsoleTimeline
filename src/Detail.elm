@@ -123,6 +123,11 @@ jsonViewer initialExpanded className json =
         []
 
 
+imageViewer : String -> Html msg
+imageViewer image =
+    img [ class "preview-image", src <| "data:image/jpeg;base64," ++ image ] []
+
+
 codeEditor : String -> String -> Html msg
 codeEditor lang content =
     Html.node "monaco-editor"
@@ -140,7 +145,7 @@ htmlViewer html =
         s =
             html
                 |> Decode.decodeString Decode.string
-                |> Result.withDefault ""
+                |> Result.withDefault html
     in
     iframe [ class "preview", srcdoc s ] []
 
@@ -513,6 +518,50 @@ detailViewToolsOptions =
         )
 
 
+responseViewer : DetailViewTool -> Har.Entry -> Html msg
+responseViewer tool entry =
+    let
+        entryKind =
+            Har.getEntryKind entry
+    in
+    case entry.response.content.text of
+        Just t ->
+            case entry.response.content.mimeType of
+                "image/svg+xml" ->
+                    case tool of
+                        Raw ->
+                            codeEditor "html" t
+
+                        _ ->
+                            svgViewer t
+
+                "image/jpeg" ->
+                    imageViewer t
+
+                "image/png" ->
+                    imageViewer t
+
+                "text/javascript" ->
+                    codeEditor "javascript" t
+
+                "text/css" ->
+                    codeEditor "css" t
+
+                "text/html" ->
+                    case tool of
+                        Raw ->
+                            codeEditor "html" t
+
+                        _ ->
+                            htmlViewer t
+
+                _ ->
+                    jsonDataViewer tool (entryKind /= ReduxState) "detail-body" t
+
+        _ ->
+            noContent
+
+
 detailView : Bool -> Bool -> Bool -> List Har.Entry -> DetailModel -> String -> String -> Maybe String -> Har.Entry -> Html DetailMsg
 detailView liveSession isSnapshotPopout isSortByTime entries model href pageName highlightVisitorId entry =
     let
@@ -586,42 +635,7 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
                             |> Maybe.withDefault noContent
 
                     _ ->
-                        case entry.response.content.text of
-                            Just t ->
-                                case entry.response.content.mimeType of
-                                    "image/svg+xml" ->
-                                        case model.tool of
-                                            Raw ->
-                                                codeEditor "html" t
-
-                                            _ ->
-                                                svgViewer t
-
-                                    "image/jpeg" ->
-                                        img [ class "preview-image", src <| "data:image/jpeg;base64," ++ t ] []
-
-                                    "image/png" ->
-                                        img [ class "preview-image", src <| "data:image/png;base64," ++ t ] []
-
-                                    "text/javascript" ->
-                                        codeEditor "javascript" t
-
-                                    "text/css" ->
-                                        codeEditor "css" t
-
-                                    "text/html" ->
-                                        case model.tool of
-                                            Raw ->
-                                                codeEditor "html" t
-
-                                            _ ->
-                                                htmlViewer t
-
-                                    _ ->
-                                        jsonDataViewer model.tool True "detail-body" t
-
-                            _ ->
-                                noContent
+                        responseViewer model.tool entry
 
             Headers ->
                 div
@@ -660,12 +674,7 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
                     |> Maybe.withDefault noContent
 
             Response ->
-                case entry.response.content.text of
-                    Just t ->
-                        jsonDataViewer model.tool (entryKind /= ReduxState) "detail-body" t
-
-                    _ ->
-                        noContent
+                responseViewer model.tool entry
 
             StateChanges ->
                 let
