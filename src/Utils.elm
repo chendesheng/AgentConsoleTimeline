@@ -32,7 +32,6 @@ import Html.Keyed as Keyed
 import Iso8601
 import Json.Decode as D
 import Json.Encode as Encode
-import Regex
 import String exposing (fromFloat, fromInt)
 import Time
 
@@ -466,46 +465,3 @@ getLanguage path =
 
     else
         "json"
-
-
-isHtml : String -> Bool
-isHtml content =
-    -- guess if it is html, not a good solution
-    let
-        s =
-            String.toLower content
-
-        reTags =
-            [ "html"
-            , "body"
-            , "div"
-            , "p"
-            , "span"
-            , "ul"
-            , "ol"
-            , "li"
-            , "a"
-            , "h1"
-            , "h2"
-            , "h3"
-            , "h4"
-            , "h5"
-            , "h6"
-            , "a"
-            , "h1"
-            , "h2"
-            , "h3"
-            , "h4"
-            , "h5"
-            , "h6"
-            , "img"
-            ]
-                |> List.map (\tag -> "<\\/" ++ tag ++ ">")
-                |> String.join "|"
-                |> Regex.fromString
-                |> Maybe.withDefault Regex.never
-    in
-    s
-        |> Regex.find reTags
-        |> List.isEmpty
-        |> not

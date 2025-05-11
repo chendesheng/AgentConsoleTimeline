@@ -133,6 +133,34 @@ codeEditor lang content =
         []
 
 
+htmlViewer : String -> Html msg
+htmlViewer html =
+    let
+        -- FIXME: decodeString here is wired
+        s =
+            html
+                |> Decode.decodeString Decode.string
+                |> Result.withDefault ""
+    in
+    iframe [ class "preview", srcdoc s ] []
+
+
+svgViewer : String -> Html msg
+svgViewer svg =
+    iframe
+        [ class "preview-svg"
+        , srcdoc
+            ("<style>"
+                ++ "html,body{margin:0;padding:0;width:100%;height:100%;}"
+                ++ "body{display:flex;justify-content:center;align-items:center;}"
+                ++ "svg{max-width:100%;max-height:100%;margin:auto;}"
+                ++ "</style>"
+                ++ svg
+            )
+        ]
+        []
+
+
 jsonDataViewer : DetailViewTool -> Bool -> String -> String -> Html msg
 jsonDataViewer tool initialExpanded className json =
     case tool of
@@ -140,18 +168,7 @@ jsonDataViewer tool initialExpanded className json =
             codeEditor "json" json
 
         _ ->
-            if Utils.isHtml json then
-                let
-                    -- FIXME: decodeString here is wired
-                    s =
-                        json
-                            |> Decode.decodeString Decode.string
-                            |> Result.withDefault ""
-                in
-                iframe [ class "preview", srcdoc s ] []
-
-            else
-                jsonViewer initialExpanded className json
+            jsonViewer initialExpanded className json
 
 
 reduxStateViewer : Bool -> DetailViewTool -> Bool -> List Har.Entry -> String -> String -> String -> String -> Maybe String -> Html DetailMsg
@@ -578,18 +595,7 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
                                                 codeEditor "html" t
 
                                             _ ->
-                                                iframe
-                                                    [ class "preview-svg"
-                                                    , srcdoc
-                                                        ("<style>"
-                                                            ++ "html,body{margin:0;padding:0;width:100%;height:100%;}"
-                                                            ++ "body{display:flex;justify-content:center;align-items:center;}"
-                                                            ++ "svg{max-width:100%;max-height:100%;margin:auto;}"
-                                                            ++ "</style>"
-                                                            ++ t
-                                                        )
-                                                    ]
-                                                    []
+                                                svgViewer t
 
                                     "image/jpeg" ->
                                         img [ class "preview-image", src <| "data:image/jpeg;base64," ++ t ] []
@@ -602,6 +608,14 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
 
                                     "text/css" ->
                                         codeEditor "css" t
+
+                                    "text/html" ->
+                                        case model.tool of
+                                            Raw ->
+                                                codeEditor "html" t
+
+                                            _ ->
+                                                htmlViewer t
 
                                     _ ->
                                         jsonDataViewer model.tool True "detail-body" t
