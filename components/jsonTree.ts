@@ -200,7 +200,7 @@ export class JsonTree extends LitElement {
                     Filter</button
                   >&nbsp;
                   <button tabindex="0" @click=${this.handleParseNestedJson}>
-                    ${this._showNestedJson ? "▼" : "►"} Nested
+                    ${this._showNestedJson ? "▼" : "▶"} Nested
                   </button>
                 </div>
               `}
@@ -270,7 +270,7 @@ const isTimestamp = (o: any, path: (string | number)[] = []) => {
     ["agent", "loggedInTime"],
     ["config", "preference", "lastStatusChangedTime"],
     ["config", "preference", "loginTime"],
-    ["visitor", "lastGetSegmentChangedTime"],
+    ["visitor", "lastGetSegmentChangedTime"]
   ];
   for (const p of timestampPath) {
     if (equals(path, p)) {
@@ -288,7 +288,7 @@ function tryParseNestedJson(o: any, path: (string | number)[] = []): any {
   if (typeof o === "string") {
     if (
       o.startsWith(
-        "eyJhbGciOiJodHRwOi8vd3d3LnczLm9yZy8yMDAxLzA0L3htbGRzaWctbW9yZSNyc2Etc2hhMjU2IiwidHlwIjoiSldUIn0",
+        "eyJhbGciOiJodHRwOi8vd3d3LnczLm9yZy8yMDAxLzA0L3htbGRzaWctbW9yZSNyc2Etc2hhMjU2IiwidHlwIjoiSldUIn0"
       )
     ) {
       return parseToken(o);
