@@ -24,3 +24,5 @@ log = "0.4"
 tauri = { version = "2.5.0", features = ["devtools"] }
 tauri-plugin-log = "2.0.0-rc"
 tauri-plugin-window-state = "2.0.0"
+tauri-plugin-fs = "2"
+tauri-plugin-dialog = "2"

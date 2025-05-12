@@ -9,7 +9,7 @@ import HarDecoder exposing (decodeHar)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Html.Lazy exposing (lazy3, lazy5, lazy8)
+import Html.Lazy exposing (lazy3, lazy5, lazy6, lazy8)
 import Initial exposing (InitialModel, InitialMsg(..), defaultInitialModel, initialView, updateInitial)
 import Json.Decode as Decode
 import List
@@ -97,9 +97,10 @@ viewOpened model =
                 "app"
                 DropFile
                 [ Html.map TableAction
-                    (lazy5
+                    (lazy6
                         tableFilterView
                         (isLiveSession model.fileName)
+                        model.dropFile.fileContentString
                         model.dropFile.error
                         True
                         model.log.pages

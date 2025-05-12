@@ -106,7 +106,7 @@ initialView : InitialModel -> Html InitialMsg
 initialView model =
     dropFileView "app initial-container"
         DropFile
-        [ Html.map (\_ -> NoOp) <| tableFilterView False Nothing False [] { match = "", kind = Nothing, page = "" }
+        [ Html.map (\_ -> NoOp) <| tableFilterView False "" Nothing False [] { match = "", kind = Nothing, page = "" }
         , Html.map (\_ -> NoOp) (lazy3 tableView (Time.millisToPosix 0) Table.defaultTableModel False)
         , div [ class "initial-dialog-container" ] <|
             case model.waitingRemoteSession of

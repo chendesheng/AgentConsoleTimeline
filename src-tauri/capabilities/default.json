@@ -2,7 +2,9 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "enables the default permissions",
-  "windows": ["*"],
+  "windows": [
+    "*"
+  ],
   "permissions": [
     "core:default",
     "core:event:default",
@@ -13,6 +15,8 @@
     "core:window:allow-close",
     "core:window:allow-create",
     "core:window:allow-set-title",
-    "core:menu:allow-set-as-window-menu"
+    "core:menu:allow-set-as-window-menu",
+    "fs:allow-app-write",
+    "dialog:default"
   ]
 }

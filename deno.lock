@@ -6,6 +6,8 @@
     "npm:@monaco-editor/loader@^1.5.0": "1.5.0",
     "npm:@tauri-apps/api@^2.5.0": "2.5.0",
     "npm:@tauri-apps/cli@^2.5.0": "2.5.0",
+    "npm:@tauri-apps/plugin-dialog@~2.2.1": "2.2.1",
+    "npm:@tauri-apps/plugin-fs@~2.2.1": "2.2.1",
     "npm:@tauri-apps/plugin-window-state@^2.2.2": "2.2.2",
     "npm:@types/json-diff@^1.0.3": "1.0.3",
     "npm:assert@^2.1.0": "2.1.0",
@@ -363,6 +365,18 @@
         "@tauri-apps/cli-win32-x64-msvc"
       ],
       "bin": true
+    },
+    "@tauri-apps/plugin-dialog@2.2.1": {
+      "integrity": "sha512-wZmCouo4PgTosh/UoejPw9DPs6RllS5Pp3fuOV2JobCu36mR5AXU2MzU9NZiVaFi/5Zfc8RN0IhcZHnksJ1o8A==",
+      "dependencies": [
+        "@tauri-apps/api"
+      ]
+    },
+    "@tauri-apps/plugin-fs@2.2.1": {
+      "integrity": "sha512-KdGzvvA4Eg0Dhw55MwczFbjxLxsTx0FvwwC/0StXlr6IxwPUxh5ziZQoaugkBFs8t+wfebdQrjBEzd8NmmDXNw==",
+      "dependencies": [
+        "@tauri-apps/api"
+      ]
     },
     "@tauri-apps/plugin-window-state@2.2.2": {
       "integrity": "sha512-7pFwmMtGhhhE/WgmM7PUrj0BSSWVAQMfDdYbRalphIqqF1tWBvxtlxclx8bTutpXHLJTQoCpIeWtBEIXsoAlGw==",
@@ -1274,6 +1288,8 @@
         "npm:@monaco-editor/loader@^1.5.0",
         "npm:@tauri-apps/api@^2.5.0",
         "npm:@tauri-apps/cli@^2.5.0",
+        "npm:@tauri-apps/plugin-dialog@~2.2.1",
+        "npm:@tauri-apps/plugin-fs@~2.2.1",
         "npm:@tauri-apps/plugin-window-state@^2.2.2",
         "npm:@types/json-diff@^1.0.3",
         "npm:assert@^2.1.0",

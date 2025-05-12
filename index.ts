@@ -7,6 +7,7 @@ import "./components/agentConsoleSnapshotPlayer";
 import "./components/resizeDivider";
 import "./components/monacoEditor";
 import "./components/openFileButton";
+import "./components/downloadFileButton";
 import "./components/dropZipFile";
 import {
   saveRecentFile,

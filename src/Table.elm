@@ -759,8 +759,19 @@ importButton error =
         []
 
 
-tableFilterView : Bool -> Maybe String -> Bool -> List Har.Page -> TableFilter -> Html TableMsg
-tableFilterView liveSession error autoFocus pages filter =
+exportButton : String -> String -> Html TableMsg
+exportButton name content =
+    Html.node "download-file-button"
+        [ property "icon" <| Encode.string "export"
+        , property "label" <| Encode.string "Export"
+        , property "name" <| Encode.string name
+        , property "content" <| Encode.string content
+        ]
+        []
+
+
+tableFilterView : Bool -> String -> Maybe String -> Bool -> List Har.Page -> TableFilter -> Html TableMsg
+tableFilterView liveSession fileContentString error autoFocus pages filter =
     section [ class "table-filter" ]
         [ if liveSession then
             Icons.live
@@ -794,13 +805,7 @@ tableFilterView liveSession error autoFocus pages filter =
                 (List.map (\page -> { value = page.id, label = page.id }) pages)
         , div [ class "actions" ]
             [ importButton error
-            , button
-                [ class "export"
-                , class "text"
-                , class "icon-button"
-                , onClick Export
-                ]
-                [ Icons.export, text "Export" ]
+            , exportButton "test.har" fileContentString
             ]
         ]
 
