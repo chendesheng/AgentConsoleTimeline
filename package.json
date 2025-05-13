@@ -8,7 +8,6 @@
     "server": "deno run  --allow-read --allow-net server/server.ts",
     "clean": "rm -rf dist",
     "release": "vite build --base=./",
-    "postrelease": "cp -r ./node_modules/monaco-editor/min/vs ./dist",
     "build": "tsc && elm make src/Main.elm --debug --output=dist/elm.js",
     "check": "tsc --noEmit",
     "tauri": "tauri"
@@ -18,7 +17,6 @@
   "license": "ISC",
   "dependencies": {
     "@alenaksu/json-viewer": "^2.1.2",
-    "@monaco-editor/loader": "^1.5.0",
     "@tauri-apps/api": "^2.5.0",
     "@tauri-apps/plugin-window-state": "^2.2.2",
     "idb": "^8.0.0",
@@ -28,7 +26,8 @@
     "json-keys-sort": "^2.1.0",
     "jsondiffpatch": "^0.7.3",
     "jszip": "^3.10.1",
-    "lit": "^3.1.2"
+    "lit": "^3.1.2",
+    "monaco-editor": "^0.52.2"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.5.0",
@@ -36,13 +35,13 @@
     "@types/js-beautify": "^1.14.3",
     "assert": "^2.1.0",
     "elm": "^0.19.1-6",
-    "monaco-editor": "^0.52.2",
     "os-browserify": "^0.3.0",
     "process": "^0.11.10",
     "ts-lit-plugin": "^2.0.2",
     "typescript": "^5.4.4",
     "util": "^0.12.5",
     "vite": "^5.4.3",
-    "vite-plugin-elm": "^3.0.1"
+    "vite-plugin-elm": "^3.0.1",
+    "vite-plugin-monaco-editor-esm": "^2.0.2"
   }
 }
