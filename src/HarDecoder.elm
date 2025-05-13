@@ -1,4 +1,4 @@
-module HarDecoder exposing (decodeHar, entryDecoder)
+module HarDecoder exposing (decodeHar, entryDecoder, harDecoder)
 
 import Har exposing (..)
 import Iso8601

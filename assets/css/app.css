@@ -221,3 +221,7 @@
   gap: 4px;
   flex-flow: row;
 }
+
+select>option {
+  background-color: var(--background-color-content);
+}

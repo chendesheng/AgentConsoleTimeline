@@ -8,13 +8,15 @@ import "./components/resizeDivider";
 import "./components/monacoEditor";
 import "./components/openFileButton";
 import "./components/dropZipFile";
+import { analysis } from "./components/unzipFile";
 import "./components/hexEditor";
 import {
   saveRecentFile,
   getFileContent,
   getRecentFiles,
   clearRecentFile,
-  deleteRecentFile
+  deleteRecentFile,
+  getFileName,
 } from "./components/recentFiles";
 import { Elm } from "./src/Main.elm";
 
@@ -30,17 +32,22 @@ async function main() {
     flags: {
       recentFiles,
       remoteAddress:
-        import.meta.env.REMOTE_ADDRESS ?? "agentconsoledebugger.deno.dev"
-    }
+        import.meta.env.REMOTE_ADDRESS ?? "agentconsoledebugger.deno.dev",
+    },
   });
 
   app.ports.saveRecentFile.subscribe(({ fileName, fileContent }) => {
     saveRecentFile(fileName, fileContent);
   });
 
-  app.ports.getFileContent.subscribe(async (fileName) => {
-    const content = await getFileContent(fileName);
-    app.ports.gotFileContent.send(content);
+  app.ports.getFileContent.subscribe(async (key) => {
+    const content = await getFileContent(key);
+    const name = await getFileName(key);
+    app.ports.gotFileContent.send({
+      name,
+      text: content,
+      json: analysis(JSON.parse(content)),
+    });
   });
 
   app.ports.clearRecentFiles.subscribe(async () => {
@@ -78,8 +85,8 @@ async function main() {
       // console.log('onopen', event);
       socket.send(
         JSON.stringify({
-          type: "connect"
-        })
+          type: "connect",
+        }),
       );
     };
 

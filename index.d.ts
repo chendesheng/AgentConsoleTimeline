@@ -13,6 +13,10 @@ declare module "*.elm" {
   };
 }
 
+declare module "jsondiffpatch" {
+  export function diff(a: any, b: any): any;
+}
+
 declare module "*.svg" {
   const content: string;
   export default content;
