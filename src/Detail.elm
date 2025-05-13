@@ -3,8 +3,9 @@ module Detail exposing (DetailModel, DetailMsg(..), defaultDetailModel, detailVi
 import Browser.Dom as Dom
 import Har exposing (EntryKind(..))
 import Html exposing (..)
-import Html.Attributes as Attr exposing (class, property, src, srcdoc, style)
+import Html.Attributes as Attr exposing (attribute, class, property, src, srcdoc, style)
 import Html.Events exposing (..)
+import Html.Keyed as Keyed
 import Html.Lazy exposing (lazy, lazy2, lazy3, lazy4, lazy5)
 import Icons
 import Iso8601
@@ -193,6 +194,23 @@ pdfViewer html url =
                 ++ "</script></head><body></body></html>"
         ]
         []
+
+
+audioViewer : String -> String -> String -> Html msg
+audioViewer mime id audio =
+    -- use keyed node to recreate audio element when id changed, otherwise we need call the .load method which is not supported in elm
+    Keyed.node "div"
+        [ class "detail-body audio" ]
+        [ ( id
+          , Html.audio
+                [ Attr.controls True
+                , Attr.autoplay False
+                , attribute "autobuffer" "autobuffer"
+                ]
+                [ Html.source [ src ("data:" ++ mime ++ ";base64," ++ audio) ] []
+                ]
+          )
+        ]
 
 
 fontViewer : String -> String -> Html msg
@@ -627,6 +645,22 @@ responseView tool entry =
 
                         _ ->
                             htmlViewer t
+
+                "audio/mpeg" ->
+                    case tool of
+                        Raw ->
+                            hexEditor t
+
+                        _ ->
+                            audioViewer "audio/mpeg" entry.id t
+
+                "audio/wav" ->
+                    case tool of
+                        Raw ->
+                            hexEditor t
+
+                        _ ->
+                            audioViewer "audio/wav" entry.id t
 
                 "font/woff2" ->
                     case tool of

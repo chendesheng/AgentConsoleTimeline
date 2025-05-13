@@ -69,6 +69,13 @@
   flex: auto;
   overflow: auto;
 }
+
+.detail-body.audio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .detail-body-empty {
   padding-top: 12px;
   padding-left: 12px;
