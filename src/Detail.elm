@@ -269,35 +269,6 @@ jsonDataViewer tool initialExpanded format className json =
             jsonViewer initialExpanded className json
 
 
-reduxStateViewer : Bool -> DetailViewTool -> Bool -> List Har.Entry -> String -> String -> String -> String -> Maybe String -> Html DetailMsg
-reduxStateViewer liveSession tool isSortByTime entries href pageName currentId entryId highlightVisitorId =
-    case tool of
-        Auto ->
-            agentConsoleSnapshot liveSession isSortByTime entries href pageName currentId entryId highlightVisitorId
-
-        JsonTree ->
-            case Har.findStateEntryAndPrevStateEntry entries currentId of
-                ( _, Just entry, _ ) ->
-                    entry
-                        |> Har.getReduxState
-                        |> Maybe.map (jsonViewer True "detail-body")
-                        |> Maybe.withDefault noContent
-
-                _ ->
-                    noContent
-
-        _ ->
-            case Har.findStateEntryAndPrevStateEntry entries currentId of
-                ( _, Just entry, _ ) ->
-                    entry
-                        |> Har.getReduxState
-                        |> Maybe.map (codeEditor "json" True)
-                        |> Maybe.withDefault noContent
-
-                _ ->
-                    noContent
-
-
 agentConsoleSnapshotPlayer : Bool -> List Har.Entry -> String -> Maybe String -> Html DetailMsg
 agentConsoleSnapshotPlayer liveSession entries initialId highlightVisitorId =
     let
