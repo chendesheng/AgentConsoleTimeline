@@ -302,12 +302,30 @@ export class AgentConsoleSnapshot extends LitElement {
         >
         <div class="select">
           <select @input=${this.handleSrcSelectInput}>
-            ${platformPrefixes.map(
-              (p) =>
-                html`<option value=${p} ?selected=${p === prefix}>
-                  ${p}
-                </option>`,
-            )}
+            <optgroup label="WAN">
+              ${wanTestPlatformsPrefixes.map(
+                (p) =>
+                  html`<option value=${p} ?selected=${p === prefix}>
+                    ${p}
+                  </option>`,
+              )}
+            </optgroup>
+            <optgroup label="LAN">
+              ${lanTestPlatformsPrefixes.map(
+                (p) =>
+                  html`<option value=${p} ?selected=${p === prefix}>
+                    ${p}
+                  </option>`,
+              )}
+            </optgroup>
+            <optgroup label="Production">
+              ${productionPlatformsPrefixes.map(
+                (p) =>
+                  html`<option value=${p} ?selected=${p === prefix}>
+                    ${p}
+                  </option>`,
+              )}
+            </optgroup>
           </select>
         </div>
         <span>${rest}</span>
@@ -348,7 +366,7 @@ export class AgentConsoleSnapshot extends LitElement {
   }
 }
 
-const platformPrefixes = [
+const wanTestPlatformsPrefixes = [
   "https://canvasdash.testing.comm100dev.io",
   "https://customreportdash.testing.comm100dev.io",
   "https://global9dash.testing.comm100dev.io",
@@ -361,11 +379,9 @@ const platformPrefixes = [
   "https://ticketing3dash.testing.comm100dev.io",
   "https://van100dash.testing.comm100dev.io",
   "https://dash11staging.comm100.io",
-  "https://dash11.comm100.io",
-  "https://dash12.comm100.io",
-  "https://dash13.comm100.io",
-  "https://dash15.comm100.io",
-  "https://dash17.comm100.io",
+];
+
+const lanTestPlatformsPrefixes = [
   "http://localhost:34500",
   "https://canvasdash.comm100dev.io",
   "https://customreportdash.comm100dev.io",
@@ -378,4 +394,12 @@ const platformPrefixes = [
   "https://ticketing2dash.comm100dev.io",
   "https://ticketing3dash.comm100dev.io",
   "https://van100dash.comm100dev.io",
+];
+
+const productionPlatformsPrefixes = [
+  "https://dash11.comm100.io",
+  "https://dash12.comm100.io",
+  "https://dash13.comm100.io",
+  "https://dash15.comm100.io",
+  "https://dash17.comm100.io",
 ];
