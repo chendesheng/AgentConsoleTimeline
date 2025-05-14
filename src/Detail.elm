@@ -3,8 +3,9 @@ module Detail exposing (DetailModel, DetailMsg(..), defaultDetailModel, detailVi
 import Browser.Dom as Dom
 import Har exposing (EntryKind(..))
 import Html exposing (..)
-import Html.Attributes as Attr exposing (class, property, src, srcdoc, style)
+import Html.Attributes as Attr exposing (attribute, class, property, src, srcdoc, style)
 import Html.Events exposing (..)
+import Html.Keyed as Keyed
 import Html.Lazy exposing (lazy, lazy2, lazy3, lazy4, lazy5)
 import Icons
 import Iso8601
@@ -195,6 +196,23 @@ pdfViewer html url =
         []
 
 
+audioViewer : String -> String -> String -> Html msg
+audioViewer mime id audio =
+    -- use keyed node to recreate audio element when id changed, otherwise we need call the .load method which is not supported in elm
+    Keyed.node "div"
+        [ class "detail-body audio" ]
+        [ ( id
+          , Html.audio
+                [ Attr.controls True
+                , Attr.autoplay False
+                , attribute "autobuffer" "autobuffer"
+                ]
+                [ Html.source [ src ("data:" ++ mime ++ ";base64," ++ audio) ] []
+                ]
+          )
+        ]
+
+
 fontViewer : String -> String -> Html msg
 fontViewer font format =
     iframe
@@ -251,35 +269,6 @@ jsonDataViewer tool initialExpanded format className json =
             jsonViewer initialExpanded className json
 
 
-reduxStateViewer : Bool -> DetailViewTool -> Bool -> List Har.Entry -> String -> String -> String -> String -> Maybe String -> Html DetailMsg
-reduxStateViewer liveSession tool isSortByTime entries href pageName currentId entryId highlightVisitorId =
-    case tool of
-        Auto ->
-            agentConsoleSnapshot liveSession isSortByTime entries href pageName currentId entryId highlightVisitorId
-
-        JsonTree ->
-            case Har.findStateEntryAndPrevStateEntry entries currentId of
-                ( _, Just entry, _ ) ->
-                    entry
-                        |> Har.getReduxState
-                        |> Maybe.map (jsonViewer True "detail-body")
-                        |> Maybe.withDefault noContent
-
-                _ ->
-                    noContent
-
-        _ ->
-            case Har.findStateEntryAndPrevStateEntry entries currentId of
-                ( _, Just entry, _ ) ->
-                    entry
-                        |> Har.getReduxState
-                        |> Maybe.map (codeEditor "json" True)
-                        |> Maybe.withDefault noContent
-
-                _ ->
-                    noContent
-
-
 agentConsoleSnapshotPlayer : Bool -> List Har.Entry -> String -> Maybe String -> Html DetailMsg
 agentConsoleSnapshotPlayer liveSession entries initialId highlightVisitorId =
     let
@@ -289,7 +278,7 @@ agentConsoleSnapshotPlayer liveSession entries initialId highlightVisitorId =
                 |> Har.sortEntries ( "time", Har.Asc )
 
         firstEntryStartTime =
-            Har.getFirstEntryStartTime entries 0
+            Har.getFirstEntryStartTime stateEntries 0
 
         lastEntryStartTime =
             Utils.getLast stateEntries
@@ -628,6 +617,22 @@ responseView tool entry =
                         _ ->
                             htmlViewer t
 
+                "audio/mpeg" ->
+                    case tool of
+                        Raw ->
+                            hexEditor t
+
+                        _ ->
+                            audioViewer "audio/mpeg" entry.id t
+
+                "audio/wav" ->
+                    case tool of
+                        Raw ->
+                            hexEditor t
+
+                        _ ->
+                            audioViewer "audio/wav" entry.id t
+
                 "font/woff2" ->
                     case tool of
                         Raw ->
@@ -794,10 +799,10 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
             Preview ->
                 case entryKind of
                     ReduxState ->
-                        reduxStateViewer liveSession model.tool isSortByTime entries href pageName model.currentId entry.id highlightVisitorId
+                        agentConsoleSnapshot liveSession isSortByTime entries href pageName model.currentId entry.id highlightVisitorId
 
                     ReduxAction ->
-                        reduxStateViewer liveSession model.tool isSortByTime entries href pageName model.currentId entry.id highlightVisitorId
+                        agentConsoleSnapshot liveSession isSortByTime entries href pageName model.currentId entry.id highlightVisitorId
 
                     LogMessage ->
                         entry

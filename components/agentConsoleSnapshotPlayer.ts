@@ -116,7 +116,10 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
       border-top: 1px solid var(--current-time-color, red);
     }
     .track > div.darken {
-      opacity: 0.3;
+      opacity: 0.5;
+    }
+    .track > div.highlight {
+      background-color: red;
     }
     button.reset,
     button.reveal {
@@ -314,7 +317,7 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
             html`<div
               class=${this.highlightVisitorId
                 ? item.comment?.includes(this.highlightVisitorId)
-                  ? ""
+                  ? "highlight"
                   : "darken"
                 : ""}
               style="left: ${this.getTimePosPercent(item.time)}"

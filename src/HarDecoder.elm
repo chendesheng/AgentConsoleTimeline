@@ -8,17 +8,8 @@ import Url exposing (percentDecode)
 
 
 decodeHar : String -> Result Decode.Error Log
-decodeHar str =
-    case decodeString harDecoder str of
-        Ok { log } ->
-            Ok
-                { log
-                    | entries =
-                        List.sortBy (\entry -> Time.posixToMillis entry.startedDateTime) log.entries
-                }
-
-        Err err ->
-            Err err
+decodeHar =
+    decodeString harDecoder >> Result.map .log
 
 
 harDecoder : Decoder HarFile
@@ -42,7 +33,9 @@ entriesDecoder : Decoder (List Entry)
 entriesDecoder =
     Decode.map
         (\entries ->
-            List.indexedMap (\i entry -> { entry | id = String.fromInt i }) entries
+            entries
+                |> List.indexedMap (\i entry -> { entry | id = String.fromInt i })
+                |> List.sortBy (\entry -> Time.posixToMillis entry.startedDateTime)
         )
         (list entryDecoder)
 

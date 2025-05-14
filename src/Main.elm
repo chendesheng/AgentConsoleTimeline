@@ -47,7 +47,7 @@ type Model
 
 type alias OpenedModel =
     { table : TableModel
-    , timezone : Maybe Time.Zone
+    , timezone : Time.Zone
     , detail : DetailModel
     , clientInfo : ClientInfo
     , fileName : String
@@ -63,7 +63,10 @@ init remoteAddress recentFiles =
             defaultInitialModel remoteAddress
     in
     ( Initial <| { model | recentFiles = recentFiles }
-    , Remote.getSessions remoteAddress (GotRemoteSessions >> InitialMsg)
+    , Cmd.batch
+        [ Remote.getSessions remoteAddress (GotRemoteSessions >> InitialMsg)
+        , Task.perform (InitialMsg << GotTimezone) Time.here
+        ]
     )
 
 
@@ -78,50 +81,45 @@ isLiveSession fileName =
 
 viewOpened : OpenedModel -> Html OpenedMsg
 viewOpened model =
-    case model.timezone of
-        Just _ ->
-            let
-                startTime =
-                    model.log.entries
-                        |> Utils.findItem (\entry -> entry.pageref == Just model.table.filter.page)
-                        |> Maybe.map .startedDateTime
-                        |> Maybe.withDefault (Time.millisToPosix 0)
+    let
+        startTime =
+            model.log.entries
+                |> Utils.findItem (\entry -> entry.pageref == Just model.table.filter.page)
+                |> Maybe.map .startedDateTime
+                |> Maybe.withDefault (Time.millisToPosix 0)
 
-                table =
-                    model.table
+        table =
+            model.table
 
-                detail =
-                    model.detail
-            in
-            dropFileView
-                "app"
-                DropFile
-                [ Html.map TableAction
-                    (lazy6
-                        tableFilterView
-                        (isLiveSession model.fileName)
-                        table.visitors
-                        model.dropFile.error
-                        True
-                        model.log.pages
-                        table.filter
-                    )
-                , Html.map TableAction (lazy3 tableView startTime table detail.show)
-                , Html.map DetailAction
-                    (lazy8 detailViewContainer
-                        (isLiveSession model.fileName)
-                        model.detail.snapshotPopout
-                        (isSortByTime table)
-                        table.href
-                        table.filter
-                        table.selectHistory.present
-                        table.entries
-                        model.detail
-                    )
-                ]
-
-        _ ->
-            div [] [ text "Loading..." ]
+        detail =
+            model.detail
+    in
+    dropFileView
+        "app"
+        DropFile
+        [ Html.map TableAction
+            (lazy6
+                tableFilterView
+                (isLiveSession model.fileName)
+                table.visitors
+                model.dropFile.error
+                True
+                model.log.pages
+                table.filter
+            )
+        , Html.map TableAction (lazy3 tableView startTime table detail.show)
+        , Html.map DetailAction
+            (lazy8 detailViewContainer
+                (isLiveSession model.fileName)
+                model.detail.snapshotPopout
+                (isSortByTime table)
+                table.href
+                table.filter
+                table.selectHistory.present
+                table.entries
+                model.detail
+            )
+        ]
 
 
 view : Model -> Html Msg
@@ -146,14 +144,13 @@ type Msg
 
 type OpenedMsg
     = TableAction TableMsg
-    | GotTimezone Time.Zone
     | DetailAction DetailMsg
     | DropFile DropFileMsg
     | AddHarEntries (List Har.Entry)
 
 
-initOpened : String -> String -> Har.Log -> Maybe Int -> ( OpenedModel, Cmd OpenedMsg )
-initOpened fileName fileContent log initialViewportHeight =
+initOpened : Time.Zone -> String -> String -> Har.Log -> Maybe Int -> ( OpenedModel, Cmd OpenedMsg )
+initOpened timezone fileName fileContent log initialViewportHeight =
     let
         filter =
             defaultTableModel.filter
@@ -161,12 +158,18 @@ initOpened fileName fileContent log initialViewportHeight =
         clientInfo =
             Har.getClientInfo log.entries
 
+        page =
+            log.pages |> List.head |> Maybe.map .id |> Maybe.withDefault ""
+
+        filteredEntries =
+            Har.filterByPage page log.entries
+
         table =
             { defaultTableModel
-                | entries = log.entries
-                , entriesCount = List.length log.entries
+                | entries = filteredEntries
+                , entriesCount = List.length filteredEntries
                 , viewportHeight = Maybe.withDefault 0 initialViewportHeight
-                , filter = { filter | page = log.pages |> List.head |> Maybe.map .id |> Maybe.withDefault "" }
+                , filter = { filter | page = page }
                 , href =
                     case log.pages |> List.head |> Maybe.map .title of
                         Just title ->
@@ -193,7 +196,7 @@ initOpened fileName fileContent log initialViewportHeight =
             isLiveSession fileName
     in
     ( { table = table
-      , timezone = Nothing
+      , timezone = timezone
       , detail = Detail.defaultDetailModel
       , clientInfo = clientInfo
       , fileName = fileName
@@ -207,11 +210,11 @@ initOpened fileName fileContent log initialViewportHeight =
                     else
                         fileName
                 , fileContentString = fileContent
+                , fileContent = Just log
             }
       }
     , Cmd.batch
-        [ Task.perform GotTimezone Time.here
-        , Task.attempt (\_ -> TableAction Table.NoOp) <| Dom.setViewportOf "table-body" 0 0
+        [ Task.attempt (\_ -> TableAction Table.NoOp) <| Dom.setViewportOf "table-body" 0 0
         , closePopoutWindow ()
         , case initialViewportHeight of
             Nothing ->
@@ -233,6 +236,11 @@ initOpened fileName fileContent log initialViewportHeight =
 
           else
             saveRecentFile { fileName = fileName, fileContent = fileContent }
+        , if isLive then
+            Cmd.map TableAction <| scrollToBottom table
+
+          else
+            Cmd.none
         ]
     )
 
@@ -250,6 +258,7 @@ update msg model =
                                     let
                                         ( m, cmd2 ) =
                                             initOpened
+                                                newModel.timezone
                                                 (Maybe.withDefault newModel.dropFile.fileName newModel.waitingRemoteSession)
                                                 newModel.dropFile.fileContentString
                                                 log
@@ -324,44 +333,6 @@ updateOpened msg model =
             , Cmd.map TableAction cmd
             )
 
-        -- TODO: setup timezone at the initial UI
-        GotTimezone tz ->
-            let
-                log =
-                    model.log
-
-                table =
-                    model.table
-
-                entries =
-                    List.map
-                        (\entry ->
-                            { entry
-                                | startedDateTimeStr =
-                                    Utils.formatTime tz entry.startedDateTime
-                            }
-                        )
-                        log.entries
-
-                tableEntries =
-                    Har.filterByPage table.filter.page entries
-            in
-            ( { model
-                | timezone = Just tz
-                , table =
-                    { table
-                        | entries = tableEntries
-                        , entriesCount = List.length tableEntries
-                    }
-                , log = { log | entries = entries }
-              }
-            , if isLiveSession model.fileName then
-                Cmd.map TableAction <| scrollToBottom table
-
-              else
-                Cmd.none
-            )
-
         DetailAction detailMsg ->
             let
                 ( detail, cmd ) =
@@ -385,9 +356,14 @@ updateOpened msg model =
         DropFile dropMsg ->
             let
                 ( dropFile, cmd ) =
-                    DropFile.dropFileUpdate dropMsg model.dropFile
+                    DropFile.dropFileUpdate model.timezone dropMsg model.dropFile
             in
-            ( { model | dropFile = dropFile }, Cmd.map DropFile cmd )
+            case ( dropMsg, dropFile.fileContent ) of
+                ( GotJsonFile _, Just log ) ->
+                    initOpened model.timezone dropFile.fileName dropFile.fileContentString log Nothing
+
+                _ ->
+                    ( { model | dropFile = dropFile }, Cmd.map DropFile cmd )
 
         AddHarEntries newEntries ->
             let
@@ -410,7 +386,7 @@ updateOpened msg model =
                                 { entry
                                     | id = String.fromInt (count + i)
                                     , startedDateTimeStr =
-                                        Utils.formatTime (Maybe.withDefault Time.utc model.timezone) entry.startedDateTime
+                                        Utils.formatTime model.timezone entry.startedDateTime
                                 }
                             )
                             newEntries

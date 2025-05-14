@@ -8,6 +8,8 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (on)
 import Json.Decode as D
 import JsonFile exposing (JsonFile, jsonFileDecoder)
+import Time
+import Utils
 
 
 
@@ -42,8 +44,23 @@ type DropFileMsg
     | DownloadFile
 
 
-dropFileUpdate : DropFileMsg -> DropFileModel -> ( DropFileModel, Cmd DropFileMsg )
-dropFileUpdate msg model =
+updateEntriesTime : Time.Zone -> Har.Log -> Har.Log
+updateEntriesTime timezone log =
+    { log
+        | entries =
+            List.map
+                (\entry ->
+                    { entry
+                        | startedDateTimeStr =
+                            Utils.formatTime timezone entry.startedDateTime
+                    }
+                )
+                log.entries
+    }
+
+
+dropFileUpdate : Time.Zone -> DropFileMsg -> DropFileModel -> ( DropFileModel, Cmd DropFileMsg )
+dropFileUpdate timezone msg model =
     case msg of
         NoOp ->
             ( model, Cmd.none )
@@ -59,7 +76,7 @@ dropFileUpdate msg model =
                 , fileContent =
                     case res of
                         Ok harFile ->
-                            Just harFile.log
+                            Just <| updateEntriesTime timezone harFile.log
 
                         Err _ ->
                             Nothing

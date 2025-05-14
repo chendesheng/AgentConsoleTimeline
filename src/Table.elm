@@ -468,6 +468,13 @@ entryView msPerPx columns selected startTime attrs entry highlightVisitorId =
                      else
                         "darken"
                     )
+               , class
+                    (if entry.request.method == "OPTIONS" then
+                        "darken"
+
+                     else
+                        ""
+                    )
                , id <| "entry" ++ entry.id
                , class "table-body-row"
                , on "click"
@@ -770,6 +777,8 @@ waterfallScaleOptions =
     , { value = "2x", label = "2x" }
     , { value = "3x", label = "3x" }
     , { value = "4x", label = "4x" }
+    , { value = "5x", label = "5x" }
+    , { value = "6x", label = "6x" }
     ]
 
 
