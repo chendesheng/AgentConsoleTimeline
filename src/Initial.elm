@@ -26,6 +26,7 @@ type alias InitialModel =
     , remoteSessionIds : List String
     , waitingRemoteSession : Maybe String
     , remoteAddress : String
+    , timezone : Time.Zone
     }
 
 
@@ -36,6 +37,7 @@ defaultInitialModel remoteAddress =
     , remoteSessionIds = []
     , waitingRemoteSession = Nothing
     , remoteAddress = remoteAddress
+    , timezone = Time.utc
     }
 
 
@@ -150,6 +152,7 @@ type InitialMsg
     | GotRemoteSessions (List String)
     | ClickRemoteSession String
     | CloseRemote
+    | GotTimezone Time.Zone
 
 
 updateInitial : InitialMsg -> InitialModel -> ( InitialModel, Cmd InitialMsg )
@@ -170,7 +173,7 @@ updateInitial msg model =
         DropFile dropMsg ->
             let
                 ( newDropFile, cmd ) =
-                    DropFile.dropFileUpdate dropMsg model.dropFile
+                    DropFile.dropFileUpdate model.timezone dropMsg model.dropFile
             in
             ( { model | dropFile = newDropFile }, Cmd.map DropFile cmd )
 
@@ -190,3 +193,6 @@ updateInitial msg model =
             ( { model | recentFiles = List.filter (\f -> f.key /= key) model.recentFiles }
             , deleteRecentFile key
             )
+
+        GotTimezone zone ->
+            ( { model | timezone = zone }, Cmd.none )
