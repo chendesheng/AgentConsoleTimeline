@@ -468,6 +468,13 @@ entryView msPerPx columns selected startTime attrs entry highlightVisitorId =
                      else
                         "darken"
                     )
+               , class
+                    (if entry.request.method == "OPTIONS" then
+                        "darken"
+
+                     else
+                        ""
+                    )
                , id <| "entry" ++ entry.id
                , class "table-body-row"
                , on "click"
