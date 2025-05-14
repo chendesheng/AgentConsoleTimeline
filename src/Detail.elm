@@ -130,9 +130,9 @@ jsonViewer initialExpanded className json =
         []
 
 
-imageViewer : String -> Html msg
-imageViewer image =
-    img [ class "preview-image", src <| "data:image/jpeg;base64," ++ image ] []
+imageViewer : String -> String -> Html msg
+imageViewer image mimeType =
+    img [ class "preview-image", src <| "data:" ++ mimeType ++ ";base64," ++ image ] []
 
 
 codeEditor : String -> Bool -> String -> Html msg
@@ -478,6 +478,11 @@ noContent =
     div [ class "detail-body", class "detail-body-empty" ] [ text "No content" ]
 
 
+previewNotAvailable : Html msg
+previewNotAvailable =
+    div [ class "detail-body", class "detail-body-empty" ] [ text "Preview not available" ]
+
+
 styleVar : String -> String -> Attribute msg
 styleVar name value =
     property "style" <| Encode.string (name ++ ": " ++ value)
@@ -575,8 +580,12 @@ responseView : DetailViewTool -> Har.Entry -> Html msg
 responseView tool entry =
     case entry.response.content.text of
         Just t ->
-            case entry.response.content.mimeType of
-                "image/svg+xml" ->
+            let
+                mimeType =
+                    entry.response.content.mimeType
+            in
+            case String.split "/" mimeType of
+                [ "image", "svg+xml" ] ->
                     case tool of
                         Raw ->
                             codeEditor "html" False t
@@ -584,32 +593,24 @@ responseView tool entry =
                         _ ->
                             svgViewer t
 
-                "image/jpeg" ->
+                [ "image", _ ] ->
                     case tool of
                         Raw ->
                             hexEditor t
 
                         _ ->
-                            imageViewer t
+                            imageViewer t mimeType
 
-                "image/png" ->
-                    case tool of
-                        Raw ->
-                            hexEditor t
-
-                        _ ->
-                            imageViewer t
-
-                "text/javascript" ->
+                [ "text", "javascript" ] ->
                     codeEditor "javascript" (tool /= Raw) t
 
-                "application/javascript" ->
+                [ "application", "javascript" ] ->
                     codeEditor "javascript" (tool /= Raw) t
 
-                "text/css" ->
+                [ "text", "css" ] ->
                     codeEditor "css" (tool /= Raw) t
 
-                "text/html" ->
+                [ "text", "html" ] ->
                     case tool of
                         Raw ->
                             codeEditor "html" False t
@@ -617,23 +618,15 @@ responseView tool entry =
                         _ ->
                             htmlViewer t
 
-                "audio/mpeg" ->
+                [ "audio", _ ] ->
                     case tool of
                         Raw ->
                             hexEditor t
 
                         _ ->
-                            audioViewer "audio/mpeg" entry.id t
+                            audioViewer mimeType entry.id t
 
-                "audio/wav" ->
-                    case tool of
-                        Raw ->
-                            hexEditor t
-
-                        _ ->
-                            audioViewer "audio/wav" entry.id t
-
-                "font/woff2" ->
+                [ "font", "woff2" ] ->
                     case tool of
                         Raw ->
                             hexEditor t
@@ -641,7 +634,7 @@ responseView tool entry =
                         _ ->
                             fontViewer t "woff2"
 
-                "font/woff" ->
+                [ "font", "woff" ] ->
                     case tool of
                         Raw ->
                             hexEditor t
@@ -649,7 +642,7 @@ responseView tool entry =
                         _ ->
                             fontViewer t "woff"
 
-                "font/ttf" ->
+                [ "font", "ttf" ] ->
                     case tool of
                         Raw ->
                             hexEditor t
@@ -657,13 +650,21 @@ responseView tool entry =
                         _ ->
                             fontViewer t "truetype"
 
-                "application/pdf" ->
+                [ "application", "pdf" ] ->
                     case tool of
                         Raw ->
                             hexEditor t
 
                         _ ->
                             pdfViewer t entry.request.url
+
+                [ "application", "vnd.yt-ump" ] ->
+                    case tool of
+                        Raw ->
+                            hexEditor t
+
+                        _ ->
+                            previewNotAvailable
 
                 _ ->
                     let
@@ -678,7 +679,7 @@ responseView tool entry =
                         t
 
         _ ->
-            noContent
+            previewNotAvailable
 
 
 getTools : DetailTabName -> EntryKind -> List DetailViewTool
