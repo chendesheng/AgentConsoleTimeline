@@ -411,7 +411,7 @@ filterByPage page entries =
                     pageId == page
 
                 Nothing ->
-                    False
+                    String.isEmpty page
         )
         entries
 
