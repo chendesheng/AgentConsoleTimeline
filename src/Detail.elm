@@ -307,7 +307,7 @@ agentConsoleSnapshotPlayer liveSession entries initialId highlightVisitorId =
                 |> Har.sortEntries ( "time", Har.Asc )
 
         firstEntryStartTime =
-            Har.getFirstEntryStartTime entries 0
+            Har.getFirstEntryStartTime stateEntries 0
 
         lastEntryStartTime =
             Utils.getLast stateEntries
