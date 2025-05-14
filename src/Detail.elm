@@ -828,10 +828,10 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
             Preview ->
                 case entryKind of
                     ReduxState ->
-                        reduxStateViewer liveSession model.tool isSortByTime entries href pageName model.currentId entry.id highlightVisitorId
+                        agentConsoleSnapshot liveSession isSortByTime entries href pageName model.currentId entry.id highlightVisitorId
 
                     ReduxAction ->
-                        reduxStateViewer liveSession model.tool isSortByTime entries href pageName model.currentId entry.id highlightVisitorId
+                        agentConsoleSnapshot liveSession isSortByTime entries href pageName model.currentId entry.id highlightVisitorId
 
                     LogMessage ->
                         entry
