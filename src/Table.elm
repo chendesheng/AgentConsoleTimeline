@@ -562,9 +562,8 @@ tableCellContentView msPerPx column startTime entry =
                     , style "width" (floatPx width)
                     , style "margin-left" (floatPx left)
                     , title <|
-                        (String.fromInt <| round entry.time)
-                            ++ " ms; "
-                            ++ "at "
+                        Utils.formatDuration (round entry.time)
+                            ++ " at "
                             ++ entry.startedDateTimeStr
                     ]
                     []

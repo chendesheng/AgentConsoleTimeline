@@ -11,6 +11,7 @@ module Utils exposing
     , findItem
     , findMaybeItem
     , floatPx
+    , formatDuration
     , formatSize
     , formatTime
     , getLanguage
@@ -104,6 +105,39 @@ formatTime tz time =
         ++ toIntPad2 (Time.toSecond tz time)
         ++ ","
         ++ toIntPad3 (Time.toMillis tz time)
+
+
+formatDuration : Int -> String
+formatDuration ms =
+    let
+        hours =
+            ms // 3600000
+
+        minutes =
+            (ms - hours * 3600000) // 60000
+
+        seconds =
+            (ms - hours * 3600000 - minutes * 60000) // 1000
+
+        millis =
+            ms - hours * 3600000 - minutes * 60000 - seconds * 1000
+
+        parts =
+            [ ( hours, "h" ), ( minutes, "m" ), ( seconds, "s" ), ( millis, "ms" ) ]
+                |> List.map
+                    (\( n, suffix ) ->
+                        if n > 0 then
+                            String.fromInt n ++ suffix
+
+                        else
+                            ""
+                    )
+    in
+    if List.isEmpty parts then
+        "0ms"
+
+    else
+        String.join "" parts
 
 
 exportLiveSessionFileName : Time.Posix -> String
