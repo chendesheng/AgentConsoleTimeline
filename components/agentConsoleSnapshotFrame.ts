@@ -27,7 +27,7 @@ export class AgentConsoleSnapshotFrame extends LitElement {
   }
 
   private getSnapshotWindow() {
-    return this.popoutWindow ?? this.iframe?.contentWindow;
+    return this.isPopout ? this.popoutWindow : this.iframe?.contentWindow;
   }
 
   public reload() {
@@ -98,7 +98,10 @@ export class AgentConsoleSnapshotFrame extends LitElement {
     }
 
     this.handleMessage = (e: MessageEvent) => {
-      if (e.data?.type === "waitForReduxState") {
+      if (
+        e.source === this.getSnapshotWindow() &&
+        e.data?.type === "waitForReduxState"
+      ) {
         this.sendToSnapshot();
       }
     };

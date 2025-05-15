@@ -250,6 +250,27 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
     document.addEventListener("mouseup", handleMouseUp);
   }
 
+  private handleMouseMoveTrack(e: MouseEvent) {
+    if (e.buttons !== 0) return;
+    const rect = (e.target as HTMLElement).getBoundingClientRect();
+    const x = e.clientX - rect.x;
+    const pos = x / rect.width;
+    const time = clamp(+this.max * pos, 0, +this.max);
+    const index = this.timeToIndex(time);
+    this.dispatchEvent(
+      new CustomEvent("hover", {
+        detail: {
+          clientX: e.clientX,
+          id: this.items[index]!.id,
+        },
+      }),
+    );
+  }
+
+  private handleMouseLeaveTrack() {
+    this.dispatchEvent(new CustomEvent("unhover"));
+  }
+
   private togglePlayingState() {
     if (this.playingState === "paused") {
       this.playingState = "playing";
@@ -307,7 +328,12 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
       <button class="reveal" @click=${this.handleClickScroll}>
         <i class="icon crosshair"></i>
       </button>
-      <div class="track" @mousedown=${this.handleMouseDownTrack}>
+      <div
+        class="track"
+        @mousedown=${this.handleMouseDownTrack}
+        @mousemove=${this.handleMouseMoveTrack}
+        @mouseleave=${this.handleMouseLeaveTrack}
+      >
         <div
           class="currentTime"
           style="left: ${this.getTimePosPercent(this.time)}"

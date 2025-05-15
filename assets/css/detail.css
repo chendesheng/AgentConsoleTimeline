@@ -182,3 +182,22 @@ iframe.preview-svg {
   width: 500px;
   height: 500px;
 }
+
+.quick-preview-container {
+  position: absolute;
+  overflow: auto;
+  width: 1000px;
+  height: 700px;
+  zoom: 0.2;
+  pointer-events: none;
+  outline: solid 10px var(--border-color);
+  z-index: 1;
+  border-radius: 20px;
+  bottom: 180px;
+  transform: translateX(-50%);
+}
+
+.quick-preview-container>* {
+  height: 100%;
+  width: 100%;
+}

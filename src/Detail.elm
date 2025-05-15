@@ -47,6 +47,7 @@ type alias DetailModel =
     , tool : DetailViewTool
     , show : Bool
     , currentId : String
+    , quickPreview : Maybe { id : String, clientX : Float }
     , snapshotPopout : Bool
     }
 
@@ -57,6 +58,7 @@ defaultDetailModel =
     , tool = Auto
     , show = False
     , currentId = ""
+    , quickPreview = Nothing
     , snapshotPopout = False
     }
 
@@ -304,6 +306,11 @@ agentConsoleSnapshotPlayer liveSession entries initialId highlightVisitorId =
             Decode.map SetCurrentId <|
                 Decode.at [ "detail", "id" ] Decode.string
         , on "scrollToCurrent" <| Decode.succeed ScrollToCurrentId
+        , on "hover" <|
+            Decode.map2 QuickPreview
+                (Decode.at [ "detail", "id" ] Decode.string)
+                (Decode.at [ "detail", "clientX" ] Decode.float)
+        , on "unhover" <| Decode.succeed HideQuickPreview
         ]
         []
 
@@ -349,7 +356,7 @@ agentConsoleSnapshotProps isSortByTime href pageName entries currentId =
                         Nothing ->
                             ( Time.millisToPosix 0, "" )
     in
-    [ property "state" <| Encode.string state
+    [ property "state" <| Encode.string <| state
     , property "time" <| Encode.string <| Iso8601.fromTime startedDateTime
     , property "actions" <| actions
     , src href
@@ -371,8 +378,27 @@ agentConsoleSnapshotFrame isSnapshotPopout isSortByTime href pageName entries cu
         []
 
 
-agentConsoleSnapshot : Bool -> Bool -> List Har.Entry -> String -> String -> String -> String -> Maybe String -> Html DetailMsg
-agentConsoleSnapshot liveSession isSortByTime entries href pageName currentId entryId highlightVisitorId =
+snapshotQuickPreview : Maybe { id : String, clientX : Float } -> String -> String -> List Har.Entry -> Html DetailMsg
+snapshotQuickPreview quickPreview href pageName entries =
+    let
+        ( id, clientX, display ) =
+            case quickPreview of
+                Just p ->
+                    ( p.id, p.clientX, "block" )
+
+                _ ->
+                    ( "", 0, "none" )
+    in
+    div
+        [ class "quick-preview-container"
+        , style "left" <| Utils.floatPx (clientX / 0.2)
+        , style "display" display
+        ]
+        [ agentConsoleSnapshotFrame False False (href ++ "&snapshot=true") pageName entries id ]
+
+
+agentConsoleSnapshot : Bool -> Bool -> List Har.Entry -> String -> String -> String -> Maybe { id : String, clientX : Float } -> String -> Maybe String -> Html DetailMsg
+agentConsoleSnapshot liveSession isSortByTime entries href pageName currentId quickPreview entryId highlightVisitorId =
     div [ class "detail-body", class "agent-console-snapshot-container" ]
         [ Html.node "agent-console-snapshot"
             ([ Decode.string
@@ -388,6 +414,7 @@ agentConsoleSnapshot liveSession isSortByTime entries href pageName currentId en
             )
             []
         , lazy4 agentConsoleSnapshotPlayer liveSession entries entryId highlightVisitorId
+        , lazy4 snapshotQuickPreview quickPreview href pageName entries
         ]
 
 
@@ -800,10 +827,10 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
             Preview ->
                 case entryKind of
                     ReduxState ->
-                        agentConsoleSnapshot liveSession isSortByTime entries href pageName model.currentId entry.id highlightVisitorId
+                        agentConsoleSnapshot liveSession isSortByTime entries href pageName model.currentId model.quickPreview entry.id highlightVisitorId
 
                     ReduxAction ->
-                        agentConsoleSnapshot liveSession isSortByTime entries href pageName model.currentId entry.id highlightVisitorId
+                        agentConsoleSnapshot liveSession isSortByTime entries href pageName model.currentId model.quickPreview entry.id highlightVisitorId
 
                     LogMessage ->
                         entry
@@ -842,6 +869,8 @@ type DetailMsg
     | ChangeDetailTab DetailTabName
     | HideDetail
     | SetCurrentId String
+    | QuickPreview String Float
+    | HideQuickPreview
     | SetHref String
     | ScrollToCurrentId
     | ChangeViewTool DetailViewTool
@@ -867,6 +896,12 @@ updateDetail model detailMsg =
 
         SetCurrentId id ->
             ( { model | currentId = id }, Cmd.none )
+
+        QuickPreview id clientX ->
+            ( { model | quickPreview = Just { id = id, clientX = Debug.log "clientX" clientX } }, Cmd.none )
+
+        HideQuickPreview ->
+            ( { model | quickPreview = Nothing }, Cmd.none )
 
         ScrollToCurrentId ->
             ( model, Cmd.none )
