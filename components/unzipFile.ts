@@ -54,7 +54,7 @@ export function analysis(json: any) {
         a.name.localeCompare(b.name),
       ),
     });
-    console.log(json.log.comment);
+    // console.log(json.log.comment);
     let prevStateEntry;
     for (const entry of json.log.entries) {
       if (entry.request.url === "/redux/state") {
@@ -65,7 +65,7 @@ export function analysis(json: any) {
           const relatedVisitorIds = getRelatedVisitorIds(delta, visitors);
           if (relatedVisitorIds.length > 0) {
             entry.comment = JSON.stringify({ relatedVisitorIds });
-            console.log("related visitor ids", relatedVisitorIds);
+            // console.log("related visitor ids", relatedVisitorIds);
           }
         }
 
@@ -75,7 +75,7 @@ export function analysis(json: any) {
         const relatedVisitorIds = getRelatedVisitorIds(action, visitors);
         if (relatedVisitorIds.length > 0) {
           entry.comment = JSON.stringify({ relatedVisitorIds });
-          console.log("related visitor ids2", relatedVisitorIds);
+          // console.log("related visitor ids2", relatedVisitorIds);
         }
       }
     }
