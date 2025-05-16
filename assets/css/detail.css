@@ -188,13 +188,13 @@ iframe.preview-svg {
   overflow: auto;
   width: 1000px;
   height: 700px;
-  zoom: 0.2;
   pointer-events: none;
   outline: solid 10px var(--border-color);
   z-index: 1;
   border-radius: 20px;
-  bottom: 180px;
-  transform: translateX(-50%);
+  bottom: 32px;
+  transform: scale(0.2) translateX(-50%);
+  transform-origin: bottom left;
 }
 
 .quick-preview-container>* {

@@ -391,7 +391,7 @@ snapshotQuickPreview quickPreview href pageName entries =
     in
     div
         [ class "quick-preview-container"
-        , style "left" <| Utils.floatPx (clientX / 0.2)
+        , style "left" <| Utils.floatPx clientX
         , style "display" display
         ]
         [ agentConsoleSnapshotFrame False False (href ++ "&snapshot=true") pageName entries id ]
