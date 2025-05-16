@@ -447,46 +447,52 @@ getSelectedEntry { selectHistory, entries } =
 -- VIEW
 
 
-entryView : Float -> List TableColumn -> String -> Posix -> List (Attribute TableMsg) -> Har.Entry -> String -> Html TableMsg
-entryView msPerPx columns selected startTime attrs entry highlightVisitorId =
+entryView : Float -> List TableColumn -> Bool -> String -> Posix -> Har.Entry -> String -> Html TableMsg
+entryView msPerPx columns showDetail selected startTime entry highlightVisitorId =
+    let
+        visibleColumns =
+            if showDetail then
+                List.take 1 columns
+
+            else
+                columns
+    in
     div
-        (attrs
-            ++ [ class
-                    (if selected == entry.id then
-                        "selected"
+        [ class
+            (if selected == entry.id then
+                "selected"
 
-                     else
-                        ""
-                    )
-               , class
-                    (if String.isEmpty highlightVisitorId then
-                        ""
+             else
+                ""
+            )
+        , class
+            (if String.isEmpty highlightVisitorId then
+                ""
 
-                     else if entryContainsVisitorId entry highlightVisitorId then
-                        ""
+             else if entryContainsVisitorId entry highlightVisitorId then
+                ""
 
-                     else
-                        "darken"
-                    )
-               , class
-                    (if entry.request.method == "OPTIONS" then
-                        "darken"
+             else
+                "darken"
+            )
+        , class
+            (if entry.request.method == "OPTIONS" then
+                "darken"
 
-                     else
-                        ""
+             else
+                ""
+            )
+        , id <| "entry" ++ entry.id
+        , class "table-body-row"
+        , on "click"
+            (D.at [ "target", "className" ] D.string
+                |> D.map
+                    (\className ->
+                        Select entry.id (String.contains "table-body-cell-name" className) False
                     )
-               , id <| "entry" ++ entry.id
-               , class "table-body-row"
-               , on "click"
-                    (D.at [ "target", "className" ] D.string
-                        |> D.map
-                            (\className ->
-                                Select entry.id (String.contains "table-body-cell-name" className) False
-                            )
-                    )
-               ]
-        )
-        (List.map (\column -> tableCellView msPerPx column startTime entry) columns)
+            )
+        ]
+        (List.map (\column -> tableCellView msPerPx column startTime entry) visibleColumns)
 
 
 getEntryIcon : Har.Entry -> Html msg
@@ -851,18 +857,21 @@ tableFilterView liveSession visitors error autoFocus pages filter =
         ]
 
 
+epoch : Posix
+epoch =
+    Time.millisToPosix 0
+
+
 tableBodyEntriesView : Float -> List TableColumn -> String -> Bool -> Int -> List Har.Entry -> Int -> String -> Html TableMsg
 tableBodyEntriesView msPerPx columns selected showDetail scrollTop entries viewportHeight highlightVisitorId =
     let
-        visibleColumns =
+        startTime =
+            -- startTime is not used when detail is displayed
             if showDetail then
-                List.take 1 columns
+                epoch
 
             else
-                columns
-
-        startTime =
-            Har.getFirstEntryStartTime entries (floor <| toFloat scrollTop / 20)
+                Har.getFirstEntryStartTime entries (floor <| toFloat scrollTop / 20)
     in
     Utils.virtualizedList
         { scrollTop = scrollTop
@@ -870,8 +879,8 @@ tableBodyEntriesView msPerPx columns selected showDetail scrollTop entries viewp
         , itemHeight = 20
         , items = entries
         , renderItem =
-            \attrs entry ->
-                ( entry.id, entryView msPerPx visibleColumns selected startTime attrs entry highlightVisitorId )
+            \entry ->
+                ( entry.id, lazy7 entryView msPerPx columns showDetail selected startTime entry highlightVisitorId )
         }
 
 

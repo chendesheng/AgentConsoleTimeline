@@ -421,7 +421,7 @@ virtualizedList :
     , viewportHeight : Int
     , itemHeight : Int
     , items : List item
-    , renderItem : List (Attribute msg) -> item -> ( String, Html msg )
+    , renderItem : item -> ( String, Html msg )
     }
     -> Html msg
 virtualizedList { scrollTop, viewportHeight, itemHeight, items, renderItem } =
@@ -464,7 +464,7 @@ virtualizedList { scrollTop, viewportHeight, itemHeight, items, renderItem } =
             , style "margin" "0"
             ]
           <|
-            List.map (renderItem []) visibleItems
+            List.map renderItem visibleItems
         ]
 
 
