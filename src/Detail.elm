@@ -8,10 +8,10 @@ import Html.Events exposing (..)
 import Html.Keyed as Keyed
 import Html.Lazy exposing (lazy, lazy2, lazy3, lazy4, lazy5)
 import Icons
-import Iso8601
 import Json.Decode as Decode
 import Json.Encode as Encode
 import List
+import Snapshot exposing (QuickPreview, agentConsoleSnapshotPopout, agentConsoleSnapshotProps, snapshotQuickPreview)
 import String
 import Table exposing (TableFilter, isSortByTime)
 import Task
@@ -47,7 +47,7 @@ type alias DetailModel =
     , tool : DetailViewTool
     , show : Bool
     , currentId : String
-    , quickPreview : Maybe { id : String, clientX : Float }
+    , quickPreview : Maybe QuickPreview
     , snapshotPopout : Bool
     }
 
@@ -309,95 +309,13 @@ agentConsoleSnapshotPlayer liveSession entries initialId highlightVisitorId =
         , on "hover" <|
             Decode.map2 QuickPreview
                 (Decode.at [ "detail", "id" ] Decode.string)
-                (Decode.at [ "detail", "clientX" ] Decode.float)
+                (Decode.at [ "detail", "clientX" ] Decode.int)
         , on "unhover" <| Decode.succeed HideQuickPreview
         ]
         []
 
 
-agentConsoleSnapshotProps : Bool -> String -> String -> List Har.Entry -> String -> List (Html.Attribute msg)
-agentConsoleSnapshotProps isSortByTime href pageName entries currentId =
-    let
-        ( stateEntry, prevStateEntry, nonStateEntries ) =
-            Har.findStateEntryAndPrevStateEntry entries currentId
-
-        actions =
-            if isSortByTime && stateEntry == Nothing then
-                nonStateEntries
-                    |> Har.filterByKind (Just ReduxAction)
-                    |> List.map (\e -> Har.getRequestBody e |> Maybe.withDefault "")
-                    |> Encode.list Encode.string
-
-            else
-                -- pass empty actions when entries are not sorted by time
-                -- because when entries are not sorted by time, the states/actions are not in order
-                Encode.list (\a -> a) []
-
-        ( startedDateTime, state ) =
-            case stateEntry of
-                Just entry ->
-                    case Har.getReduxState entry of
-                        Just st ->
-                            ( entry.startedDateTime, st )
-
-                        Nothing ->
-                            ( Time.millisToPosix 0, "" )
-
-                Nothing ->
-                    case prevStateEntry of
-                        Just prevEntry ->
-                            case Har.getReduxState prevEntry of
-                                Just prevSt ->
-                                    ( prevEntry.startedDateTime, prevSt )
-
-                                Nothing ->
-                                    ( Time.millisToPosix 0, "" )
-
-                        Nothing ->
-                            ( Time.millisToPosix 0, "" )
-    in
-    [ property "state" <| Encode.string <| state
-    , property "time" <| Encode.string <| Iso8601.fromTime startedDateTime
-    , property "actions" <| actions
-    , src href
-    , property "pageName" <| Encode.string pageName
-    ]
-
-
-agentConsoleSnapshotPopout : Bool -> String -> String -> List Har.Entry -> String -> Html DetailMsg
-agentConsoleSnapshotPopout isSortByTime href pageName entries currentId =
-    agentConsoleSnapshotFrame True isSortByTime href pageName entries currentId
-
-
-agentConsoleSnapshotFrame : Bool -> Bool -> String -> String -> List Har.Entry -> String -> Html DetailMsg
-agentConsoleSnapshotFrame isSnapshotPopout isSortByTime href pageName entries currentId =
-    Html.node "agent-console-snapshot-frame"
-        ((property "isPopout" <| Encode.bool isSnapshotPopout)
-            :: agentConsoleSnapshotProps isSortByTime href pageName entries currentId
-        )
-        []
-
-
-snapshotQuickPreview : Maybe { id : String, clientX : Float } -> String -> String -> List Har.Entry -> Html DetailMsg
-snapshotQuickPreview quickPreview href pageName entries =
-    let
-        ( id, clientX, display ) =
-            case quickPreview of
-                Just p ->
-                    ( p.id, p.clientX, "block" )
-
-                _ ->
-                    ( "", 0, "none" )
-    in
-    div
-        [ class "quick-preview-container"
-        , style "left" <| Utils.floatPx clientX
-        , style "display" display
-        ]
-        [ agentConsoleSnapshotFrame False False (href ++ "&snapshot=true") pageName entries id ]
-
-
-agentConsoleSnapshot : Bool -> Bool -> List Har.Entry -> String -> String -> String -> Maybe { id : String, clientX : Float } -> String -> Maybe String -> Html DetailMsg
+agentConsoleSnapshot : Bool -> Bool -> List Har.Entry -> String -> String -> String -> Maybe QuickPreview -> String -> Maybe String -> Html DetailMsg
 agentConsoleSnapshot liveSession isSortByTime entries href pageName currentId quickPreview entryId highlightVisitorId =
     div [ class "detail-body", class "agent-console-snapshot-container" ]
         [ Html.node "agent-console-snapshot"
@@ -414,7 +332,7 @@ agentConsoleSnapshot liveSession isSortByTime entries href pageName currentId qu
             )
             []
         , lazy4 agentConsoleSnapshotPlayer liveSession entries entryId highlightVisitorId
-        , lazy4 snapshotQuickPreview quickPreview href pageName entries
+        , lazy5 snapshotQuickPreview False quickPreview href pageName entries
         ]
 
 
@@ -869,7 +787,7 @@ type DetailMsg
     | ChangeDetailTab DetailTabName
     | HideDetail
     | SetCurrentId String
-    | QuickPreview String Float
+    | QuickPreview String Int
     | HideQuickPreview
     | SetHref String
     | ScrollToCurrentId
@@ -890,15 +808,15 @@ updateDetail model detailMsg =
             ( { model | tab = tab }, Cmd.none )
 
         HideDetail ->
-            ( { model | show = False }
+            ( { model | show = False, quickPreview = Nothing }
             , Task.attempt (\_ -> NoOp) <| Dom.focus "table-body"
             )
 
         SetCurrentId id ->
             ( { model | currentId = id }, Cmd.none )
 
-        QuickPreview id clientX ->
-            ( { model | quickPreview = Just { id = id, clientX = clientX } }, Cmd.none )
+        QuickPreview entryId clientX ->
+            ( { model | quickPreview = Just { entryId = entryId, x = clientX, y = -32, delayHide = False } }, Cmd.none )
 
         HideQuickPreview ->
             ( { model | quickPreview = Nothing }, Cmd.none )

@@ -149,11 +149,15 @@ ol.table-body {
   width: 100%;
   display: flex;
 }
-
 .table-body-row:nth-child(odd).selected,
 .table-body-row:nth-child(even).selected {
   background-color: var(--selected-background-color-unfocused);
   color: var(--selected-foreground-color);
+}
+
+.table-body-row:nth-child(odd):hover,
+.table-body-row:nth-child(even):hover {
+  background-color: var(--selected-background-color-unfocused);
 }
 
 .table-body-row.darken {

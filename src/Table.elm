@@ -29,6 +29,7 @@ import Json.Decode as D
 import Json.Encode as Encode
 import JsonFile exposing (JsonFile, jsonFileDecoder)
 import List exposing (sortBy)
+import Snapshot exposing (QuickPreview)
 import Task
 import Time exposing (Posix)
 import UndoList as UL exposing (UndoList)
@@ -106,6 +107,7 @@ type alias TableModel =
     , searchHistory : UndoList String
     , selectHistory : UndoList String
     , visitors : List VisitorInfo
+    , quickPreview : Maybe QuickPreview
     }
 
 
@@ -162,6 +164,7 @@ defaultTableModel =
     , searchHistory = { present = "", past = [], future = [] }
     , selectHistory = { present = "", past = [], future = [] }
     , visitors = []
+    , quickPreview = Nothing
     }
 
 
@@ -910,15 +913,58 @@ waterfallGuideline msPerPx startTime guidelineLeft entries scrollTop =
         ]
 
 
+getEntryByClientY : List Har.Entry -> Int -> Int -> Maybe Har.Entry
+getEntryByClientY entries scrollTop clientY =
+    let
+        index =
+            (clientY - 60 + scrollTop) // 20
+    in
+    entries
+        |> List.drop index
+        |> List.head
+
+
 tableBodyView : SearchingState -> List String -> Float -> Posix -> List TableColumn -> Int -> String -> Bool -> List Har.Entry -> Int -> Int -> Maybe String -> Html TableMsg
 tableBodyView search pendingKeys msPerPx startTime columns guidelineLeft selected showDetail entries scrollTop viewportHeight highlightVisitorId =
     div
-        [ class "table-body"
-        , id "table-body"
-        , tabindex 0
-        , preventDefaultOn "keydown" (D.map (Tuple.mapFirst ExecuteAction) (keyDecoder scrollTop showDetail pendingKeys))
-        , on "scroll" <| D.map (round >> Scroll) <| D.at [ "target", "scrollTop" ] D.float
-        ]
+        ([ class "table-body"
+         , id "table-body"
+         , tabindex 0
+         , preventDefaultOn "keydown" (D.map (Tuple.mapFirst ExecuteAction) (keyDecoder scrollTop showDetail pendingKeys))
+         , on "scroll" <| D.map (round >> Scroll) (D.at [ "target", "scrollTop" ] D.float)
+         , on "mouseleave" <| D.succeed UnhoverNameCell
+         ]
+            ++ (if showDetail then
+                    [ on "mousewheel" <|
+                        D.map
+                            (\y ->
+                                case getEntryByClientY entries scrollTop y of
+                                    Just entry ->
+                                        HoverNameCell entry.id y <| Har.isReduxEntry entry
+
+                                    _ ->
+                                        UnhoverNameCell
+                            )
+                        <|
+                            D.field "clientY" D.int
+                    , on "mousemove" <|
+                        D.map
+                            (\y ->
+                                case getEntryByClientY entries scrollTop y of
+                                    Just entry ->
+                                        HoverNameCell entry.id y <| Har.isReduxStateEntry entry
+
+                                    _ ->
+                                        UnhoverNameCell
+                            )
+                        <|
+                            D.field "clientY" D.int
+                    ]
+
+                else
+                    []
+               )
+        )
         [ lazy8 tableBodyEntriesView msPerPx columns selected showDetail scrollTop entries viewportHeight (Maybe.withDefault "" highlightVisitorId)
         , lazy3 tableBodySearchResultView search scrollTop viewportHeight
         , if showDetail then
@@ -1148,6 +1194,8 @@ type TableMsg
     | SelectTable
     | ChangePage String
     | GotImportFile (Result String JsonFile)
+    | HoverNameCell String Int Bool
+    | UnhoverNameCell
     | Export
 
 
@@ -1304,6 +1352,25 @@ updateTable action log table =
 
         SetHref href ->
             ( { table | href = href }, Cmd.none )
+
+        HoverNameCell entryId y isReduxStateEntry ->
+            ( { table
+                | quickPreview =
+                    Just <|
+                        { entryId = entryId
+                        , x =
+                            Dict.get "name" table.columnWidths
+                                |> Maybe.map ((+) 5)
+                                |> Maybe.withDefault 0
+                        , y = y
+                        , delayHide = not isReduxStateEntry
+                        }
+              }
+            , Cmd.none
+            )
+
+        UnhoverNameCell ->
+            ( { table | quickPreview = Nothing }, Cmd.none )
 
 
 scrollToPx : Int -> Cmd TableMsg

@@ -15,6 +15,7 @@ import Json.Decode as D
 import List
 import RecentFile exposing (RecentFile, gotFileContent, saveRecentFile)
 import Remote
+import Snapshot exposing (snapshotQuickPreview)
 import Table
     exposing
         ( TableModel
@@ -119,6 +120,7 @@ viewOpened model =
                 table.entries
                 model.detail
             )
+        , snapshotQuickPreview True table.quickPreview table.href table.filter.page table.entries
         ]
 
 
@@ -340,6 +342,9 @@ updateOpened msg model =
 
                 ( table, cmd1 ) =
                     case detailMsg of
+                        Detail.HideDetail ->
+                            updateTable Table.UnhoverNameCell model.log model.table
+
                         Detail.SetHref href ->
                             updateTable (Table.SetHref href) model.log model.table
 

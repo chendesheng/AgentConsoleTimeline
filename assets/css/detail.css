@@ -193,11 +193,33 @@ iframe.preview-svg {
   z-index: 1;
   border-radius: 20px;
   bottom: 32px;
+  visibility: visible;
+}
+
+.quick-preview-container.delay-hide {
+  animation: 1s delayHide;
+  animation-fill-mode: forwards;
+}
+
+@keyframes delayHide {
+  99% {
+    visibility: visible;
+  }
+  100% {
+    visibility: hidden;
+  }
+}
+
+.quick-preview-container.align-left {
+  transform-origin: top left;
+  transform: scale(0.2) translateY(-50%);
+}
+.quick-preview-container.align-bottom {
   transform: scale(0.2) translateX(-50%);
   transform-origin: bottom left;
 }
 
-.quick-preview-container>* {
+.quick-preview-container > * {
   height: 100%;
   width: 100%;
 }
