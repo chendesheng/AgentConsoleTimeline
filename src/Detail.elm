@@ -898,7 +898,7 @@ updateDetail model detailMsg =
             ( { model | currentId = id }, Cmd.none )
 
         QuickPreview id clientX ->
-            ( { model | quickPreview = Just { id = id, clientX = Debug.log "clientX" clientX } }, Cmd.none )
+            ( { model | quickPreview = Just { id = id, clientX = clientX } }, Cmd.none )
 
         HideQuickPreview ->
             ( { model | quickPreview = Nothing }, Cmd.none )
