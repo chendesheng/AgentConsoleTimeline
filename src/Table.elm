@@ -558,6 +558,9 @@ tableCellContentView msPerPx column startTime entry =
             if Utils.comparePosix startTime entry.startedDateTime == GT then
                 text ""
 
+            else if Har.isReduxStateEntry entry then
+                text ""
+
             else
                 let
                     left =
