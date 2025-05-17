@@ -19,7 +19,7 @@ module Table exposing
 import Browser.Dom as Dom
 import Browser.Events exposing (onResize)
 import Dict exposing (Dict)
-import Har exposing (EntryKind(..), SortBy, SortOrder(..), entryContainsVisitorId)
+import Har exposing (EntryKind(..), SortBy, SortOrder(..), entryContainsVisitorId, isReduxEntry)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -924,8 +924,28 @@ getEntryByClientY entries scrollTop clientY =
         |> List.head
 
 
-tableBodyView : SearchingState -> List String -> Float -> Posix -> List TableColumn -> Int -> String -> Bool -> List Har.Entry -> Int -> Int -> Maybe String -> Html TableMsg
-tableBodyView search pendingKeys msPerPx startTime columns guidelineLeft selected showDetail entries scrollTop viewportHeight highlightVisitorId =
+isEnableQuickPreview : Bool -> Maybe EntryKind -> Bool
+isEnableQuickPreview showDetail filterKind =
+    if showDetail then
+        case filterKind of
+            Just NetworkHttp ->
+                False
+
+            Just LogMessage ->
+                False
+
+            Just Others ->
+                False
+
+            _ ->
+                True
+
+    else
+        False
+
+
+tableBodyView : SearchingState -> List String -> Float -> Posix -> List TableColumn -> Int -> String -> Bool -> List Har.Entry -> Int -> Int -> TableFilter -> Html TableMsg
+tableBodyView search pendingKeys msPerPx startTime columns guidelineLeft selected showDetail entries scrollTop viewportHeight filter =
     div
         ([ class "table-body"
          , id "table-body"
@@ -934,38 +954,30 @@ tableBodyView search pendingKeys msPerPx startTime columns guidelineLeft selecte
          , on "scroll" <| D.map (round >> Scroll) (D.at [ "target", "scrollTop" ] D.float)
          , on "mouseleave" <| D.succeed UnhoverNameCell
          ]
-            ++ (if showDetail then
-                    [ on "mousewheel" <|
-                        D.map
-                            (\y ->
-                                case getEntryByClientY entries scrollTop y of
-                                    Just entry ->
-                                        HoverNameCell entry.id y <| Har.isReduxEntry entry
+            ++ (if isEnableQuickPreview showDetail filter.kind then
+                    let
+                        handler =
+                            D.map
+                                (\y ->
+                                    case getEntryByClientY entries scrollTop y of
+                                        Just entry ->
+                                            HoverNameCell entry.id y <| Har.isReduxStateEntry entry
 
-                                    _ ->
-                                        UnhoverNameCell
-                            )
-                        <|
-                            D.field "clientY" D.int
-                    , on "mousemove" <|
-                        D.map
-                            (\y ->
-                                case getEntryByClientY entries scrollTop y of
-                                    Just entry ->
-                                        HoverNameCell entry.id y <| Har.isReduxStateEntry entry
-
-                                    _ ->
-                                        UnhoverNameCell
-                            )
-                        <|
-                            D.field "clientY" D.int
+                                        _ ->
+                                            UnhoverNameCell
+                                )
+                            <|
+                                D.field "clientY" D.int
+                    in
+                    [ on "mousewheel" handler
+                    , on "mousemove" handler
                     ]
 
                 else
                     []
                )
         )
-        [ lazy8 tableBodyEntriesView msPerPx columns selected showDetail scrollTop entries viewportHeight (Maybe.withDefault "" highlightVisitorId)
+        [ lazy8 tableBodyEntriesView msPerPx columns selected showDetail scrollTop entries viewportHeight (Maybe.withDefault "" filter.highlightVisitorId)
         , lazy3 tableBodySearchResultView search scrollTop viewportHeight
         , if showDetail then
             text ""
@@ -1149,7 +1161,7 @@ tableView startTime { entries, filter, entriesCount, sortBy, columns, columnWidt
             _ ->
                 text ""
         , lazy7 tableHeadersView entriesCount waterfallMsPerPx startTime firstEntryStartTime sortBy columns showDetail2
-        , tableBodyView search pendingKeys waterfallMsPerPx startTime columns guidelineLeft selected2 showDetail2 entries scrollTop viewportHeight filter.highlightVisitorId
+        , tableBodyView search pendingKeys waterfallMsPerPx startTime columns guidelineLeft selected2 showDetail2 entries scrollTop viewportHeight filter
         , detailFirstColumnResizeDivider
         ]
 
