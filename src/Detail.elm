@@ -816,7 +816,7 @@ updateDetail model detailMsg =
             ( { model | currentId = id }, Cmd.none )
 
         QuickPreview entryId clientX ->
-            ( { model | quickPreview = Just { entryId = entryId, x = clientX, y = -32, delayHide = False } }, Cmd.none )
+            ( { model | quickPreview = Just { entryId = entryId, x = clientX, y = 32, delayHide = False } }, Cmd.none )
 
         HideQuickPreview ->
             ( { model | quickPreview = Nothing }, Cmd.none )

@@ -106,14 +106,14 @@ snapshotQuickPreview alignLeft quickPreview href pageName entries =
                 "align-bottom"
         , style "left" <| Utils.intPx x
         , style
-            (if y < 0 then
-                "bottom"
+            (if alignLeft then
+                "top"
 
              else
-                "top"
+                "bottom"
             )
           <|
-            Utils.intPx (abs y)
+            Utils.intPx y
         , class <|
             if delayHide then
                 "delay-hide"
