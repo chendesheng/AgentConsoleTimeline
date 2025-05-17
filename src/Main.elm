@@ -9,7 +9,7 @@ import HarDecoder
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Html.Lazy exposing (lazy3, lazy6, lazy8)
+import Html.Lazy exposing (lazy4, lazy6, lazy8)
 import Initial exposing (InitialModel, InitialMsg(..), defaultInitialModel, initialView, updateInitial)
 import Json.Decode as D
 import List
@@ -80,6 +80,40 @@ isLiveSession fileName =
 -- VIEW
 
 
+isAgentConsoleUrl : String -> Bool
+isAgentConsoleUrl url =
+    let
+        lowercaseUrl =
+            String.toLower url
+    in
+    String.contains "/agentconsole/" lowercaseUrl
+        || String.contains "localhost:" lowercaseUrl
+
+
+isEnableQuickPreview : String -> Bool -> Maybe EntryKind -> Bool
+isEnableQuickPreview href showDetail filterKind =
+    if showDetail then
+        if isAgentConsoleUrl href then
+            case filterKind of
+                Just NetworkHttp ->
+                    False
+
+                Just LogMessage ->
+                    False
+
+                Just Others ->
+                    False
+
+                _ ->
+                    True
+
+        else
+            False
+
+    else
+        False
+
+
 viewOpened : OpenedModel -> Html OpenedMsg
 viewOpened model =
     let
@@ -94,6 +128,9 @@ viewOpened model =
 
         detail =
             model.detail
+
+        quickPreviewEnabled =
+            isEnableQuickPreview table.href detail.show table.filter.kind
     in
     dropFileView
         "app"
@@ -108,7 +145,7 @@ viewOpened model =
                 model.log.pages
                 table.filter
             )
-        , Html.map TableAction (lazy3 tableView startTime table detail.show)
+        , Html.map TableAction (lazy4 tableView startTime table detail.show quickPreviewEnabled)
         , Html.map DetailAction
             (lazy8 detailViewContainer
                 (isLiveSession model.fileName)
@@ -120,7 +157,11 @@ viewOpened model =
                 table.entries
                 model.detail
             )
-        , snapshotQuickPreview True table.quickPreview table.href table.filter.page table.entries
+        , if quickPreviewEnabled then
+            snapshotQuickPreview True table.quickPreview table.href table.filter.page table.entries
+
+          else
+            text ""
         ]
 
 

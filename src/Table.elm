@@ -19,7 +19,7 @@ module Table exposing
 import Browser.Dom as Dom
 import Browser.Events exposing (onResize)
 import Dict exposing (Dict)
-import Har exposing (EntryKind(..), SortBy, SortOrder(..), entryContainsVisitorId, isReduxEntry)
+import Har exposing (EntryKind(..), SortBy, SortOrder(..), entryContainsVisitorId)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -927,28 +927,8 @@ getEntryByClientY entries scrollTop clientY =
         |> List.head
 
 
-isEnableQuickPreview : Bool -> Maybe EntryKind -> Bool
-isEnableQuickPreview showDetail filterKind =
-    if showDetail then
-        case filterKind of
-            Just NetworkHttp ->
-                False
-
-            Just LogMessage ->
-                False
-
-            Just Others ->
-                False
-
-            _ ->
-                True
-
-    else
-        False
-
-
-tableBodyView : SearchingState -> List String -> Float -> Posix -> List TableColumn -> Int -> String -> Bool -> List Har.Entry -> Int -> Int -> TableFilter -> Html TableMsg
-tableBodyView search pendingKeys msPerPx startTime columns guidelineLeft selected showDetail entries scrollTop viewportHeight filter =
+tableBodyView : SearchingState -> List String -> Float -> Posix -> List TableColumn -> Int -> String -> Bool -> List Har.Entry -> Int -> Int -> Maybe String -> Bool -> Html TableMsg
+tableBodyView search pendingKeys msPerPx startTime columns guidelineLeft selected showDetail entries scrollTop viewportHeight highlightVisitorId quickPreviewEnabled =
     div
         ([ class "table-body"
          , id "table-body"
@@ -957,7 +937,7 @@ tableBodyView search pendingKeys msPerPx startTime columns guidelineLeft selecte
          , on "scroll" <| D.map (round >> Scroll) (D.at [ "target", "scrollTop" ] D.float)
          , on "mouseleave" <| D.succeed UnhoverNameCell
          ]
-            ++ (if isEnableQuickPreview showDetail filter.kind then
+            ++ (if quickPreviewEnabled then
                     let
                         handler =
                             D.map
@@ -980,7 +960,7 @@ tableBodyView search pendingKeys msPerPx startTime columns guidelineLeft selecte
                     []
                )
         )
-        [ lazy8 tableBodyEntriesView msPerPx columns selected showDetail scrollTop entries viewportHeight (Maybe.withDefault "" filter.highlightVisitorId)
+        [ lazy8 tableBodyEntriesView msPerPx columns selected showDetail scrollTop entries viewportHeight (Maybe.withDefault "" highlightVisitorId)
         , lazy3 tableBodySearchResultView search scrollTop viewportHeight
         , if showDetail then
             text ""
@@ -1069,8 +1049,8 @@ resolveSelected selected entries =
         ""
 
 
-tableView : Posix -> TableModel -> Bool -> Html TableMsg
-tableView startTime { entries, filter, entriesCount, sortBy, columns, columnWidths, selectHistory, scrollTop, waterfallMsPerPx, viewportHeight, search, searchHistory, pendingKeys } showDetail =
+tableView : Posix -> TableModel -> Bool -> Bool -> Html TableMsg
+tableView startTime { entries, filter, entriesCount, sortBy, columns, columnWidths, selectHistory, scrollTop, waterfallMsPerPx, viewportHeight, search, searchHistory, pendingKeys } showDetail quickPreviewEnabled =
     let
         selected2 =
             resolveSelected selectHistory.present entries
@@ -1164,7 +1144,7 @@ tableView startTime { entries, filter, entriesCount, sortBy, columns, columnWidt
             _ ->
                 text ""
         , lazy7 tableHeadersView entriesCount waterfallMsPerPx startTime firstEntryStartTime sortBy columns showDetail2
-        , tableBodyView search pendingKeys waterfallMsPerPx startTime columns guidelineLeft selected2 showDetail2 entries scrollTop viewportHeight filter
+        , tableBodyView search pendingKeys waterfallMsPerPx startTime columns guidelineLeft selected2 showDetail2 entries scrollTop viewportHeight filter.highlightVisitorId quickPreviewEnabled
         , detailFirstColumnResizeDivider
         ]
 
@@ -1371,15 +1351,22 @@ updateTable action log table =
         HoverNameCell entryId y isReduxStateEntry ->
             ( { table
                 | quickPreview =
-                    Just <|
-                        { entryId = entryId
-                        , x =
-                            Dict.get "name" table.columnWidths
-                                |> Maybe.map ((+) 5)
-                                |> Maybe.withDefault 0
-                        , y = y
-                        , delayHide = not isReduxStateEntry
-                        }
+                    let
+                        createQuickPreview _ =
+                            { entryId = entryId
+                            , x =
+                                Dict.get "name" table.columnWidths
+                                    |> Maybe.map ((+) 5)
+                                    |> Maybe.withDefault 0
+                            , y = y
+                            , delayHide = not isReduxStateEntry
+                            }
+                    in
+                    if isReduxStateEntry then
+                        Just <| createQuickPreview ()
+
+                    else
+                        table.quickPreview |> Maybe.map createQuickPreview
               }
             , Cmd.none
             )
