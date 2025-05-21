@@ -119,7 +119,7 @@ viewOpened model =
     let
         startTime =
             model.log.entries
-                |> Utils.findItem (\entry -> entry.pageref == Just model.table.filter.page)
+                |> Utils.findItem (Har.isEntryOfPage model.table.filter.page)
                 |> Maybe.map .startedDateTime
                 |> Maybe.withDefault (Time.millisToPosix 0)
 

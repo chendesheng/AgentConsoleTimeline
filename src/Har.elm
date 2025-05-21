@@ -402,18 +402,19 @@ entryKindAndHighlightVisitorIdValue entryKind highlightVisitorId =
             ""
 
 
+isEntryOfPage : String -> Entry -> Bool
+isEntryOfPage page entry =
+    case entry.pageref of
+        Just pageId ->
+            pageId == page
+
+        Nothing ->
+            String.isEmpty page
+
+
 filterByPage : String -> List Entry -> List Entry
 filterByPage page entries =
-    List.filter
-        (\entry ->
-            case entry.pageref of
-                Just pageId ->
-                    pageId == page
-
-                Nothing ->
-                    String.isEmpty page
-        )
-        entries
+    List.filter (isEntryOfPage page) entries
 
 
 filterByKind : Maybe EntryKind -> List Entry -> List Entry
