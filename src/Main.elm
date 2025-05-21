@@ -517,13 +517,8 @@ main =
                         Initial _ ->
                             "ACD"
 
-                        Opened { table, fileName } ->
-                            case Table.getSelectedEntry table of
-                                Just entry ->
-                                    fileName ++ " | " ++ Har.harEntryName entry
-
-                                _ ->
-                                    fileName
+                        Opened { fileName } ->
+                            fileName
                 , body = [ view model ]
                 }
         , update = update
