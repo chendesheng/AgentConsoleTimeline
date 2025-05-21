@@ -22,8 +22,23 @@ export class AgentConsoleSnapshotFrame extends LitElement {
   @query("iframe")
   iframe?: HTMLIFrameElement;
 
+  public static resolveSrc(src: string) {
+    let res = src;
+
+    if (src.includes("isSuperAgent=true") && src.includes("agentconsole.html")) {
+      res = src.replace("agentconsole.html", "superagent.html");
+    }
+
+    if (res.includes("snapshot=true")) return res;
+    else return res + "&snapshot=true";
+  }
+
+  private getSrc() {
+    return AgentConsoleSnapshotFrame.resolveSrc(this.src);
+  }
+
   private get popoutWindow(): PopoutWindow | undefined {
-    return getPopoutWindow(this.src);
+    return getPopoutWindow(this.getSrc());
   }
 
   private getSnapshotWindow() {
@@ -31,7 +46,7 @@ export class AgentConsoleSnapshotFrame extends LitElement {
   }
 
   public reload() {
-    if (this.iframe) this.iframe.src = this.src;
+    if (this.iframe) this.iframe.src = this.getSrc();
   }
 
   static styles = css`
@@ -53,14 +68,13 @@ export class AgentConsoleSnapshotFrame extends LitElement {
 
     return html`<iframe
       class="snapshot"
-      src="${this.src}"
+      src="${this.getSrc()}"
       allow="clipboard-read; clipboard-write"
     ></iframe>`;
   }
 
   private sendToSnapshot() {
     if (this.state) {
-      // console.log('restore state');
       this.getSnapshotWindow()?.postMessage(
         { type: "restoreReduxState", payload: this.state, time: this.time },
         "*",

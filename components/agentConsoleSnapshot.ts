@@ -37,20 +37,11 @@ export class AgentConsoleSnapshot extends LitElement {
   private isPopout: boolean = false;
 
   private getSrc() {
-    if (
-      this.src.includes("isSuperAgent=true") &&
-      this.src.includes("agentconsole.html")
-    ) {
-      return (
-        this.src.replace("agentconsole.html", "superagent.html") +
-        "&snapshot=true"
-      );
-    }
-    return this.src + "&snapshot=true";
+    return AgentConsoleSnapshotFrame.resolveSrc(this.src);
   }
 
   private get popoutWindow(): PopoutWindow | undefined {
-    return getPopoutWindow(this.src);
+    return getPopoutWindow(this.getSrc());
   }
 
   private setIsPopout(value: boolean) {

@@ -122,4 +122,4 @@ snapshotQuickPreview alignLeft quickPreview href pageName entries =
                 ""
         , style "display" display
         ]
-        [ agentConsoleSnapshotFrame False False (href ++ "&snapshot=true") pageName entries entryId ]
+        [ agentConsoleSnapshotFrame False False href pageName entries entryId ]
