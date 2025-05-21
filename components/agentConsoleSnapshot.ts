@@ -178,6 +178,10 @@ export class AgentConsoleSnapshot extends LitElement {
       inset: 0;
     }
 
+    select>option {
+      background-color: var(--background-color-content);
+    }
+
     .icon {
       display: inline-block;
       fill: currentColor;
