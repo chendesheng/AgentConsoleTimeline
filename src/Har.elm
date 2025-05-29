@@ -600,7 +600,9 @@ harEntryName entry =
                     entry.request.url
 
         ReduxState ->
-            "state/" ++ entry.id
+            entry.request.url
+                |> String.replace "/redux/" ""
+                |> String.replace "?" ("/" ++ entry.id ++ "?")
 
         _ ->
             case slashIndexes of
