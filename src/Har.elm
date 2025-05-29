@@ -313,7 +313,7 @@ type EntryKind
 
 getEntryKind : Entry -> EntryKind
 getEntryKind entry =
-    if entry.request.url == "/redux/state" then
+    if String.startsWith "/redux/state" entry.request.url then
         ReduxState
 
     else if String.startsWith "/redux/" entry.request.url then
@@ -521,7 +521,7 @@ getClientInfo entries =
 
 isReduxStateEntry : Entry -> Bool
 isReduxStateEntry entry =
-    entry.request.url == "/redux/state"
+    String.startsWith "/redux/state" entry.request.url
 
 
 isReduxEntry : Entry -> Bool
