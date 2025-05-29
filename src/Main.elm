@@ -121,7 +121,7 @@ viewOpened model =
             model.log.entries
                 |> Utils.findItem (Har.isEntryOfPage model.table.filter.page)
                 |> Maybe.map .startedDateTime
-                |> Maybe.withDefault (Time.millisToPosix 0)
+                |> Maybe.withDefault Utils.epoch
 
         table =
             model.table

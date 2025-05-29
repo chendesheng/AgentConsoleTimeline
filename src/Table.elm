@@ -863,18 +863,13 @@ tableFilterView liveSession visitors error autoFocus pages filter =
         ]
 
 
-epoch : Posix
-epoch =
-    Time.millisToPosix 0
-
-
 tableBodyEntriesView : Float -> List TableColumn -> String -> Bool -> Int -> List Har.Entry -> Int -> String -> Html TableMsg
 tableBodyEntriesView msPerPx columns selected showDetail scrollTop entries viewportHeight highlightVisitorId =
     let
         startTime =
             -- startTime is not used when detail is displayed
             if showDetail then
-                epoch
+                Utils.epoch
 
             else
                 Har.getFirstEntryStartTime entries (floor <| toFloat scrollTop / 20)

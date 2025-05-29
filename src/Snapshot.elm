@@ -5,54 +5,69 @@ import Html exposing (..)
 import Html.Attributes exposing (class, property, src, style)
 import Iso8601
 import Json.Encode as Encode
-import Time
 import Utils
 
 
 agentConsoleSnapshotProps : Bool -> String -> String -> List Har.Entry -> String -> List (Html.Attribute msg)
 agentConsoleSnapshotProps isSortByTime href pageName entries currentId =
     let
-        ( stateEntry, prevStateEntry, nonStateEntries ) =
-            Har.findStateEntryAndPrevStateEntry entries currentId
+        stateEntryAndPrevStateEntryAllSites =
+            Har.findStateEntryAndPrevStateEntryAllSites entries currentId
 
-        actions =
-            if isSortByTime && stateEntry == Nothing then
-                nonStateEntries
-                    |> Har.filterByKind (Just ReduxAction)
-                    |> List.map (\e -> Har.getRequestBody e |> Maybe.withDefault "")
-                    |> Encode.list Encode.string
+        stateAndActions =
+            Encode.dict String.fromInt
+                (\stateEntryAndPrevStateEntry ->
+                    case ( stateEntryAndPrevStateEntry.stateEntry, stateEntryAndPrevStateEntry.prevStateEntry, stateEntryAndPrevStateEntry.nonStateEntries ) of
+                        ( Just stateEntry, _, _ ) ->
+                            Encode.object
+                                [ ( "state", Encode.string <| (stateEntry |> Har.getReduxState |> Maybe.withDefault "") )
+                                , ( "actions", Encode.list (\a -> a) [] )
+                                , ( "time", Encode.string <| Iso8601.fromTime stateEntry.startedDateTime )
+                                ]
 
-            else
-                -- pass empty actions when entries are not sorted by time
-                -- because when entries are not sorted by time, the states/actions are not in order
-                Encode.list (\a -> a) []
+                        ( Nothing, Just prevStateEntry, nonStateEntries ) ->
+                            Encode.object
+                                [ ( "state", Encode.string <| (prevStateEntry |> Har.getReduxState |> Maybe.withDefault "") )
+                                , ( "actions"
+                                  , if isSortByTime then
+                                        nonStateEntries
+                                            |> Har.filterByKind (Just ReduxAction)
+                                            |> List.map (\e -> Har.getRequestBody e |> Maybe.withDefault "")
+                                            |> Encode.list Encode.string
 
-        ( startedDateTime, state ) =
-            case stateEntry of
-                Just entry ->
-                    case Har.getReduxState entry of
-                        Just st ->
-                            ( entry.startedDateTime, st )
+                                    else
+                                        -- pass empty actions when entries are not sorted by time
+                                        -- because when entries are not sorted by time, the states/actions are not in order
+                                        Encode.list (\a -> a) []
+                                  )
+                                , ( "time"
+                                  , nonStateEntries
+                                        |> Utils.getLast
+                                        |> Maybe.map .startedDateTime
+                                        |> Maybe.withDefault Utils.epoch
+                                        |> Iso8601.fromTime
+                                        |> Encode.string
+                                  )
+                                ]
 
-                        Nothing ->
-                            ( Time.millisToPosix 0, "" )
+                        _ ->
+                            Encode.object
+                                [ ( "state", Encode.string "" )
+                                , ( "actions", Encode.list (\a -> a) [] )
+                                , ( "time", Encode.string "" )
+                                ]
+                )
+                stateEntryAndPrevStateEntryAllSites
 
-                Nothing ->
-                    case prevStateEntry of
-                        Just prevEntry ->
-                            case Har.getReduxState prevEntry of
-                                Just prevSt ->
-                                    ( prevEntry.startedDateTime, prevSt )
-
-                                Nothing ->
-                                    ( Time.millisToPosix 0, "" )
-
-                        Nothing ->
-                            ( Time.millisToPosix 0, "" )
+        time =
+            Utils.findItem (\e -> e.id == currentId) entries
+                |> Maybe.map .startedDateTime
+                |> Maybe.withDefault Utils.epoch
+                |> Iso8601.fromTime
+                |> Encode.string
     in
-    [ property "state" <| Encode.string <| state
-    , property "time" <| Encode.string <| Iso8601.fromTime startedDateTime
-    , property "actions" <| actions
+    [ property "time" time
+    , property "stateAndActions" stateAndActions
     , src href
     , property "pageName" <| Encode.string pageName
     ]

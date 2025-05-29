@@ -15,7 +15,6 @@ import Snapshot exposing (QuickPreview, agentConsoleSnapshotPopout, agentConsole
 import String
 import Table exposing (TableFilter, isSortByTime)
 import Task
-import Time
 import TokenDecoder exposing (parseToken)
 import Url
 import Utils
@@ -285,7 +284,7 @@ agentConsoleSnapshotPlayer liveSession entries initialId highlightVisitorId =
         lastEntryStartTime =
             Utils.getLast stateEntries
                 |> Maybe.map .startedDateTime
-                |> Maybe.withDefault (Time.millisToPosix 0)
+                |> Maybe.withDefault Utils.epoch
     in
     Html.node "agent-console-snapshot-player"
         [ stateEntries
@@ -315,22 +314,27 @@ agentConsoleSnapshotPlayer liveSession entries initialId highlightVisitorId =
         []
 
 
+agentConsoleSnapshotComponent : Bool -> String -> String -> List Har.Entry -> String -> Html DetailMsg
+agentConsoleSnapshotComponent isSortByTime href pageName entries currentId =
+    Html.node "agent-console-snapshot"
+        ([ Decode.string
+            |> Decode.at [ "detail", "value" ]
+            |> Decode.map (String.replace "&snapshot=true" "" >> SetHref)
+            |> on "srcChange"
+         , Decode.bool
+            |> Decode.at [ "detail", "value" ]
+            |> Decode.map SetSnapshotPopout
+            |> on "popout"
+         ]
+            ++ agentConsoleSnapshotProps isSortByTime href pageName entries currentId
+        )
+        []
+
+
 agentConsoleSnapshot : Bool -> Bool -> List Har.Entry -> String -> String -> String -> Maybe QuickPreview -> String -> Maybe String -> Html DetailMsg
 agentConsoleSnapshot liveSession isSortByTime entries href pageName currentId quickPreview entryId highlightVisitorId =
     div [ class "detail-body", class "agent-console-snapshot-container" ]
-        [ Html.node "agent-console-snapshot"
-            ([ Decode.string
-                |> Decode.at [ "detail", "value" ]
-                |> Decode.map (String.replace "&snapshot=true" "" >> SetHref)
-                |> on "srcChange"
-             , Decode.bool
-                |> Decode.at [ "detail", "value" ]
-                |> Decode.map SetSnapshotPopout
-                |> on "popout"
-             ]
-                ++ agentConsoleSnapshotProps isSortByTime href pageName entries currentId
-            )
-            []
+        [ lazy5 agentConsoleSnapshotComponent isSortByTime href pageName entries currentId
         , lazy4 agentConsoleSnapshotPlayer liveSession entries entryId highlightVisitorId
         , lazy5 snapshotQuickPreview False quickPreview href pageName entries
         ]
@@ -664,8 +668,8 @@ stateChangeViewer : Har.Entry -> List Har.Entry -> Html msg
 stateChangeViewer entry entries =
     case Har.getReduxState entry of
         Just modified ->
-            case Har.findStateEntryAndPrevStateEntry entries entry.id of
-                ( _, Just prevEntry, _ ) ->
+            case (Har.findStateEntryAndPrevStateEntry entries entry.id).prevStateEntry of
+                Just prevEntry ->
                     case Har.getReduxState prevEntry of
                         Just original ->
                             codeDiffEditor "json" original modified

@@ -109,7 +109,7 @@ initialView model =
     dropFileView "app initial-container"
         DropFile
         [ Html.map (\_ -> NoOp) <| tableFilterView False [] Nothing False [] defaultTableFilter
-        , Html.map (\_ -> NoOp) (lazy4 tableView (Time.millisToPosix 0) Table.defaultTableModel False False)
+        , Html.map (\_ -> NoOp) (lazy4 tableView Utils.epoch Table.defaultTableModel False False)
         , div [ class "initial-dialog-container" ] <|
             case model.waitingRemoteSession of
                 Just url ->

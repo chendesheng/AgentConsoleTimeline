@@ -2,16 +2,20 @@ import { html, css, LitElement, PropertyValues } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import { getPopoutWindow, PopoutWindow } from "./windowManager";
 
+export type ReduxStateAndActions = {
+  state: string;
+  actions: string[];
+  time: string;
+};
+
 @customElement("agent-console-snapshot-frame")
 export class AgentConsoleSnapshotFrame extends LitElement {
   @property({ type: String })
   src = "";
 
-  @property({ type: String })
-  state = "";
-
-  @property({ type: Array })
-  actions: string[] = [];
+  // key is siteId
+  @property({ type: Object })
+  stateAndActions: Record<number, ReduxStateAndActions> = {};
 
   @property({ type: String })
   time = "";
@@ -25,8 +29,13 @@ export class AgentConsoleSnapshotFrame extends LitElement {
   public static resolveSrc(src: string) {
     let res = src;
 
-    if (src.includes("isSuperAgent=true") && src.includes("agentconsole.html")) {
-      res = src.replace("agentconsole.html", "superagent.html");
+    if (
+      src.includes("isSuperAgent=true") &&
+      src.includes("agentconsole.html")
+    ) {
+      res = src
+        .replace("agentconsole.html", "superagent.html")
+        .replace("&isSuperAgent=true", "");
     }
 
     if (res.includes("snapshot=true")) return res;
@@ -74,16 +83,36 @@ export class AgentConsoleSnapshotFrame extends LitElement {
   }
 
   private sendToSnapshot() {
-    if (this.state) {
-      this.getSnapshotWindow()?.postMessage(
-        { type: "restoreReduxState", payload: this.state, time: this.time },
-        "*",
+    const siteIds = Object.keys(this.stateAndActions).map(Number);
+    const restoreReduxStateMessages = siteIds.map((siteId) => ({
+      type: "restoreReduxState",
+      payload: this.stateAndActions[siteId].state,
+      time: this.time,
+      siteId,
+    }));
+    this.dispatchRestoreReduxState(restoreReduxStateMessages);
+
+    for (const siteId of siteIds) {
+      this.dispatchActionsToSnapshot(
+        siteId,
+        this.stateAndActions[siteId].actions,
       );
     }
-    this.dispatchActionsToSnapshot(this.actions);
   }
 
-  dispatchActionsToSnapshot(actions: string[]) {
+  dispatchRestoreReduxState(messages: any[]) {
+    if (messages.length === 0) return;
+
+    if (messages.length === 1) {
+      this.getSnapshotWindow()?.postMessage(messages[0], "*");
+    } else {
+      this.getSnapshotWindow()?.postMessage(messages, "*");
+    }
+  }
+
+  dispatchActionsToSnapshot(siteId: number, actions: string[]) {
+    if (actions.length === 0) return;
+
     const win = this.getSnapshotWindow();
     if (!win) return;
 
@@ -94,6 +123,7 @@ export class AgentConsoleSnapshotFrame extends LitElement {
           type: "dispatchReduxAction",
           action: JSON.parse(action),
           time: this.time,
+          siteId,
         },
         "*",
       );
@@ -126,27 +156,78 @@ export class AgentConsoleSnapshotFrame extends LitElement {
     window.removeEventListener("message", this.handleMessage);
   }
 
-  private diffActions(oldActions: string[]): string[] | undefined {
-    const actions = this.actions;
+  private diffActions(siteId: number, oldActions: string[]): string[] {
+    const actions = this.stateAndActions[siteId].actions;
     if (oldActions.length > actions.length) {
-      return;
+      return [];
     }
     if (oldActions.some((action, i) => action !== actions[i])) {
-      return;
+      return [];
     }
     return actions.slice(oldActions.length);
   }
 
-  updated(prev: PropertyValues<this>) {
-    if (!prev.has("state") && prev.has("actions")) {
-      const actions = this.diffActions(prev.get("actions")!);
-      if (actions) this.dispatchActionsToSnapshot(actions);
-      else this.sendToSnapshot();
-      return;
-    }
+  updated(changed: PropertyValues<this>) {
+    if (changed.has("stateAndActions")) {
+      const prevStateAndActions = changed.get("stateAndActions") ?? {};
+      const { added, removed, unchanged } = diffSiteIds(
+        Object.keys(prevStateAndActions).map(Number),
+        Object.keys(this.stateAndActions).map(Number),
+      );
 
-    if (prev.has("state")) {
-      this.sendToSnapshot();
+      // restore all sites if any site's state is changed
+      if (
+        added.length > 0 ||
+        removed.length > 0 ||
+        unchanged.some((siteId) => {
+          return (
+            prevStateAndActions[siteId]!.state !==
+            this.stateAndActions[siteId]!.state
+          );
+        })
+      ) {
+        this.dispatchRestoreReduxState(
+          Object.keys(this.stateAndActions)
+            .map(Number)
+            .map((siteId) => ({
+              type: "restoreReduxState",
+              payload: this.stateAndActions[siteId].state,
+              time: this.stateAndActions[siteId].time,
+              siteId,
+            })),
+        );
+      }
+
+      const reduxActionMessages: any[] = [];
+
+      for (const siteId of unchanged) {
+        const prevStateAndAction = prevStateAndActions[siteId]!;
+        const stateAndAction = this.stateAndActions[siteId]!;
+
+        const actions = this.diffActions(siteId, prevStateAndAction.actions);
+        if (actions.length > 0) {
+          reduxActionMessages.push(
+            ...actions.map((action) => ({
+              type: "dispatchReduxAction",
+              action: JSON.parse(action),
+              time: stateAndAction.time,
+              siteId,
+            })),
+          );
+        }
+      }
+
+      for (const message of reduxActionMessages) {
+        this.getSnapshotWindow()?.postMessage(message, "*");
+      }
+      return;
     }
   }
 }
+
+const diffSiteIds = (prevSiteIds: number[], siteIds: number[]) => {
+  const added = siteIds.filter((id) => !prevSiteIds.includes(id));
+  const removed = prevSiteIds.filter((id) => !siteIds.includes(id));
+  const unchanged = siteIds.filter((id) => prevSiteIds.includes(id));
+  return { added, removed, unchanged };
+};

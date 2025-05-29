@@ -1,5 +1,6 @@
 module Har exposing (..)
 
+import Dict exposing (Dict)
 import Json.Decode as D
 import Regex exposing (Match)
 import Time
@@ -223,7 +224,7 @@ getFirstEntryStartTime entries startIndex =
             entry.startedDateTime
 
         _ ->
-            Time.millisToPosix 0
+            Utils.epoch
 
 
 compareEntry : String -> Entry -> Entry -> Order
@@ -496,10 +497,10 @@ getClientInfo entries =
                 (D.field "userAgent" D.string)
                 (D.field "version" D.string)
                 (D.field "commit" D.string)
-                (D.succeed <| Time.millisToPosix 0)
+                (D.succeed <| Utils.epoch)
 
         emptyClientInfo =
-            ClientInfo "" "" "" "" <| Time.millisToPosix 0
+            ClientInfo "" "" "" "" Utils.epoch
     in
     case List.filter (\entry -> entry.request.url == "/log/message") entries of
         entry :: rest ->
@@ -556,32 +557,175 @@ getLogMessage entry =
             e
 
 
-findStateEntryAndPrevStateEntryHelper : List Entry -> String -> Maybe Entry -> List Entry -> ( Maybe Entry, Maybe Entry, List Entry )
-findStateEntryAndPrevStateEntryHelper entries id prevStateEntry nonStateEntries =
+type alias StateEntryAndPrevStateEntry =
+    { stateEntry : Maybe Entry
+    , prevStateEntry : Maybe Entry
+    , nonStateEntries : List Entry
+    }
+
+
+getSiteId : String -> Int
+getSiteId url =
+    url
+        |> String.split "?"
+        |> List.drop 1
+        |> List.head
+        |> Maybe.andThen (Utils.getQueryStringInt "siteId")
+        |> Maybe.withDefault 0
+
+
+findStateEntryAndPrevStateEntryHelper : Dict Int StateEntryAndPrevStateEntry -> List Entry -> Dict Int StateEntryAndPrevStateEntry
+findStateEntryAndPrevStateEntryHelper result entries =
     case entries of
         entry :: rest ->
-            if entry.id == id then
-                if isReduxStateEntry entry then
-                    ( Just entry, prevStateEntry, List.reverse nonStateEntries )
+            if isReduxEntry entry then
+                let
+                    isMatchedReduxStateEntry current target =
+                        isReduxStateEntry current
+                            && (current.pageref == target.pageref)
+                            && (getSiteId current.request.url == getSiteId target.request.url)
 
-                else
-                    ( Nothing, prevStateEntry, List.reverse <| entry :: nonStateEntries )
+                    isMatchedReduxEntry current target =
+                        isReduxEntry current
+                            && (current.pageref == target.pageref)
+                            && (getSiteId current.request.url == getSiteId target.request.url)
 
-            else if isReduxStateEntry entry then
-                findStateEntryAndPrevStateEntryHelper rest id (Just entry) []
+                    siteId =
+                        getSiteId entry.request.url
+
+                    maybeStateEntryAndPrevStateEntry =
+                        Dict.get siteId result
+
+                    updatedStateEntryAndPrevStateEntry =
+                        case maybeStateEntryAndPrevStateEntry of
+                            Just stateEntryAndPrevStateEntry ->
+                                case ( stateEntryAndPrevStateEntry.stateEntry, stateEntryAndPrevStateEntry.prevStateEntry, stateEntryAndPrevStateEntry.nonStateEntries ) of
+                                    ( Just stateEntry, Just _, _ ) ->
+                                        if isMatchedReduxStateEntry entry stateEntry then
+                                            { stateEntry = Just entry, prevStateEntry = Just stateEntry, nonStateEntries = [] }
+
+                                        else if isMatchedReduxEntry entry stateEntry then
+                                            { stateEntry = Nothing, prevStateEntry = Just stateEntry, nonStateEntries = [ entry ] }
+
+                                        else
+                                            stateEntryAndPrevStateEntry
+
+                                    ( Just stateEntry, Nothing, nonStateEntries ) ->
+                                        if isMatchedReduxStateEntry entry stateEntry then
+                                            { stateEntry = Just entry, prevStateEntry = Just stateEntry, nonStateEntries = [] }
+
+                                        else if isMatchedReduxEntry entry stateEntry then
+                                            { stateEntry = Nothing, prevStateEntry = Just stateEntry, nonStateEntries = entry :: nonStateEntries }
+
+                                        else
+                                            stateEntryAndPrevStateEntry
+
+                                    ( Nothing, Just prevStateEntry, nonStateEntries ) ->
+                                        if isMatchedReduxStateEntry entry prevStateEntry then
+                                            { stateEntry = Just entry, prevStateEntry = Just prevStateEntry, nonStateEntries = [] }
+
+                                        else if isMatchedReduxEntry entry prevStateEntry then
+                                            { stateEntry = Nothing, prevStateEntry = Just prevStateEntry, nonStateEntries = entry :: nonStateEntries }
+
+                                        else
+                                            stateEntryAndPrevStateEntry
+
+                                    ( Nothing, Nothing, _ ) ->
+                                        if isReduxStateEntry entry then
+                                            { stateEntry = Just entry, prevStateEntry = Nothing, nonStateEntries = [] }
+
+                                        else
+                                            { stateEntry = Nothing, prevStateEntry = Nothing, nonStateEntries = [] }
+
+                            Nothing ->
+                                if isReduxStateEntry entry then
+                                    { stateEntry = Just entry, prevStateEntry = Nothing, nonStateEntries = [] }
+
+                                else
+                                    { stateEntry = Nothing, prevStateEntry = Nothing, nonStateEntries = [] }
+                in
+                findStateEntryAndPrevStateEntryHelper (Dict.insert siteId updatedStateEntryAndPrevStateEntry result) rest
 
             else
-                findStateEntryAndPrevStateEntryHelper rest id prevStateEntry (entry :: nonStateEntries)
+                findStateEntryAndPrevStateEntryHelper result rest
 
         [] ->
-            ( Nothing, Nothing, [] )
+            Dict.map (\_ stateEntryAndPrevStateEntry -> { stateEntryAndPrevStateEntry | nonStateEntries = List.reverse stateEntryAndPrevStateEntry.nonStateEntries }) result
+
+
+findClosestReduxEntry : String -> List Entry -> ( List Entry, Int )
+findClosestReduxEntry id entries =
+    let
+        go xs =
+            case xs of
+                x :: rest ->
+                    if x.id == id then
+                        []
+
+                    else if isReduxEntry x then
+                        if x.id == id then
+                            xs
+
+                        else
+                            x :: go rest
+
+                    else
+                        x :: go rest
+
+                [] ->
+                    []
+    in
+    ( go entries, 0 )
+
+
+takeListWhile : (a -> Bool) -> List a -> List a
+takeListWhile predicate list =
+    case list of
+        [] ->
+            []
+
+        x :: xs ->
+            if predicate x then
+                x :: takeListWhile predicate xs
+
+            else
+                -- inclusive
+                [ x ]
 
 
 {-| Returns state entry of id, prevStateEntry of the entry, entries between the prevStateEntry and the entry (including the entry if it is not redux state entry).
 -}
-findStateEntryAndPrevStateEntry : List Entry -> String -> ( Maybe Entry, Maybe Entry, List Entry )
+findStateEntryAndPrevStateEntry : List Entry -> String -> StateEntryAndPrevStateEntry
 findStateEntryAndPrevStateEntry entries id =
-    findStateEntryAndPrevStateEntryHelper entries id Nothing []
+    let
+        prevEntries =
+            entries
+                |> takeListWhile (\entry -> entry.id /= id)
+
+        siteId =
+            prevEntries
+                |> List.reverse
+                |> Utils.findMaybeItem
+                    (\_ entry ->
+                        if isReduxEntry entry then
+                            Just <| getSiteId entry.request.url
+
+                        else
+                            Nothing
+                    )
+                |> Maybe.withDefault 0
+    in
+    prevEntries
+        |> findStateEntryAndPrevStateEntryHelper Dict.empty
+        |> Dict.get siteId
+        |> Maybe.withDefault { stateEntry = Nothing, prevStateEntry = Nothing, nonStateEntries = [] }
+
+
+findStateEntryAndPrevStateEntryAllSites : List Entry -> String -> Dict Int StateEntryAndPrevStateEntry
+findStateEntryAndPrevStateEntryAllSites entries id =
+    entries
+        |> takeListWhile (\entry -> entry.id /= id)
+        |> findStateEntryAndPrevStateEntryHelper Dict.empty
 
 
 harEntryName : Entry -> String

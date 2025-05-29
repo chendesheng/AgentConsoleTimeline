@@ -7,6 +7,7 @@ module Utils exposing
     , dropDownListWithGroup
     , dropWhile
     , dropWhileBefore
+    , epoch
     , exportLiveSessionFileName
     , findItem
     , findMaybeItem
@@ -16,6 +17,8 @@ module Utils exposing
     , formatTime
     , getLanguage
     , getLast
+    , getQueryString
+    , getQueryStringInt
     , indexOf
     , intPx
     , isMember
@@ -34,6 +37,7 @@ import Json.Decode as D
 import Json.Encode as Encode
 import String exposing (fromFloat, fromInt)
 import Time
+import Url exposing (percentDecode)
 
 
 compareInt : Int -> Int -> Order
@@ -498,3 +502,33 @@ getLanguage path =
 
     else
         "json"
+
+
+getQueryStringInt : String -> String -> Maybe Int
+getQueryStringInt key query =
+    getQueryString key query
+        |> Maybe.andThen String.toInt
+
+
+getQueryString : String -> String -> Maybe String
+getQueryString key query =
+    query
+        |> String.split "&"
+        |> findMaybeItem
+            (\_ part ->
+                case String.split "=" part of
+                    [ k, v ] ->
+                        if k == key then
+                            percentDecode v
+
+                        else
+                            Nothing
+
+                    _ ->
+                        Nothing
+            )
+
+
+epoch : Time.Posix
+epoch =
+    Time.millisToPosix 0

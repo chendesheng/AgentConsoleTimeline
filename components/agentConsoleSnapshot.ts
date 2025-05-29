@@ -9,7 +9,10 @@ import {
 } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import "./agentConsoleSnapshotFrame";
-import { AgentConsoleSnapshotFrame } from "./agentConsoleSnapshotFrame";
+import {
+  AgentConsoleSnapshotFrame,
+  ReduxStateAndActions,
+} from "./agentConsoleSnapshotFrame";
 import { getPopoutWindow, openWindow, PopoutWindow } from "./windowManager";
 import upDownArrowsUrl from "../assets/images/UpDownArrows.svg";
 import popupUrl from "../assets/images/Popup.svg";
@@ -20,10 +23,8 @@ import reloadToolbar from "../assets/images/ReloadToolbar.svg";
 export class AgentConsoleSnapshot extends LitElement {
   @property({ type: String })
   src = "";
-  @property({ type: String })
-  state = "";
-  @property({ type: Array })
-  actions: string[] = [];
+  @property({ type: Object })
+  stateAndActions: Record<number, ReduxStateAndActions> = {};
   @property({ type: String })
   time = "";
 
@@ -169,7 +170,7 @@ export class AgentConsoleSnapshot extends LitElement {
       inset: 0;
     }
 
-    select>option {
+    select > option {
       background-color: var(--background-color-content);
     }
 
@@ -341,8 +342,7 @@ export class AgentConsoleSnapshot extends LitElement {
         : html`<agent-console-snapshot-frame
             class="snapshot"
             .src=${src}
-            .actions=${this.actions}
-            .state=${this.state}
+            .stateAndActions=${this.stateAndActions}
             .time=${this.time}
             .isPopout=${false}
           />`}`;
