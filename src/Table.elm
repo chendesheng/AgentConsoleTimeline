@@ -790,6 +790,20 @@ waterfallScaleOptions =
     , { value = "4x", label = "4x" }
     , { value = "5x", label = "5x" }
     , { value = "6x", label = "6x" }
+    , { value = "7x", label = "7x" }
+    , { value = "8x", label = "8x" }
+    , { value = "9x", label = "9x" }
+    , { value = "10x", label = "10x" }
+    , { value = "11x", label = "11x" }
+    , { value = "12x", label = "12x" }
+    , { value = "13x", label = "13x" }
+    , { value = "14x", label = "14x" }
+    , { value = "15x", label = "15x" }
+    , { value = "16x", label = "16x" }
+    , { value = "17x", label = "17x" }
+    , { value = "18x", label = "18x" }
+    , { value = "19x", label = "19x" }
+    , { value = "20x", label = "20x" }
     ]
 
 
