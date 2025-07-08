@@ -757,14 +757,14 @@ scaleToWaterfallMsPerPx scale =
 tableFilterOptions : List VisitorInfo -> List GroupOption
 tableFilterOptions visitors =
     [ { label = "", subitems = [ { value = "", label = "All" } ] }
+    , { label = "", subitems = [ { value = "1", label = "Log" } ] }
+    , { label = "", subitems = [ { value = "2", label = "Http" } ] }
+    , { label = "", subitems = [ { value = "3", label = "Others" } ] }
     , { label = "Redux"
       , subitems =
             { value = "0", label = "All" }
                 :: List.map (\{ id, name } -> { value = "0-" ++ id, label = name }) visitors
       }
-    , { label = "", subitems = [ { value = "1", label = "Log" } ] }
-    , { label = "", subitems = [ { value = "2", label = "Http" } ] }
-    , { label = "", subitems = [ { value = "3", label = "Others" } ] }
     ]
 
 

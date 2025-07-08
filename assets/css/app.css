@@ -222,6 +222,6 @@
   flex-flow: row;
 }
 
-select>option {
+select>option, optgroup>option {
   background-color: var(--background-color-content);
 }
