@@ -8,7 +8,7 @@ import "./components/resizeDivider";
 import "./components/monacoEditor";
 import "./components/openFileButton";
 import "./components/dropZipFile";
-import { analysis } from "./components/unzipFile";
+import { analysis, unzipFiles } from "./components/unzipFile";
 import "./components/hexEditor";
 import {
   saveRecentFile,
@@ -111,6 +111,32 @@ async function main() {
       app.ports.gotRemoteClose.send(url);
     };
   });
+
+  window.onmessage = async (event) => {
+    if (event.data.type === "open") {
+      if (event.data.filename && event.data.content) {
+        let content: string;
+        if (event.data.content instanceof ArrayBuffer) {
+          const file = await unzipFiles(
+            new File([event.data.content], event.data.filename),
+          );
+          content = await file.text();
+        } else {
+          content = event.data.content;
+        }
+
+        app.ports.gotFileContent.send({
+          name: event.data.filename,
+          text: content,
+          json: analysis(JSON.parse(content)),
+        });
+      }
+    }
+  };
+
+  if (window.opener) {
+    window.opener.postMessage({ type: "ready" }, "*");
+  }
 }
 
 main();

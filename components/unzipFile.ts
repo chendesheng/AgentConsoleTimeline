@@ -124,7 +124,7 @@ async function toJsonFile(file: File) {
   }
 }
 
-async function unzipFiles(file: File) {
+export async function unzipFiles(file: File) {
   const jszip = new JSZip();
   const zip = await jszip.loadAsync(file);
 
