@@ -57,15 +57,20 @@ type alias OpenedModel =
     }
 
 
-init : String -> List RecentFile -> ( Model, Cmd Msg )
-init remoteAddress recentFiles =
+init : String -> List RecentFile -> Maybe String -> ( Model, Cmd Msg )
+init remoteAddress recentFiles remoteSession =
     let
         model =
             defaultInitialModel remoteAddress
     in
-    ( Initial <| { model | recentFiles = recentFiles }
+    ( Initial <| { model | recentFiles = recentFiles, waitingRemoteSession = remoteSession }
     , Cmd.batch
-        [ Remote.getSessions remoteAddress (GotRemoteSessions >> InitialMsg)
+        [ case remoteSession of
+            Just url ->
+                Remote.connectRemoteSource url
+
+            Nothing ->
+                Remote.getSessions remoteAddress (GotRemoteSessions >> InitialMsg)
         , Task.perform (InitialMsg << GotTimezone) Time.here
         ]
     )
@@ -503,10 +508,10 @@ subscriptions model =
 -- MAIN
 
 
-main : Program { remoteAddress : String, recentFiles : List RecentFile } Model Msg
+main : Program { remoteAddress : String, recentFiles : List RecentFile, remoteSession : Maybe String } Model Msg
 main =
     Browser.document
-        { init = \flags -> init flags.remoteAddress flags.recentFiles
+        { init = \flags -> init flags.remoteAddress flags.recentFiles flags.remoteSession
         , view =
             \model ->
                 { title =

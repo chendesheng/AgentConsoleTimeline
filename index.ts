@@ -34,6 +34,9 @@ async function main() {
       recentFiles,
       remoteAddress:
         import.meta.env.REMOTE_ADDRESS ?? "agentconsoledebugger.deno.dev",
+      remoteSession: new URLSearchParams(window.location.search).get(
+        "remoteSession",
+      ),
     },
   });
 
@@ -77,40 +80,56 @@ async function main() {
 
   let socket: WebSocket;
   app.ports.connectRemoteSource.subscribe((url) => {
-    if (socket) {
-      socket.close();
-    }
+    const remoteHar = new RemoteHar(app.ports, url);
 
-    socket = new WebSocket(url);
-    socket.onopen = (event) => {
-      // console.log('onopen', event);
-      socket.send(
-        JSON.stringify({
-          type: "connect",
-        }),
-      );
-    };
-
-    const harEntryQueue: any[] = [];
-    socket.onmessage = (event) => {
-      // console.log('got message', event.data);
-
-      const data = JSON.parse(event.data);
-      if (data.type === "harLog") {
-        app.ports.gotRemoteHarLog.send(JSON.stringify({ log: data.payload }));
-      } else if (data.type === "harEntry") {
-        harEntryQueue.push(data.payload);
-        setTimeout(() => {
-          app.ports.gotRemoteHarEntry.send(JSON.stringify(harEntryQueue));
-          harEntryQueue.splice(0, harEntryQueue.length);
-        }, 50);
+    if (url.startsWith("wss://") || url.startsWith("ws://")) {
+      if (socket) {
+        socket.close();
       }
-    };
 
-    socket.onclose = (event) => {
-      // console.log(`remote source ${url} closed`);
-      app.ports.gotRemoteClose.send(url);
-    };
+      socket = new WebSocket(url);
+      socket.onopen = (event) => {
+        // console.log('onopen', event);
+        socket.send(
+          JSON.stringify({
+            type: "connect",
+          }),
+        );
+      };
+
+      socket.onmessage = (event) => {
+        // console.log('got message', event.data);
+
+        const data = JSON.parse(event.data);
+        if (data.type === "harLog") {
+          remoteHar.harLog(data.payload);
+        } else if (data.type === "harEntry") {
+          remoteHar.harEntry(data.payload);
+        }
+      };
+
+      socket.onclose = (event) => {
+        // console.log(`remote source ${url} closed`);
+        remoteHar.close();
+      };
+    } else if (window.opener) {
+      window.opener.postMessage({ type: "connect" }, "*");
+
+      const checkClosedTimer = setInterval(() => {
+        if (window.opener?.closed) {
+          remoteHar.close();
+          clearInterval(checkClosedTimer);
+        }
+      }, 100);
+
+      window.onmessage = (event) => {
+        if (event.data.type === "harLog") {
+          remoteHar.harLog(event.data.payload);
+        } else if (event.data.type === "harEntry") {
+          remoteHar.harEntry(event.data.payload);
+        }
+      };
+    }
   });
 
   window.onmessage = async (event) => {
@@ -141,3 +160,25 @@ async function main() {
 }
 
 main();
+
+class RemoteHar {
+  private harEntryQueue: any[] = [];
+
+  constructor(private readonly ports: any, private readonly url: string = "") {}
+
+  harLog(log: any) {
+    this.ports.gotRemoteHarLog.send(JSON.stringify({ log }));
+  }
+
+  harEntry(entry: any) {
+    this.harEntryQueue.push(entry);
+    setTimeout(() => {
+      this.ports.gotRemoteHarEntry.send(JSON.stringify(this.harEntryQueue));
+      this.harEntryQueue.splice(0, this.harEntryQueue.length);
+    }, 50);
+  }
+
+  close() {
+    this.ports.gotRemoteClose.send(this.url);
+  }
+}
