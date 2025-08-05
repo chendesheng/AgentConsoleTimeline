@@ -19,6 +19,7 @@ module Table exposing
 import Browser.Dom as Dom
 import Browser.Events exposing (onResize)
 import Dict exposing (Dict)
+import DropFile exposing (DropFileModel)
 import Har exposing (EntryKind(..), SortBy, SortOrder(..), entryContainsVisitorId)
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -830,8 +831,8 @@ importButton error =
         []
 
 
-tableFilterView : Bool -> List VisitorInfo -> Maybe String -> Bool -> List Har.Page -> TableFilter -> Html TableMsg
-tableFilterView liveSession visitors error autoFocus pages filter =
+tableFilterView : Bool -> List VisitorInfo -> DropFileModel -> Bool -> List Har.Page -> TableFilter -> Html TableMsg
+tableFilterView liveSession visitors dropFile autoFocus pages filter =
     section [ class "table-filter" ]
         [ if liveSession then
             Icons.live
@@ -865,14 +866,13 @@ tableFilterView liveSession visitors error autoFocus pages filter =
                 }
                 (List.map (\page -> { value = page.id, label = page.id }) pages)
         , div [ class "actions" ]
-            [ importButton error
-            , button
-                [ class "export"
-                , class "text"
-                , class "icon-button"
-                , onClick Export
+            [ importButton dropFile.error
+            , Html.node "export-button"
+                [ property "label" <| Encode.string "Export"
+                , property "fileName" <| Encode.string <| dropFile.fileName ++ ".zip"
+                , property "fileContent" <| Encode.string dropFile.fileContentString
                 ]
-                [ Icons.export, text "Export" ]
+                []
             ]
         ]
 
@@ -1200,7 +1200,6 @@ type TableMsg
     | GotImportFile (Result String JsonFile)
     | HoverNameCell String Int Bool
     | UnhoverNameCell
-    | Export
 
 
 updateTable : TableMsg -> Har.Log -> TableModel -> ( TableModel, Cmd TableMsg )
@@ -1210,9 +1209,6 @@ updateTable action log table =
             ( table, Cmd.none )
 
         GotImportFile _ ->
-            ( table, Cmd.none )
-
-        Export ->
             ( table, Cmd.none )
 
         FlipSort column ->

@@ -140,7 +140,7 @@ viewOpened model =
                 tableFilterView
                 (isLiveSession model.fileName)
                 table.visitors
-                model.dropFile.error
+                model.dropFile
                 True
                 model.log.pages
                 table.filter
@@ -337,9 +337,6 @@ updateOpened msg model =
 
         TableAction (GotImportFile (Err error)) ->
             updateOpened (DropFile (ReadFileError error)) model
-
-        TableAction Export ->
-            updateOpened (DropFile DownloadFile) model
 
         TableAction action ->
             let
