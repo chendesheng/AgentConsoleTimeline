@@ -869,7 +869,7 @@ tableFilterView liveSession visitors dropFile autoFocus pages filter =
             [ importButton dropFile.error
             , Html.node "export-button"
                 [ property "label" <| Encode.string "Export"
-                , property "fileName" <| Encode.string <| dropFile.fileName ++ ".zip"
+                , property "fileName" <| Encode.string dropFile.fileName
                 , property "fileContent" <| Encode.string dropFile.fileContentString
                 ]
                 []

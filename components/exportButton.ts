@@ -26,9 +26,10 @@ export class ExportButton extends LitElement {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = this.fileName;
+    a.download = this.fileName + ".zip";
     a.click();
-    URL.revokeObjectURL(url);
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30 * 1000);
   }
 
   static styles = css`
