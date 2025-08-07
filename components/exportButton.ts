@@ -1,5 +1,5 @@
 import JSZip from "jszip";
-import { css, html, LitElement, unsafeCSS } from "lit";
+import { css, html, LitElement, PropertyValues, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import exportUrl from "../assets/images/Export.svg";
 
@@ -14,7 +14,9 @@ export class ExportButton extends LitElement {
   @property({ type: String })
   fileContent = "";
 
-  async handleClick() {
+  private waiting = false;
+
+  async export() {
     const zip = new JSZip();
     zip.file(this.fileName, this.fileContent, {
       compression: "DEFLATE",
@@ -30,6 +32,18 @@ export class ExportButton extends LitElement {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 30 * 1000);
+  }
+
+  async handleClick(e: MouseEvent) {
+    if (!this.fileContent) {
+      // this is a hack to wait for the file content to be set
+      this.waiting = true;
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+    await this.export();
   }
 
   static styles = css`
@@ -90,5 +104,17 @@ export class ExportButton extends LitElement {
         <i class="icon export"></i>${this.label}
       </button>
     </div>`;
+  }
+
+  updated(changedProperties: PropertyValues) {
+    if (
+      changedProperties.has("fileContent") &&
+      !changedProperties.get("fileContent") &&
+      this.fileContent &&
+      this.waiting
+    ) {
+      this.waiting = false;
+      this.export();
+    }
   }
 }

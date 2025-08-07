@@ -6,12 +6,14 @@ import Detail exposing (DetailModel, DetailMsg(..), detailViewContainer)
 import DropFile exposing (DropFileModel, DropFileMsg(..), defaultDropFileModel, dropFileView)
 import Har exposing (ClientInfo, EntryKind(..), SortOrder(..))
 import HarDecoder
+import HarEncoder
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Html.Lazy exposing (lazy4, lazy6, lazy8)
 import Initial exposing (InitialModel, InitialMsg(..), defaultInitialModel, initialView, updateInitial)
 import Json.Decode as D
+import Json.Encode as Encode
 import List
 import RecentFile exposing (RecentFile, gotFileContent, saveRecentFile)
 import Remote
@@ -342,6 +344,24 @@ updateOpened msg model =
 
         TableAction (GotImportFile (Err error)) ->
             updateOpened (DropFile (ReadFileError error)) model
+
+        TableAction JsonEncodeFileContent ->
+            let
+                dropFile =
+                    model.dropFile
+
+                log =
+                    model.log
+
+                newDropFile =
+                    { dropFile
+                        | fileContent = Just log
+                        , fileContentString =
+                            HarEncoder.encodeHarFile { log = log }
+                                |> Encode.encode 0
+                    }
+            in
+            ( { model | dropFile = newDropFile }, Cmd.none )
 
         TableAction action ->
             let

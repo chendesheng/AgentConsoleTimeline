@@ -871,6 +871,7 @@ tableFilterView liveSession visitors dropFile autoFocus pages filter =
                 [ property "label" <| Encode.string "Export"
                 , property "fileName" <| Encode.string dropFile.fileName
                 , property "fileContent" <| Encode.string dropFile.fileContentString
+                , onClick JsonEncodeFileContent
                 ]
                 []
             ]
@@ -1200,12 +1201,16 @@ type TableMsg
     | GotImportFile (Result String JsonFile)
     | HoverNameCell String Int Bool
     | UnhoverNameCell
+    | JsonEncodeFileContent
 
 
 updateTable : TableMsg -> Har.Log -> TableModel -> ( TableModel, Cmd TableMsg )
 updateTable action log table =
     case action of
         NoOp ->
+            ( table, Cmd.none )
+
+        JsonEncodeFileContent ->
             ( table, Cmd.none )
 
         GotImportFile _ ->
