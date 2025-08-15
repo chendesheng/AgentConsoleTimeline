@@ -13,6 +13,21 @@ declare module "*.elm" {
   };
 }
 
+declare module "@alenaksu/json-viewer/JsonViewer.js" {
+  export class JsonViewer extends HTMLElement {
+    expandAll(): void;
+    collapseAll(): void;
+    resetFilter(): void;
+    filter(regex: RegExp): void;
+  }
+}
+
+declare module "js-beautify" {
+  export function html(html: string): string;
+  export function css(css: string): string;
+  export function js(js: string): string;
+}
+
 declare module "jsondiffpatch" {
   export function diff(a: any, b: any): any;
 }
