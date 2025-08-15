@@ -3,8 +3,8 @@ import { customElement, property, query } from "lit/decorators.js";
 import hexEditCss from "js-hex-editor/dist/hex-editor.css?inline";
 import { HexEditor } from "js-hex-editor";
 
-@customElement("hex-editor")
-export class OpenFileButton extends LitElement {
+@customElement("hex-viewer")
+export class HexViewer extends LitElement {
   @property({ type: String })
   data = "";
 
@@ -54,8 +54,8 @@ export class OpenFileButton extends LitElement {
           readonly: true,
           width: "100%",
           height: "100%",
-          data: base64ToArrayBuffer(this.data)
-        }
+          data: base64ToArrayBuffer(this.data),
+        },
       });
     }
   }

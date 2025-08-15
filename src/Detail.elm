@@ -160,7 +160,7 @@ codeDiffEditor lang original modified =
 
 hexEditor : String -> Html msg
 hexEditor content =
-    Html.node "hex-editor"
+    Html.node "hex-viewer"
         [ class "detail-body"
         , property "data" <| Encode.string content
         ]
