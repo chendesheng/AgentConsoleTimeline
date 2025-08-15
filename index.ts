@@ -88,7 +88,7 @@ async function main() {
       }
 
       socket = new WebSocket(url);
-      socket.onopen = (event) => {
+      socket.onopen = () => {
         // console.log('onopen', event);
         socket.send(
           JSON.stringify({
@@ -97,7 +97,7 @@ async function main() {
         );
       };
 
-      socket.onmessage = (event) => {
+      socket.onmessage = (event: MessageEvent) => {
         // console.log('got message', event.data);
 
         const data = JSON.parse(event.data);
@@ -108,7 +108,7 @@ async function main() {
         }
       };
 
-      socket.onclose = (event) => {
+      socket.onclose = () => {
         // console.log(`remote source ${url} closed`);
         remoteHar.close();
       };
@@ -122,7 +122,7 @@ async function main() {
         }
       }, 100);
 
-      window.onmessage = (event) => {
+      window.onmessage = (event: MessageEvent) => {
         if (event.data.type === "harLog") {
           remoteHar.harLog(event.data.payload);
         } else if (event.data.type === "harEntry") {
@@ -132,7 +132,7 @@ async function main() {
     }
   });
 
-  window.onmessage = async (event) => {
+  window.onmessage = async (event: MessageEvent) => {
     if (event.data.type === "open") {
       if (event.data.filename && event.data.content) {
         let content: string;
