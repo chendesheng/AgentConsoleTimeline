@@ -1,11 +1,8 @@
 import { JsonViewer } from "@alenaksu/json-viewer/JsonViewer.js";
-import { html, css, LitElement, PropertyValues } from "lit";
+import { html, css, LitElement, PropertyValues, unsafeCSS } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import { sort as sortKeys } from "json-keys-sort";
 
-customElements.define("json-viewer", JsonViewer);
-
-/*
 customElements.define(
   "json-viewer",
   class extends JsonViewer {
@@ -16,18 +13,135 @@ customElements.define(
           color: var(--string-color);
           text-decoration: underline;
         }
+        a.avatar img {
+          vertical-align: middle;
+        }
+        .html-preview {
+          display: inline-block;
+        }
+        .image-preview {
+          vertical-align: middle;
+        }
+        input[type="color"] {
+          height: 15px;
+          margin-right: 2px;
+          width: 15px;
+          padding: 0;
+        }
+        input[type="color" i]::-webkit-color-swatch-wrapper {
+          padding: 0;
+        }
+        audio {
+          height: 20px;
+          margin-left: 2px;
+        }
+        audio::-webkit-media-controls-enclosure {
+          border-radius: 10px;
+        }
+        audio::-webkit-media-controls-panel {
+          padding: 0;
+        }
+        audio::-webkit-media-controls-current-time-display,
+        audio::-webkit-media-controls-time-remaining-display,
+        audio::-webkit-media-controls-timeline,
+        audio::-webkit-media-controls-volume-control-container,
+        audio::-webkit-media-controls-fullscreen-button,
+        audio::-internal-media-controls-overflow-button {
+          display: none;
+        }
+        button.play-sound {
+          all: unset;
+          cursor: pointer;
+          user-select: none;
+          width: 1em;
+          height: 1em;
+          margin-right: 3px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border: solid 1px currentColor;
+          border-radius: 100%;
+        }
+
+        button.play-sound:after {
+          content: "▶";
+          position: relative;
+          top: -1px;
+          left: 1px;
+        }
+
+        button.play-sound.playing {
+          pointer-events: none;
+          opacity: 0.4;
+        }
+
+        button.play-sound.playing:after {
+          content: "⏹";
+          position: unset;
+          top: unset;
+          left: unset;
+        }
       `,
     ];
 
     static customRenderer(value: any, path: string) {
       if (typeof value === "string") {
-        if (URL.canParse(value)) {
-          return html`"<a href="${value}" target="_blank">${value}</a>"`;
+        if (
+          URL.canParse(value) &&
+          (/Global\/agents\/[0-9a-fA-F-]+\/avatar/i.test(value) ||
+            /.svg$/.test(value))
+        ) {
+          return html`<a class="avatar" href="${value}" target="_blank"
+            ><img src="${value}" height="20"
+          /></a>`;
+        } else if (URL.canParse(value)) {
+          return html`<a href="${value}" target="_blank">${value}</a>`;
         } else if (value.startsWith("<div>")) {
           // set inner html
           const div = document.createElement("div");
+          div.classList.add("html-preview");
           div.innerHTML = value;
           return div;
+        } else if (
+          path.endsWith(".notificationIcon") ||
+          path.endsWith(".ico") ||
+          path.endsWith(".faviconImage")
+        ) {
+          return html`<img
+            class="image-preview"
+            src="${`data:image/png;base64,${value}`}"
+            height="20"
+          />`;
+        } else if (
+          /^#[0-9a-fA-F]{6}$/.test(value) ||
+          /^#[0-9a-fA-F]{3}$/.test(value) ||
+          /^rgba\(\s*[0-9]+,\s*[0-9]+,\s*[0-9]+,\s*[0-9.]+\s*\)$/.test(value) ||
+          /^rgb\(\s*[0-9]+,\s*[0-9]+,\s*[0-9]+\s*\)$/.test(value)
+        ) {
+          // FIXME: add alpha
+          return html`<input
+              type="color"
+              value="${value.startsWith("rgb")
+                ? rgbaToHex(value)
+                : expandHex(value)}"
+            />${super.customRenderer(value, path)}`;
+        } else if (
+          (path.includes("config.settings.sound") && path.endsWith(".id")) ||
+          (path.includes("config.preference") && path.endsWith("SoundId"))
+        ) {
+          return html`<button
+              class="play-sound"
+              @click=${(e: MouseEvent) => {
+                const button = e.currentTarget as HTMLButtonElement;
+                button.classList.toggle("playing");
+
+                const audio = document.createElement("audio");
+                audio.src = `https://chatserver11.comm100.io/DBResource/DBSound.ashx?soundId=${value}&siteId=10100000`;
+                audio.onended = () => button.classList.remove("playing");
+                audio.play();
+              }}
+            ></button
+            >${super.customRenderer(value, path)}`;
         }
       }
 
@@ -35,7 +149,6 @@ customElements.define(
     }
   },
 );
-*/
 
 declare global {
   interface HTMLElementTagNameMap {
@@ -314,4 +427,16 @@ function parseToken(o: string) {
   if (token.exp) token.exp = new Date(token.exp * 1000).toString();
   if (token.nbf) token.nbf = new Date(token.nbf * 1000).toString();
   return token;
+}
+
+function expandHex(hex: string) {
+  if (hex.length === 4) {
+    return `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`;
+  }
+  return hex;
+}
+
+function rgbaToHex(rgba: string) {
+  const [r, g, b] = rgba.match(/\d+/g)!.map(Number);
+  return `#${r.toString(16)}${g.toString(16)}${b.toString(16)}`;
 }
