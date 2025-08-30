@@ -11,6 +11,7 @@ customElements.define(
       css`
         li[role="treeitem"] {
           line-height: 0;
+          cursor: default;
         }
         li[role="treeitem"] > span {
           line-height: 18px;
@@ -95,10 +96,40 @@ customElements.define(
           top: unset;
           left: unset;
         }
+
+        li[role="treeitem"] > span > .value button.tracking {
+          all: unset;
+          user-select: none;
+          display: none;
+          cursor: pointer;
+          color: var(--text-color);
+          position: absolute;
+          left: 0;
+          bottom: 0;
+          transform: translateX(-100%);
+          padding: 0 2px;
+          height: 18px;
+          line-height: 18px;
+          font-size: 16px;
+        }
+
+        li[role="treeitem"]:hover > span > .value button.tracking {
+          display: inline-block;
+          opacity: 0.6;
+        }
+
+        li[role="treeitem"]:hover
+          > span
+          > .value
+          button.tracking.enable-tracking,
+        li[role="treeitem"] > span > .value button.tracking.enable-tracking {
+          display: inline-block;
+          opacity: 1;
+        }
       `,
     ];
 
-    static customRenderer(value: any, path: string) {
+    static valueRenderer(value: any, path: string) {
       if (typeof value === "string") {
         if (
           URL.canParse(value) &&
@@ -161,6 +192,20 @@ customElements.define(
 
       return super.customRenderer(value, path);
     }
+
+    static customRenderer(value: any, path: string) {
+      return html`<span class="value"
+        >${this.valueRenderer(value, path)}<button
+          class="tracking"
+          @click=${(e: MouseEvent) => {
+            const button = e.currentTarget as HTMLButtonElement;
+            button.classList.toggle("enable-tracking");
+          }}
+        >
+          •
+        </button></span
+      >`;
+    }
   },
 );
 
@@ -188,7 +233,7 @@ export class JsonTree extends LitElement {
 
   static styles = css`
     .actions {
-      line-height: 10px;
+      line-height: 15px;
       font-size: 10px;
       margin-top: 10px;
       margin-bottom: 2px;
@@ -218,8 +263,8 @@ export class JsonTree extends LitElement {
       width: 200px;
       font-size: 10px;
       padding: 0 0 0 1px;
-      height: 10px;
-      line-height: 10px;
+      height: 100%;
+      line-height: 100%;
       box-shadow: 0 1px 0 0 var(--border-color);
     }
 
