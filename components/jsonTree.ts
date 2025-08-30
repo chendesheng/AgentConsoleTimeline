@@ -315,6 +315,12 @@ export class JsonTree extends LitElement {
     }
   }
 
+  private handleBlur(e: Event) {
+    if (this._input?.value?.length === 0) {
+      this._showFilter = false;
+    }
+  }
+
   @state()
   private _showNestedJson: boolean = false;
   private handleParseNestedJson() {
@@ -353,6 +359,7 @@ export class JsonTree extends LitElement {
                 type="search"
                 @input="${this.handleInput}"
                 @keydown="${this.handleKeyDown}"
+                @blur="${this.handleBlur}"
                 placeholder="Filter"
               />`
             : html`
