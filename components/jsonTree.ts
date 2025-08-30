@@ -9,6 +9,18 @@ customElements.define(
     static styles = [
       JsonViewer.styles,
       css`
+        li[role="treeitem"] {
+          line-height: 0;
+        }
+        li[role="treeitem"] > span {
+          line-height: 18px;
+        }
+        li[role="treeitem"] .key .preview {
+          margin-left: 1ch;
+        }
+        li[role="treeitem"]:focus {
+          margin-right: 1px;
+        }
         a {
           color: var(--string-color);
           text-decoration: underline;
@@ -27,6 +39,8 @@ customElements.define(
           margin-right: 2px;
           width: 15px;
           padding: 0;
+          position: relative;
+          top: 3px;
         }
         input[type="color" i]::-webkit-color-swatch-wrapper {
           padding: 0;
@@ -378,6 +392,7 @@ const isTimestamp = (o: any, path: (string | number)[] = []) => {
     ["config", "preference", "lastStatusChangedTime"],
     ["config", "preference", "loginTime"],
     ["visitor", "lastGetSegmentChangedTime"],
+    ["visitor", "lastGetNewVisitorTime"],
   ];
   for (const p of timestampPath) {
     if (equals(path, p)) {
