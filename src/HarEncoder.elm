@@ -1,4 +1,4 @@
-module HarEncoder exposing (encodeEntry, encodeHar, encodeHarFile)
+module HarEncoder exposing (encodeEntry, encodeEntryMetadata, encodeHar, encodeHarFile, encodeMaybe)
 
 import Har exposing (..)
 import Iso8601
@@ -80,6 +80,15 @@ encodeEntry entry =
         , ( "serverIPAddress", encodeMaybe string entry.serverIPAddress )
         , ( "connection", encodeMaybe string entry.connection )
         , ( "comment", encodeMaybe string entry.comment )
+        , ( "metadata", encodeMaybe encodeEntryMetadata entry.metadata )
+        ]
+
+
+encodeEntryMetadata : EntryMetadata -> Value
+encodeEntryMetadata entryMetadata =
+    object
+        [ ( "relatedVisitorIds", list string entryMetadata.relatedVisitorIds )
+        , ( "changedPaths", list string entryMetadata.changedPaths )
         ]
 
 

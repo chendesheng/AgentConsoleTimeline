@@ -11,7 +11,12 @@ type PlayingState = "paused" | "playing" | "live";
 @customElement("agent-console-snapshot-player")
 export class AgentConsoleSnapshotPlayer extends LitElement {
   @property({ type: Array })
-  items: { id: string; time: number; comment?: string }[] = [];
+  items: {
+    id: string;
+    time: number;
+    isReduxState: boolean;
+    metadata?: { relatedVisitorIds: string[]; changedPaths: string[] };
+  }[] = [];
 
   @property({ type: Number })
   max: number = 0;
@@ -21,6 +26,9 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
 
   @property({ type: String })
   highlightVisitorId = "";
+
+  @property({ type: Array })
+  trackedPaths: string[] = [];
 
   @property({ type: Boolean })
   allowLive = false;
@@ -116,7 +124,7 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
       border-top: 1px solid var(--current-time-color, red);
     }
     .track > div.darken {
-      opacity: 0.5;
+      opacity: 0.3;
     }
     .track > div.highlight {
       background-color: red;
@@ -308,6 +316,29 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
   @query(".container")
   private container?: HTMLDivElement;
 
+  private isHighlightEnabled(item: {
+    metadata?: { relatedVisitorIds: string[]; changedPaths: string[] };
+  }) {
+    return this.highlightVisitorId !== "" || this.trackedPaths.length > 0;
+  }
+
+  private isHighlighted(item: {
+    metadata?: { relatedVisitorIds: string[]; changedPaths: string[] };
+    isReduxState: boolean;
+  }) {
+    if (!item.metadata) return false;
+    if (this.trackedPaths.length > 0 && !item.isReduxState) return false;
+    if (
+      this.highlightVisitorId &&
+      !item.metadata.relatedVisitorIds?.includes(this.highlightVisitorId)
+    )
+      return false;
+
+    return this.trackedPaths.some((path) =>
+      item.metadata?.changedPaths?.includes(path),
+    );
+  }
+
   render() {
     return html`<div
       class="container"
@@ -341,8 +372,8 @@ export class AgentConsoleSnapshotPlayer extends LitElement {
         ${this.items.map(
           (item) =>
             html`<div
-              class=${this.highlightVisitorId
-                ? item.comment?.includes(this.highlightVisitorId)
+              class=${this.isHighlightEnabled(item)
+                ? this.isHighlighted(item)
                   ? "highlight"
                   : "darken"
                 : ""}

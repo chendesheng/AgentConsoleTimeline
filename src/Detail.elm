@@ -2,6 +2,7 @@ module Detail exposing (DetailModel, DetailMsg(..), defaultDetailModel, detailVi
 
 import Browser.Dom as Dom
 import Har exposing (EntryKind(..))
+import HarEncoder exposing (encodeEntryMetadata, encodeMaybe)
 import Html exposing (..)
 import Html.Attributes as Attr exposing (attribute, class, property, src, srcdoc, style)
 import Html.Events exposing (..)
@@ -273,8 +274,8 @@ jsonDataViewer tool initialExpanded format className disableTrackingPath tracked
             jsonViewer initialExpanded className disableTrackingPath trackedPaths json
 
 
-agentConsoleSnapshotPlayer : Bool -> List Har.Entry -> String -> Maybe String -> Html DetailMsg
-agentConsoleSnapshotPlayer liveSession entries initialId highlightVisitorId =
+agentConsoleSnapshotPlayer : Bool -> List Har.Entry -> String -> Maybe String -> List String -> Html DetailMsg
+agentConsoleSnapshotPlayer liveSession entries initialId highlightVisitorId trackedPaths =
     let
         stateEntries =
             entries
@@ -292,11 +293,12 @@ agentConsoleSnapshotPlayer liveSession entries initialId highlightVisitorId =
     Html.node "agent-console-snapshot-player"
         [ stateEntries
             |> Encode.list
-                (\{ id, startedDateTime, comment } ->
+                (\entry ->
                     Encode.object
-                        [ ( "time", Encode.int <| Utils.timespanMillis firstEntryStartTime startedDateTime )
-                        , ( "id", Encode.string id )
-                        , ( "comment", Encode.string <| Maybe.withDefault "" comment )
+                        [ ( "time", Encode.int <| Utils.timespanMillis firstEntryStartTime entry.startedDateTime )
+                        , ( "id", Encode.string entry.id )
+                        , ( "metadata", encodeMaybe encodeEntryMetadata entry.metadata )
+                        , ( "isReduxState", Encode.bool <| Har.isReduxStateEntry entry )
                         ]
                 )
             |> property "items"
@@ -304,6 +306,7 @@ agentConsoleSnapshotPlayer liveSession entries initialId highlightVisitorId =
         , property "initialId" <| Encode.string initialId
         , property "allowLive" <| Encode.bool liveSession
         , property "highlightVisitorId" <| Encode.string <| Maybe.withDefault "" <| highlightVisitorId
+        , property "trackedPaths" <| Encode.list Encode.string trackedPaths
         , on "change" <|
             Decode.map SetCurrentId <|
                 Decode.at [ "detail", "id" ] Decode.string
@@ -334,11 +337,11 @@ agentConsoleSnapshotComponent isSortByTime href pageName entries currentId =
         []
 
 
-agentConsoleSnapshot : Bool -> Bool -> List Har.Entry -> String -> String -> String -> Maybe QuickPreview -> String -> Maybe String -> Html DetailMsg
-agentConsoleSnapshot liveSession isSortByTime entries href pageName currentId quickPreview entryId highlightVisitorId =
+agentConsoleSnapshot : Bool -> Bool -> List Har.Entry -> String -> String -> String -> Maybe QuickPreview -> String -> Maybe String -> List String -> Html DetailMsg
+agentConsoleSnapshot liveSession isSortByTime entries href pageName currentId quickPreview entryId highlightVisitorId trackedPaths =
     div [ class "detail-body", class "agent-console-snapshot-container" ]
         [ lazy5 agentConsoleSnapshotComponent isSortByTime href pageName entries currentId
-        , lazy4 agentConsoleSnapshotPlayer liveSession entries entryId highlightVisitorId
+        , lazy5 agentConsoleSnapshotPlayer liveSession entries entryId highlightVisitorId trackedPaths
         , lazy5 snapshotQuickPreview False quickPreview href pageName entries
         ]
 
@@ -754,10 +757,10 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
             Preview ->
                 case entryKind of
                     ReduxState ->
-                        agentConsoleSnapshot liveSession isSortByTime entries href pageName model.currentId model.quickPreview entry.id highlightVisitorId
+                        agentConsoleSnapshot liveSession isSortByTime entries href pageName model.currentId model.quickPreview entry.id highlightVisitorId trackedPaths
 
                     ReduxAction ->
-                        agentConsoleSnapshot liveSession isSortByTime entries href pageName model.currentId model.quickPreview entry.id highlightVisitorId
+                        agentConsoleSnapshot liveSession isSortByTime entries href pageName model.currentId model.quickPreview entry.id highlightVisitorId trackedPaths
 
                     LogMessage ->
                         entry
