@@ -128,7 +128,7 @@ defaultTableFilter =
     { match = ""
     , kind = Nothing
     , highlightVisitorId = Nothing
-    , changedPaths = [ "visitor.viewportCapacity" ]
+    , changedPaths = []
     , page = ""
     }
 
