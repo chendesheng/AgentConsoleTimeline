@@ -61,10 +61,16 @@ export function analysis(json: any) {
         if (prevStateEntry) {
           const prevState = getState(prevStateEntry);
           const state = getState(entry);
-          const delta = JSON.stringify(diff(prevState, state));
-          const relatedVisitorIds = getRelatedVisitorIds(delta, visitors);
-          if (relatedVisitorIds.length > 0) {
-            entry.comment = JSON.stringify({ relatedVisitorIds });
+          const delta = diff(prevState, state);
+          const relatedVisitorIds = getRelatedVisitorIds(
+            JSON.stringify(delta),
+            visitors,
+          );
+          const changedPaths: string[] = [];
+          getJsonPaths(delta, changedPaths);
+          console.log("changedPaths", changedPaths);
+          if (relatedVisitorIds.length > 0 || changedPaths.length > 0) {
+            entry.comment = JSON.stringify({ relatedVisitorIds, changedPaths });
             // console.log("related visitor ids", relatedVisitorIds);
           }
         }
@@ -147,4 +153,26 @@ export async function unzipFiles(file: File) {
 async function toFile(file: JSZip.JSZipObject) {
   const content = await file.async("uint8array");
   return new File([content], file.name);
+}
+
+function getJsonPaths(json: any, result: string[], p: string[] = []) {
+  if (Array.isArray(json)) {
+    // this is leaf
+    result.push(p.join("."));
+  } else if (typeof json === "object") {
+    if (json._t === "a") {
+      // array diff
+      result.push(p.join("."));
+      return;
+    }
+
+    for (const key of Object.keys(json)) {
+      p.push(key);
+      getJsonPaths(json[key], result, p);
+      p.pop();
+    }
+  } else {
+    // this should not happen
+    result.push(p.join("."));
+  }
 }

@@ -121,12 +121,15 @@ detailTabs selected entry =
             detailTabsByEntryKind (Har.getEntryKind entry)
 
 
-jsonViewer : Bool -> String -> String -> Html msg
-jsonViewer initialExpanded className json =
+jsonViewer : Bool -> String -> Bool -> List String -> String -> Html DetailMsg
+jsonViewer initialExpanded className disableTrackingPath trackedPaths json =
     Html.node "json-tree"
         [ class className
         , property "data" <| Encode.string json
         , property "initialExpanded" <| Encode.bool initialExpanded
+        , property "trackedPaths" <| Encode.list Encode.string trackedPaths
+        , property "disableTrackingPath" <| Encode.bool disableTrackingPath
+        , on "togglePath" <| Decode.map ClickStatePath (Decode.field "detail" Decode.string)
         ]
         []
 
@@ -260,14 +263,14 @@ svgViewer svg =
         []
 
 
-jsonDataViewer : DetailViewTool -> Bool -> Bool -> String -> String -> Html msg
-jsonDataViewer tool initialExpanded format className json =
+jsonDataViewer : DetailViewTool -> Bool -> Bool -> String -> Bool -> List String -> String -> Html DetailMsg
+jsonDataViewer tool initialExpanded format className disableTrackingPath trackedPaths json =
     case tool of
         Raw ->
             codeEditor "json" format json
 
         _ ->
-            jsonViewer initialExpanded className json
+            jsonViewer initialExpanded className disableTrackingPath trackedPaths json
 
 
 agentConsoleSnapshotPlayer : Bool -> List Har.Entry -> String -> Maybe String -> Html DetailMsg
@@ -395,7 +398,7 @@ parseCookies text =
         |> Encode.encode 0
 
 
-requestHeaderKeyValue : { x | name : String, value : String } -> Html msg
+requestHeaderKeyValue : { x | name : String, value : String } -> Html DetailMsg
 requestHeaderKeyValue { name, value } =
     keyValue
         { name = name
@@ -405,7 +408,7 @@ requestHeaderKeyValue { name, value } =
                     [ text value
                     , case parseToken value of
                         Ok v ->
-                            jsonViewer False "" <| "{\"payload\":" ++ v ++ "}"
+                            jsonViewer False "" True [] <| "{\"payload\":" ++ v ++ "}"
 
                         _ ->
                             text ""
@@ -414,7 +417,7 @@ requestHeaderKeyValue { name, value } =
             else if String.toLower name == "cookie" then
                 div []
                     [ text value
-                    , jsonViewer False "" <| "{\"payload\":" ++ parseCookies value ++ "}"
+                    , jsonViewer False "" True [] <| "{\"payload\":" ++ parseCookies value ++ "}"
                     ]
 
             else
@@ -442,7 +445,7 @@ detailViewContainer liveSession isSnapshotPopout isSortByTime href filter select
     if detail.show then
         case Utils.findItem (\entry -> entry.id == selected) entries of
             Just entry ->
-                detailView liveSession isSnapshotPopout isSortByTime entries detail href filter.page filter.highlightVisitorId entry
+                detailView liveSession isSnapshotPopout isSortByTime entries detail href filter.page filter.highlightVisitorId filter.changedPaths entry
 
             _ ->
                 text ""
@@ -525,8 +528,8 @@ detailViewToolsOptions =
         )
 
 
-responseView : DetailViewTool -> Har.Entry -> Html msg
-responseView tool entry =
+responseView : DetailViewTool -> Har.Entry -> List String -> Html DetailMsg
+responseView tool entry trackedPaths =
     case entry.response.content.text of
         Just t ->
             let
@@ -625,6 +628,8 @@ responseView tool entry =
                         (entryKind /= ReduxState)
                         (entryKind /= NetworkHttp)
                         "detail-body"
+                        (entryKind /= ReduxState)
+                        trackedPaths
                         t
 
         _ ->
@@ -684,7 +689,7 @@ stateChangeViewer entry entries =
             text ""
 
 
-headersView : Har.Entry -> Html msg
+headersView : Har.Entry -> Html DetailMsg
 headersView entry =
     div
         [ class "detail-body", class "detail-body-headers-container" ]
@@ -721,8 +726,8 @@ detailCloseButton =
     button [ class "detail-close", onClick HideDetail ] [ Icons.close ]
 
 
-detailView : Bool -> Bool -> Bool -> List Har.Entry -> DetailModel -> String -> String -> Maybe String -> Har.Entry -> Html DetailMsg
-detailView liveSession isSnapshotPopout isSortByTime entries model href pageName highlightVisitorId entry =
+detailView : Bool -> Bool -> Bool -> List Har.Entry -> DetailModel -> String -> String -> Maybe String -> List String -> Har.Entry -> Html DetailMsg
+detailView liveSession isSnapshotPopout isSortByTime entries model href pageName highlightVisitorId trackedPaths entry =
     let
         entryKind =
             Har.getEntryKind entry
@@ -757,11 +762,11 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
                     LogMessage ->
                         entry
                             |> Har.getLogMessage
-                            |> Maybe.map (jsonViewer True "detail-body")
+                            |> Maybe.map (jsonViewer True "detail-body" True [])
                             |> Maybe.withDefault noContent
 
                     _ ->
-                        responseView Auto entry
+                        responseView Auto entry trackedPaths
 
             Headers ->
                 lazy headersView entry
@@ -774,11 +779,11 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
                     _ ->
                         entry
                             |> Har.getRequestBody
-                            |> Maybe.map (jsonDataViewer tool True True "detail-body")
+                            |> Maybe.map (jsonDataViewer tool True True "detail-body" True trackedPaths)
                             |> Maybe.withDefault noContent
 
             Response ->
-                responseView tool entry
+                responseView tool entry trackedPaths
         ]
 
 
@@ -797,12 +802,16 @@ type DetailMsg
     | ScrollToCurrentId
     | ChangeViewTool DetailViewTool
     | SetSnapshotPopout Bool
+    | ClickStatePath String
 
 
 updateDetail : DetailModel -> DetailMsg -> ( DetailModel, Cmd DetailMsg )
 updateDetail model detailMsg =
     case detailMsg of
         NoOp ->
+            ( model, Cmd.none )
+
+        ClickStatePath _ ->
             ( model, Cmd.none )
 
         SetHref _ ->

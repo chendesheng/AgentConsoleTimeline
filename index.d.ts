@@ -19,6 +19,7 @@ declare module "@alenaksu/json-viewer/JsonViewer.js" {
     collapseAll(): void;
     resetFilter(): void;
     filter(regex: RegExp): void;
+    requestUpdate(): void;
     static customRenderer(value: any, path: string): any;
     static styles: any;
   }

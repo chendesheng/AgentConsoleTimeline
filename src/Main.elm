@@ -414,6 +414,9 @@ updateOpened msg model =
                         Detail.ScrollToCurrentId ->
                             updateTable (Select model.detail.currentId False True) model.log model.table
 
+                        Detail.ClickStatePath paths ->
+                            updateTable (Table.ToggleFilterChangedPath paths) model.log model.table
+
                         _ ->
                             ( model.table, Cmd.none )
             in

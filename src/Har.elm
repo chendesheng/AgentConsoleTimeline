@@ -81,7 +81,13 @@ type alias Entry =
     , serverIPAddress : Maybe String -- IP address of the server.
     , connection : Maybe String -- ID of the TCP/IP connection.
     , comment : Maybe String -- Additional information about the entry.
-    , metadata : Maybe { relatedVisitorIds : List String }
+    , metadata : Maybe EntryMetadata
+    }
+
+
+type alias EntryMetadata =
+    { relatedVisitorIds : List String
+    , changedPaths : List String
     }
 
 
@@ -841,16 +847,6 @@ isHttpFailedEntry entry =
     case getEntryKind entry of
         NetworkHttp ->
             entry.response.status > 399
-
-        _ ->
-            False
-
-
-entryContainsVisitorId : Entry -> String -> Bool
-entryContainsVisitorId entry visitorId =
-    case entry.metadata of
-        Just metadata ->
-            List.any (\id -> id == visitorId) metadata.relatedVisitorIds
 
         _ ->
             False

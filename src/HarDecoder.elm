@@ -90,9 +90,11 @@ entryDecoder =
         (nestedJsonDecoder (maybe <| field "comment" string) metadataDecoder)
 
 
-metadataDecoder : Decoder { relatedVisitorIds : List String }
+metadataDecoder : Decoder EntryMetadata
 metadataDecoder =
-    Decode.map (\ids -> { relatedVisitorIds = ids }) <| field "relatedVisitorIds" (list string)
+    Decode.map2 (\ids changedPaths -> { relatedVisitorIds = ids, changedPaths = Maybe.withDefault [] changedPaths })
+        (field "relatedVisitorIds" (list string))
+        (maybe <| field "changedPaths" (list string))
 
 
 parseQueryString : String -> List QueryString

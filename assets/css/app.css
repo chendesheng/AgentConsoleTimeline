@@ -26,9 +26,6 @@
   gap: 12px;
   padding-left: 6px;
   background-color: var(--background-color-content);
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
 }
 
 .table-filter input[type="search"] {

@@ -7,7 +7,7 @@ customElements.define(
   "json-viewer",
   class extends JsonViewer {
     static styles = [
-      JsonViewer.styles,
+      ...JsonViewer.styles,
       css`
         li[role="treeitem"] {
           line-height: 0;
@@ -110,86 +110,74 @@ customElements.define(
         }
       `,
     ];
-
-    static valueRenderer(value: any, path: string) {
-      if (typeof value === "string") {
-        if (
-          URL.canParse(value) &&
-          (/Global\/agents\/[0-9a-fA-F-]+\/avatar/i.test(value) ||
-            /.svg$/.test(value))
-        ) {
-          return html`<a class="avatar" href="${value}" target="_blank"
-            ><img src="${value}" height="20"
-          /></a>`;
-        } else if (URL.canParse(value)) {
-          return html`<a href="${value}" target="_blank">${value}</a>`;
-        } else if (value.startsWith("<div>")) {
-          // set inner html
-          const div = document.createElement("div");
-          div.classList.add("html-preview");
-          div.innerHTML = value;
-          return div;
-        } else if (
-          path.endsWith(".notificationIcon") ||
-          path.endsWith(".ico") ||
-          path.endsWith(".faviconImage")
-        ) {
-          return html`<img
-            class="image-preview"
-            src="${`data:image/png;base64,${value}`}"
-            height="20"
-          />`;
-        } else if (
-          /^#[0-9a-fA-F]{6}$/.test(value) ||
-          /^#[0-9a-fA-F]{3}$/.test(value) ||
-          /^rgba\(\s*[0-9]+,\s*[0-9]+,\s*[0-9]+,\s*[0-9.]+\s*\)$/.test(value) ||
-          /^rgb\(\s*[0-9]+,\s*[0-9]+,\s*[0-9]+\s*\)$/.test(value)
-        ) {
-          // FIXME: add alpha
-          return html`<input
-              type="color"
-              value="${value.startsWith("rgb")
-                ? rgbaToHex(value)
-                : expandHex(value)}"
-            />${super.customRenderer(value, path)}`;
-        } else if (
-          (path.includes("config.settings.sound") && path.endsWith(".id")) ||
-          (path.includes("config.preference") && path.endsWith("SoundId"))
-        ) {
-          return html`<button
-              class="play-sound"
-              @click=${(e: MouseEvent) => {
-                const button = e.currentTarget as HTMLButtonElement;
-                button.classList.toggle("playing");
-
-                const audio = document.createElement("audio");
-                audio.src = `https://chatserver11.comm100.io/DBResource/DBSound.ashx?soundId=${value}&siteId=10100000`;
-                audio.onended = () => button.classList.remove("playing");
-                audio.play();
-              }}
-            ></button
-            >${super.customRenderer(value, path)}`;
-        }
-      }
-
-      return super.customRenderer(value, path);
-    }
-
-    static customRenderer(value: any, path: string) {
-      return html`<span class="value"
-        >${this.valueRenderer(value, path)}<button
-          class="tracking"
-          @click=${(e: MouseEvent) => {
-            const button = e.currentTarget as HTMLButtonElement;
-            button.classList.toggle("enable-tracking");
-          }}
-        >
-          •
-        </button></span
-      >`;
-    }
   },
 );
+
+const jsonViewerCustomRenderer = JsonViewer.customRenderer;
+
+function valueRenderer(value: any, path: string) {
+  if (typeof value === "string") {
+    if (
+      URL.canParse(value) &&
+      (/Global\/agents\/[0-9a-fA-F-]+\/avatar/i.test(value) ||
+        /.svg$/.test(value))
+    ) {
+      return html`<a class="avatar" href="${value}" target="_blank"
+        ><img src="${value}" height="20"
+      /></a>`;
+    } else if (URL.canParse(value)) {
+      return html`<a href="${value}" target="_blank">${value}</a>`;
+    } else if (value.startsWith("<div>")) {
+      // set inner html
+      const div = document.createElement("div");
+      div.classList.add("html-preview");
+      div.innerHTML = value;
+      return div;
+    } else if (
+      path.endsWith(".notificationIcon") ||
+      path.endsWith(".ico") ||
+      path.endsWith(".faviconImage")
+    ) {
+      return html`<img
+        class="image-preview"
+        src="${`data:image/png;base64,${value}`}"
+        height="20"
+      />`;
+    } else if (
+      /^#[0-9a-fA-F]{6}$/.test(value) ||
+      /^#[0-9a-fA-F]{3}$/.test(value) ||
+      /^rgba\(\s*[0-9]+,\s*[0-9]+,\s*[0-9]+,\s*[0-9.]+\s*\)$/.test(value) ||
+      /^rgb\(\s*[0-9]+,\s*[0-9]+,\s*[0-9]+\s*\)$/.test(value)
+    ) {
+      // FIXME: add alpha
+      return html`<input
+          type="color"
+          value="${value.startsWith("rgb")
+            ? rgbaToHex(value)
+            : expandHex(value)}"
+        />${jsonViewerCustomRenderer(value, path)}`;
+    } else if (
+      (path.includes("config.settings.sound") && path.endsWith(".id")) ||
+      (path.includes("config.preference") && path.endsWith("SoundId"))
+    ) {
+      return html`<button
+          class="play-sound"
+          @click=${(e: MouseEvent) => {
+            const button = e.currentTarget as HTMLButtonElement;
+            button.classList.toggle("playing");
+
+            const audio = document.createElement("audio");
+            audio.src = `https://chatserver11.comm100.io/DBResource/DBSound.ashx?soundId=${value}&siteId=10100000`;
+            audio.onended = () => button.classList.remove("playing");
+            audio.play();
+          }}
+        ></button
+        >${jsonViewerCustomRenderer(value, path)}`;
+    }
+  }
+
+  return jsonViewerCustomRenderer(value, path);
+}
 
 declare global {
   interface HTMLElementTagNameMap {
@@ -204,6 +192,12 @@ export class JsonTree extends LitElement {
 
   @property({ type: Boolean })
   initialExpanded = false;
+
+  @property({ type: Array })
+  trackedPaths: string[] = [];
+
+  @property({ type: Boolean })
+  disableTrackingPath = false;
 
   @query("json-viewer")
   private _jsonViewer?: JsonViewer;
@@ -333,6 +327,39 @@ export class JsonTree extends LitElement {
     }
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+
+    JsonViewer.customRenderer = (value: any, path: string) => {
+      if (this.disableTrackingPath) {
+        return html`<span class="value">${valueRenderer(value, path)}</span>`;
+      }
+
+      let className = "";
+      if (this.trackedPaths.includes(path)) {
+        className = "enable-tracking";
+      }
+
+      return html`<span class="value"
+        >${valueRenderer(value, path)}<button
+          class="tracking ${className}"
+          @click=${(e: MouseEvent) => {
+            const button = e.currentTarget as HTMLButtonElement;
+            button.classList.toggle("enable-tracking");
+
+            this.dispatchEvent(
+              new CustomEvent("togglePath", {
+                detail: path,
+              }),
+            );
+          }}
+        >
+          •
+        </button></span
+      >`;
+    };
+  }
+
   render() {
     try {
       return html`<div class="actions">
@@ -360,7 +387,10 @@ export class JsonTree extends LitElement {
                 </div>
               `}
         </div>
-        <json-viewer .data=${this.parseData()}></json-viewer>`;
+        <json-viewer
+          .data=${this.parseData()}
+          .trackedPaths=${this.trackedPaths}
+        ></json-viewer>`;
     } catch (e: any) {
       console.error(e);
       return html`<div style="margin-top: 10px;">
@@ -380,6 +410,9 @@ export class JsonTree extends LitElement {
       changedProperties.has("_showNestedJson")
     ) {
       this._parsedData = undefined;
+    }
+    if (changedProperties.has("trackedPaths")) {
+      this._jsonViewer?.requestUpdate();
     }
     super.update(changedProperties);
   }

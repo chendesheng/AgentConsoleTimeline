@@ -20,7 +20,7 @@ import Browser.Dom as Dom
 import Browser.Events exposing (onResize)
 import Dict exposing (Dict)
 import DropFile exposing (DropFileModel)
-import Har exposing (EntryKind(..), SortBy, SortOrder(..), entryContainsVisitorId)
+import Har exposing (EntryKind(..), SortBy, SortOrder(..))
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -77,6 +77,7 @@ type alias TableFilter =
     { match : String
     , kind : Maybe EntryKind
     , highlightVisitorId : Maybe String
+    , changedPaths : List String
     , page : String
     }
 
@@ -127,6 +128,7 @@ defaultTableFilter =
     { match = ""
     , kind = Nothing
     , highlightVisitorId = Nothing
+    , changedPaths = [ "visitor.viewportCapacity" ]
     , page = ""
     }
 
@@ -451,8 +453,8 @@ getSelectedEntry { selectHistory, entries } =
 -- VIEW
 
 
-entryView : Float -> List TableColumn -> Bool -> String -> Posix -> Har.Entry -> String -> Html TableMsg
-entryView msPerPx columns showDetail selected startTime entry highlightVisitorId =
+entryView : Float -> List TableColumn -> Bool -> String -> Posix -> Har.Entry -> Bool -> Html TableMsg
+entryView msPerPx columns showDetail selected startTime entry isHighlighted =
     let
         visibleColumns =
             if showDetail then
@@ -470,10 +472,7 @@ entryView msPerPx columns showDetail selected startTime entry highlightVisitorId
                 ""
             )
         , class
-            (if String.isEmpty highlightVisitorId then
-                ""
-
-             else if entryContainsVisitorId entry highlightVisitorId then
+            (if isHighlighted then
                 ""
 
              else
@@ -865,6 +864,12 @@ tableFilterView liveSession visitors dropFile autoFocus pages filter =
                 , onInput = ChangePage
                 }
                 (List.map (\page -> { value = page.id, label = page.id }) pages)
+        , case filter.changedPaths of
+            [] ->
+                text ""
+
+            changedPaths ->
+                div [ class "tags" ] <| List.map tagView changedPaths
         , div [ class "actions" ]
             [ importButton dropFile.error
             , Html.node "export-button"
@@ -878,8 +883,16 @@ tableFilterView liveSession visitors dropFile autoFocus pages filter =
         ]
 
 
-tableBodyEntriesView : Float -> List TableColumn -> String -> Bool -> Int -> List Har.Entry -> Int -> String -> Html TableMsg
-tableBodyEntriesView msPerPx columns selected showDetail scrollTop entries viewportHeight highlightVisitorId =
+tagView : String -> Html TableMsg
+tagView label =
+    div [ class "tag", title label ]
+        [ div [ class "tag-label" ] [ text label ]
+        , button [ class "close", onClick (ToggleFilterChangedPath label) ] [ Icons.close ]
+        ]
+
+
+tableBodyEntriesView : Float -> List TableColumn -> String -> Bool -> Int -> List Har.Entry -> Int -> TableFilter -> Html TableMsg
+tableBodyEntriesView msPerPx columns selected showDetail scrollTop entries viewportHeight filter =
     let
         startTime =
             -- startTime is not used when detail is displayed
@@ -896,8 +909,43 @@ tableBodyEntriesView msPerPx columns selected showDetail scrollTop entries viewp
         , items = entries
         , renderItem =
             \entry ->
-                ( entry.id, lazy7 entryView msPerPx columns showDetail selected startTime entry highlightVisitorId )
+                ( entry.id, lazy7 entryView msPerPx columns showDetail selected startTime entry (isHighlightEntry filter entry) )
         }
+
+
+isHighlightEntry : TableFilter -> Har.Entry -> Bool
+isHighlightEntry filter entry =
+    if filter.highlightVisitorId == Nothing && filter.changedPaths == [] then
+        True
+
+    else
+        case entry.metadata of
+            Just metadata ->
+                let
+                    highlightByChangedPaths filterPaths paths =
+                        if Har.isReduxStateEntry entry then
+                            let
+                                isInMetadataChangedPaths =
+                                    \path -> List.any (String.contains path) paths
+                            in
+                            List.any isInMetadataChangedPaths filterPaths
+
+                        else
+                            False
+                in
+                case filter.highlightVisitorId of
+                    Just visitorId ->
+                        if List.any (\id -> id == visitorId) metadata.relatedVisitorIds then
+                            True
+
+                        else
+                            highlightByChangedPaths filter.changedPaths metadata.changedPaths
+
+                    Nothing ->
+                        highlightByChangedPaths filter.changedPaths metadata.changedPaths
+
+            _ ->
+                False
 
 
 waterfallGuideline : Float -> Posix -> Int -> List Har.Entry -> Int -> Html msg
@@ -937,8 +985,8 @@ getEntryByClientY entries scrollTop clientY =
         |> List.head
 
 
-tableBodyView : SearchingState -> List String -> Float -> Posix -> List TableColumn -> Int -> String -> Bool -> List Har.Entry -> Int -> Int -> Maybe String -> Bool -> Html TableMsg
-tableBodyView search pendingKeys msPerPx startTime columns guidelineLeft selected showDetail entries scrollTop viewportHeight highlightVisitorId quickPreviewEnabled =
+tableBodyView : SearchingState -> List String -> Float -> Posix -> List TableColumn -> Int -> String -> Bool -> List Har.Entry -> Int -> Int -> TableFilter -> Bool -> Html TableMsg
+tableBodyView search pendingKeys msPerPx startTime columns guidelineLeft selected showDetail entries scrollTop viewportHeight filter quickPreviewEnabled =
     div
         ([ class "table-body"
          , id "table-body"
@@ -970,7 +1018,7 @@ tableBodyView search pendingKeys msPerPx startTime columns guidelineLeft selecte
                     []
                )
         )
-        [ lazy8 tableBodyEntriesView msPerPx columns selected showDetail scrollTop entries viewportHeight (Maybe.withDefault "" highlightVisitorId)
+        [ lazy8 tableBodyEntriesView msPerPx columns selected showDetail scrollTop entries viewportHeight filter
         , lazy3 tableBodySearchResultView search scrollTop viewportHeight
         , if showDetail then
             text ""
@@ -1154,7 +1202,7 @@ tableView startTime { entries, filter, entriesCount, sortBy, columns, columnWidt
             _ ->
                 text ""
         , lazy7 tableHeadersView entriesCount waterfallMsPerPx startTime firstEntryStartTime sortBy columns showDetail2
-        , tableBodyView search pendingKeys waterfallMsPerPx startTime columns guidelineLeft selected2 showDetail2 entries scrollTop viewportHeight filter.highlightVisitorId quickPreviewEnabled
+        , tableBodyView search pendingKeys waterfallMsPerPx startTime columns guidelineLeft selected2 showDetail2 entries scrollTop viewportHeight filter quickPreviewEnabled
         , detailFirstColumnResizeDivider
         ]
 
@@ -1202,6 +1250,7 @@ type TableMsg
     | HoverNameCell String Int Bool
     | UnhoverNameCell
     | JsonEncodeFileContent
+    | ToggleFilterChangedPath String
 
 
 updateTable : TableMsg -> Har.Log -> TableModel -> ( TableModel, Cmd TableMsg )
@@ -1383,6 +1432,25 @@ updateTable action log table =
 
         UnhoverNameCell ->
             ( { table | quickPreview = Nothing }, Cmd.none )
+
+        ToggleFilterChangedPath path ->
+            let
+                filter =
+                    table.filter
+            in
+            ( { table
+                | filter =
+                    { filter
+                        | changedPaths =
+                            if List.any (\p -> p == path) filter.changedPaths then
+                                List.filter (\p -> p /= path) filter.changedPaths
+
+                            else
+                                filter.changedPaths ++ [ path ]
+                    }
+              }
+            , Cmd.none
+            )
 
 
 scrollToPx : Int -> Cmd TableMsg
