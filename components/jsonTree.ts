@@ -46,24 +46,6 @@ customElements.define(
         input[type="color" i]::-webkit-color-swatch-wrapper {
           padding: 0;
         }
-        audio {
-          height: 20px;
-          margin-left: 2px;
-        }
-        audio::-webkit-media-controls-enclosure {
-          border-radius: 10px;
-        }
-        audio::-webkit-media-controls-panel {
-          padding: 0;
-        }
-        audio::-webkit-media-controls-current-time-display,
-        audio::-webkit-media-controls-time-remaining-display,
-        audio::-webkit-media-controls-timeline,
-        audio::-webkit-media-controls-volume-control-container,
-        audio::-webkit-media-controls-fullscreen-button,
-        audio::-internal-media-controls-overflow-button {
-          display: none;
-        }
         button.play-sound {
           all: unset;
           cursor: pointer;
