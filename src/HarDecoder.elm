@@ -76,7 +76,7 @@ pageTimingsDecoder =
 
 entryDecoder : Decoder Entry
 entryDecoder =
-    map10 (Entry "" "")
+    map11 (Entry "" "")
         (maybe <| field "pageref" string)
         (field "startedDateTime" Iso8601.decoder)
         (field "time" float)
@@ -87,6 +87,12 @@ entryDecoder =
         (maybe <| field "serverIPAddress" string)
         (maybe <| field "connection" string)
         (maybe <| field "comment" string)
+        (nestedJsonDecoder (maybe <| field "comment" string) metadataDecoder)
+
+
+metadataDecoder : Decoder { relatedVisitorIds : List String }
+metadataDecoder =
+    Decode.map (\ids -> { relatedVisitorIds = ids }) <| field "relatedVisitorIds" (list string)
 
 
 parseQueryString : String -> List QueryString
@@ -286,3 +292,43 @@ map10 f a b c d e g h i j k =
         (Decode.map8 f a b c d e g h i)
         j
         k
+
+
+map11 :
+    (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l)
+    -> Decoder a
+    -> Decoder b
+    -> Decoder c
+    -> Decoder d
+    -> Decoder e
+    -> Decoder f
+    -> Decoder g
+    -> Decoder h
+    -> Decoder i
+    -> Decoder j
+    -> Decoder k
+    -> Decoder l
+map11 f a b c d e g h i j k l =
+    Decode.map4 (\f1 a1 b1 c1 -> f1 a1 b1 c1)
+        (Decode.map8 f a b c d e g h i)
+        j
+        k
+        l
+
+
+{-| nested json decoder
+-}
+nestedJsonDecoder : Decoder (Maybe String) -> Decoder a -> Decoder (Maybe a)
+nestedJsonDecoder decoder nestedDecoder =
+    decoder
+        |> Decode.andThen
+            (\maybeStr ->
+                case maybeStr of
+                    Just str ->
+                        Decode.decodeString nestedDecoder str
+                            |> Result.toMaybe
+                            |> Decode.succeed
+
+                    Nothing ->
+                        Decode.succeed Nothing
+            )

@@ -81,6 +81,7 @@ type alias Entry =
     , serverIPAddress : Maybe String -- IP address of the server.
     , connection : Maybe String -- ID of the TCP/IP connection.
     , comment : Maybe String -- Additional information about the entry.
+    , metadata : Maybe { relatedVisitorIds : List String }
     }
 
 
@@ -847,9 +848,9 @@ isHttpFailedEntry entry =
 
 entryContainsVisitorId : Entry -> String -> Bool
 entryContainsVisitorId entry visitorId =
-    case entry.comment of
-        Just info ->
-            String.contains visitorId info
+    case entry.metadata of
+        Just metadata ->
+            List.any (\id -> id == visitorId) metadata.relatedVisitorIds
 
         _ ->
             False
