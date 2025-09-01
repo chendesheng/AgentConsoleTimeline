@@ -387,10 +387,7 @@ export class JsonTree extends LitElement {
                 </div>
               `}
         </div>
-        <json-viewer
-          .data=${this.parseData()}
-          .trackedPaths=${this.trackedPaths}
-        ></json-viewer>`;
+        <json-viewer .data=${this.parseData()}></json-viewer>`;
     } catch (e: any) {
       console.error(e);
       return html`<div style="margin-top: 10px;">
