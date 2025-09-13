@@ -39,6 +39,7 @@ type VimAction
     | NextSearchResult Bool
     | AppendKey String
     | SetSearchModeLineBuffer String
+    | Enter
     | NoAction
 
 
@@ -110,6 +111,9 @@ parseKeys scrollTop pendingKeys key ctrlKey =
 
         ( _, "N", _ ) ->
             NextSearchResult False
+
+        ( [], "Enter", _ ) ->
+            Enter
 
         _ ->
             NoAction

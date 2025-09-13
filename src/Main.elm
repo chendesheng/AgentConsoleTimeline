@@ -34,6 +34,7 @@ import Table
 import Task
 import Time
 import Utils
+import Vim
 
 
 port closePopoutWindow : () -> Cmd msg
@@ -387,6 +388,16 @@ updateOpened msg model =
                         | show =
                             case action of
                                 Select _ True _ ->
+                                    True
+
+                                ExecuteAction Vim.Esc ->
+                                    if model.table.search == Vim.NotSearch then
+                                        False
+
+                                    else
+                                        detailModel.show
+
+                                ExecuteAction Vim.Enter ->
                                     True
 
                                 _ ->

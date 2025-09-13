@@ -425,6 +425,9 @@ executeVimAction table action =
             , focus "table-body"
             )
 
+        Enter ->
+            ( table, Cmd.none )
+
         NoAction ->
             ( { table | pendingKeys = [] }, Cmd.none )
 
@@ -710,32 +713,15 @@ tableHeaderCellWaterfallScales msPerPx startTime firstEntryStartTime =
         )
 
 
-keyDecoder : Int -> Bool -> List String -> D.Decoder ( VimAction, Bool )
-keyDecoder scrollTop showDetail pendingKeys =
+keyDecoder : Int -> List String -> D.Decoder ( VimAction, Bool )
+keyDecoder scrollTop pendingKeys =
     D.map2
         (\key ctrlKey ->
             let
                 action =
                     parseKeys scrollTop pendingKeys key ctrlKey
-
-                action1 =
-                    -- search mode is not support when showDetail is false
-                    if
-                        (case action of
-                            StartSearch _ _ ->
-                                True
-
-                            _ ->
-                                False
-                        )
-                            && not showDetail
-                    then
-                        NoAction
-
-                    else
-                        action
             in
-            ( action1, action1 /= NoAction )
+            ( action, action /= NoAction )
         )
         (D.field "key" D.string)
         (D.field "ctrlKey" D.bool)
@@ -846,7 +832,8 @@ tableFilterView liveSession visitors dropFile autoFocus pages filter =
             , type_ "search"
             , autofocus autoFocus
             , placeholder "Filter"
-            , onEsc SelectTable
+
+            -- , onEsc SelectTable
             ]
             []
         , Utils.dropDownListWithGroup
@@ -991,7 +978,7 @@ tableBodyView search pendingKeys msPerPx startTime columns guidelineLeft selecte
         ([ class "table-body"
          , id "table-body"
          , tabindex 0
-         , preventDefaultOn "keydown" (D.map (Tuple.mapFirst ExecuteAction) (keyDecoder scrollTop showDetail pendingKeys))
+         , preventDefaultOn "keydown" (D.map (Tuple.mapFirst ExecuteAction) (keyDecoder scrollTop pendingKeys))
          , on "scroll" <| D.map (round >> Scroll) (D.at [ "target", "scrollTop" ] D.float)
          , on "mouseleave" <| D.succeed UnhoverNameCell
          ]
