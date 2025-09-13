@@ -43,7 +43,7 @@ export class ResizeDivier extends LitElement {
 
     const overlay = document.createElement("div");
     overlay.id = "resize-overlay";
-    overlay.style.cssText = `position: fixed; top: 0; left: 0; right: 0; bottom: 0; cursor: ${
+    overlay.style.cssText = `z-index: 1000; position: fixed; top: 0; left: 0; right: 0; bottom: 0; cursor: ${
       this.direction === "horizontal" ? "row-resize" : "col-resize"
     };`;
     document.body.append(overlay);
