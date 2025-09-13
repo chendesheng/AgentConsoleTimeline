@@ -7,7 +7,7 @@ import Html exposing (..)
 import Html.Attributes as Attr exposing (attribute, class, property, src, srcdoc, style)
 import Html.Events exposing (..)
 import Html.Keyed as Keyed
-import Html.Lazy exposing (lazy, lazy2, lazy3, lazy4, lazy5)
+import Html.Lazy exposing (lazy, lazy2, lazy3, lazy5)
 import Icons
 import Json.Decode as Decode
 import Json.Encode as Encode
@@ -183,18 +183,40 @@ htmlViewer html =
     iframe [ class "preview", srcdoc s ] []
 
 
-pdfViewer : String -> String -> Html msg
-pdfViewer html url =
+base64ToBlob : String
+base64ToBlob =
+    "function base64toBlob(base64Data, contentType) {"
+        ++ "contentType = contentType || '';"
+        ++ "var sliceSize = 1024;"
+        ++ "var byteCharacters = atob(base64Data);"
+        ++ "var bytesLength = byteCharacters.length;"
+        ++ "var slicesCount = Math.ceil(bytesLength / sliceSize);"
+        ++ "var byteArrays = new Array(slicesCount);"
+        ++ "for (var sliceIndex = 0; sliceIndex < slicesCount; ++sliceIndex) {"
+        ++ "var begin = sliceIndex * sliceSize;"
+        ++ "var end = Math.min(begin + sliceSize, bytesLength);"
+        ++ "var bytes = new Array(end - begin);"
+        ++ "for (var offset = begin, i = 0; offset < end; ++i, ++offset) {"
+        ++ "bytes[i] = byteCharacters[offset].charCodeAt(0);"
+        ++ "}"
+        ++ "byteArrays[sliceIndex] = new Uint8Array(bytes);"
+        ++ "}"
+        ++ "return new Blob(byteArrays, { type: contentType });"
+        ++ "}"
+
+
+pdfViewer : String -> Html msg
+pdfViewer html =
     iframe
         [ class "preview"
         , srcdoc <|
             "<html><head><script>"
+                ++ base64ToBlob
                 ++ "window.onload = function() {"
-                ++ "   document.body.innerHTML = window.atob(\""
-                ++ html
-                ++ "\").replace('about:blank', '"
-                ++ url
-                ++ "');"
+                ++ ("   const blob = base64toBlob(\"" ++ html ++ "\", \"application/pdf\");")
+                -- FIXME: how to revoke object url?
+                ++ "   const url = URL.createObjectURL(blob);"
+                ++ "   window.location.href = url;"
                 ++ "}"
                 ++ "</script></head><body></body></html>"
         ]
@@ -611,7 +633,7 @@ responseView tool entry trackedPaths =
                             hexEditor t
 
                         _ ->
-                            pdfViewer t entry.request.url
+                            pdfViewer t
 
                 [ "application", "vnd.yt-ump" ] ->
                     case tool of
