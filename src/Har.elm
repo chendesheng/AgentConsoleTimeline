@@ -4,6 +4,7 @@ import Dict exposing (Dict)
 import Json.Decode as D
 import Regex exposing (Match)
 import Time
+import Url
 import Utils
 
 
@@ -363,8 +364,8 @@ entryKindLabel kind =
             "Others"
 
 
-stringToEntryKindAndHighlightVisitorId : String -> ( Maybe EntryKind, Maybe String )
-stringToEntryKindAndHighlightVisitorId s =
+stringToEntryKindAndHighlight : String -> ( Maybe EntryKind, Maybe String )
+stringToEntryKindAndHighlight s =
     case s of
         "0" ->
             ( Just ReduxState, Nothing )
@@ -382,15 +383,18 @@ stringToEntryKindAndHighlightVisitorId s =
             if String.startsWith "0-" s then
                 ( Just ReduxState, Just (String.dropLeft 2 s) )
 
+            else if String.startsWith "2-" s then
+                ( Just NetworkHttp, Just (String.dropLeft 2 s) )
+
             else
                 ( Nothing, Nothing )
 
 
-entryKindAndHighlightVisitorIdValue : Maybe EntryKind -> Maybe String -> String
-entryKindAndHighlightVisitorIdValue entryKind highlightVisitorId =
+entryKindAndHighlightValue : Maybe EntryKind -> Maybe String -> String
+entryKindAndHighlightValue entryKind highlight =
     case entryKind of
         Just ReduxState ->
-            case highlightVisitorId of
+            case highlight of
                 Just visitorId ->
                     "0-" ++ visitorId
 
@@ -401,7 +405,12 @@ entryKindAndHighlightVisitorIdValue entryKind highlightVisitorId =
             "1"
 
         Just NetworkHttp ->
-            "2"
+            case highlight of
+                Just origin ->
+                    "2-" ++ origin
+
+                Nothing ->
+                    "2"
 
         Just Others ->
             "3"
@@ -847,6 +856,52 @@ isHttpFailedEntry entry =
     case getEntryKind entry of
         NetworkHttp ->
             entry.response.status > 399
+
+        _ ->
+            False
+
+
+getOrigin : Entry -> Maybe String
+getOrigin entry =
+    let
+        addProtocol : Url.Protocol -> String -> String
+        addProtocol protocol starter =
+            case protocol of
+                Url.Http ->
+                    "http://" ++ starter
+
+                Url.Https ->
+                    "https://" ++ starter
+
+        addPort : Maybe Int -> String -> String
+        addPort maybePort starter =
+            case maybePort of
+                Nothing ->
+                    starter
+
+                Just port_ ->
+                    starter ++ ":" ++ String.fromInt port_
+    in
+    case getEntryKind entry of
+        NetworkHttp ->
+            entry.request.url
+                |> Url.fromString
+                |> Maybe.map
+                    (\uri ->
+                        uri.host
+                            |> addProtocol uri.protocol
+                            |> addPort uri.port_
+                    )
+
+        _ ->
+            Nothing
+
+
+isHttpOrigin : String -> Entry -> Bool
+isHttpOrigin origin entry =
+    case getEntryKind entry of
+        NetworkHttp ->
+            String.startsWith origin entry.request.url
 
         _ ->
             False

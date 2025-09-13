@@ -448,7 +448,7 @@ detailViewContainer liveSession isSnapshotPopout isSortByTime href filter select
     if detail.show then
         case Utils.findItem (\entry -> entry.id == selected) entries of
             Just entry ->
-                detailView liveSession isSnapshotPopout isSortByTime entries detail href filter.page filter.highlightVisitorId filter.changedPaths entry
+                detailView liveSession isSnapshotPopout isSortByTime entries detail href filter.page filter.highlightVisitorIdOrOrigin filter.changedPaths entry
 
             _ ->
                 text ""

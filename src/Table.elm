@@ -76,7 +76,7 @@ getMinWidth columns columnId =
 type alias TableFilter =
     { match : String
     , kind : Maybe EntryKind
-    , highlightVisitorId : Maybe String
+    , highlightVisitorIdOrOrigin : Maybe String
     , changedPaths : List String
     , page : String
     }
@@ -108,6 +108,7 @@ type alias TableModel =
     , search : SearchingState
     , searchHistory : UndoList String
     , selectHistory : UndoList String
+    , hosts : List String
     , visitors : List VisitorInfo
     , quickPreview : Maybe QuickPreview
     }
@@ -127,7 +128,7 @@ defaultTableFilter : TableFilter
 defaultTableFilter =
     { match = ""
     , kind = Nothing
-    , highlightVisitorId = Nothing
+    , highlightVisitorIdOrOrigin = Nothing
     , changedPaths = []
     , page = ""
     }
@@ -166,6 +167,7 @@ defaultTableModel =
     , search = NotSearch
     , searchHistory = { present = "", past = [], future = [] }
     , selectHistory = { present = "", past = [], future = [] }
+    , hosts = []
     , visitors = []
     , quickPreview = Nothing
     }
@@ -740,11 +742,11 @@ scaleToWaterfallMsPerPx scale =
         |> Maybe.withDefault 10.0
 
 
-tableFilterOptions : List VisitorInfo -> List GroupOption
-tableFilterOptions visitors =
+tableFilterOptions : List String -> List VisitorInfo -> List GroupOption
+tableFilterOptions hosts visitors =
     [ { label = "", subitems = [ { value = "", label = "All" } ] }
     , { label = "", subitems = [ { value = "1", label = "Log" } ] }
-    , { label = "", subitems = [ { value = "2", label = "Http" } ] }
+    , { label = "Http", subitems = { value = "2", label = "All" } :: List.map (\origin -> { value = "2-" ++ origin, label = origin }) hosts }
     , { label = "", subitems = [ { value = "3", label = "Others" } ] }
     , { label = "Redux"
       , subitems =
@@ -816,8 +818,8 @@ importButton error =
         []
 
 
-tableFilterView : Bool -> List VisitorInfo -> DropFileModel -> Bool -> List Har.Page -> TableFilter -> Html TableMsg
-tableFilterView liveSession visitors dropFile autoFocus pages filter =
+tableFilterView : Bool -> List String -> List VisitorInfo -> DropFileModel -> Bool -> List Har.Page -> TableFilter -> Html TableMsg
+tableFilterView liveSession hosts visitors dropFile autoFocus pages filter =
     section [ class "table-filter" ]
         [ if liveSession then
             Icons.live
@@ -832,16 +834,15 @@ tableFilterView liveSession visitors dropFile autoFocus pages filter =
             , type_ "search"
             , autofocus autoFocus
             , placeholder "Filter"
-
-            -- , onEsc SelectTable
+            , onEsc SelectTable
             ]
             []
         , Utils.dropDownListWithGroup
-            { value = Har.entryKindAndHighlightVisitorIdValue filter.kind filter.highlightVisitorId
-            , onInput = Har.stringToEntryKindAndHighlightVisitorId >> SelectKind
+            { value = Har.entryKindAndHighlightValue filter.kind filter.highlightVisitorIdOrOrigin
+            , onInput = Har.stringToEntryKindAndHighlight >> SelectKind
             }
           <|
-            tableFilterOptions visitors
+            tableFilterOptions hosts visitors
         , if List.length pages <= 1 then
             text ""
 
@@ -902,7 +903,7 @@ tableBodyEntriesView msPerPx columns selected showDetail scrollTop entries viewp
 
 isHighlightEntry : TableFilter -> Har.Entry -> Bool
 isHighlightEntry filter entry =
-    if filter.highlightVisitorId == Nothing && filter.changedPaths == [] then
+    if filter.highlightVisitorIdOrOrigin == Nothing && filter.changedPaths == [] then
         True
 
     else
@@ -920,7 +921,7 @@ isHighlightEntry filter entry =
                         else
                             False
                 in
-                case filter.highlightVisitorId of
+                case filter.highlightVisitorIdOrOrigin of
                     Just visitorId ->
                         if List.any (\id -> id == visitorId) metadata.relatedVisitorIds then
                             True
@@ -932,7 +933,17 @@ isHighlightEntry filter entry =
                         highlightByChangedPaths filter.changedPaths metadata.changedPaths
 
             _ ->
-                False
+                case filter.highlightVisitorIdOrOrigin of
+                    Just origin ->
+                        case Har.getOrigin entry of
+                            Just entryOrigin ->
+                                origin == entryOrigin
+
+                            _ ->
+                                False
+
+                    _ ->
+                        False
 
 
 waterfallGuideline : Float -> Posix -> Int -> List Har.Entry -> Int -> Html msg
@@ -1340,7 +1351,7 @@ updateTable action log table =
             ( { table
                 | entries = newEntries
                 , entriesCount = List.length newEntries
-                , filter = { filter | kind = kind, highlightVisitorId = highlightVisitorId }
+                , filter = { filter | kind = kind, highlightVisitorIdOrOrigin = highlightVisitorId }
               }
             , if table.selectHistory.present /= "" then
                 Cmd.batch

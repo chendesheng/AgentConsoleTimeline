@@ -22,6 +22,7 @@ module Utils exposing
     , indexOf
     , intPx
     , isMember
+    , listUnique
     , resizeDivider
     , styles
     , timespanMillis
@@ -532,3 +533,17 @@ getQueryString key query =
 epoch : Time.Posix
 epoch =
     Time.millisToPosix 0
+
+
+listUnique : List a -> List a
+listUnique list =
+    List.foldl
+        (\item acc ->
+            if List.member item acc then
+                acc
+
+            else
+                item :: acc
+        )
+        []
+        list

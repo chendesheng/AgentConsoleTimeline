@@ -10,7 +10,7 @@ import HarEncoder
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Html.Lazy exposing (lazy4, lazy6, lazy8)
+import Html.Lazy exposing (lazy4, lazy7, lazy8)
 import Initial exposing (InitialModel, InitialMsg(..), defaultInitialModel, initialView, updateInitial)
 import Json.Decode as D
 import Json.Encode as Encode
@@ -144,9 +144,10 @@ viewOpened model =
         "app"
         DropFile
         [ Html.map TableAction
-            (lazy6
+            (lazy7
                 tableFilterView
                 (isLiveSession model.fileName)
+                table.hosts
                 table.visitors
                 model.dropFile
                 True
@@ -232,6 +233,10 @@ initOpened timezone fileName fileContent log initialViewportHeight =
 
                         Nothing ->
                             clientInfo.href
+                , hosts =
+                    log.entries
+                        |> List.filterMap Har.getOrigin
+                        |> Utils.listUnique
                 , visitors =
                     case log.comment of
                         Just json ->
