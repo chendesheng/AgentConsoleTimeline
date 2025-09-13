@@ -55,7 +55,7 @@ export async function saveRecentFile(fileName: string, content: string) {
   if (!exists) await contentStore.put({ key, content });
 
   if (files.length > 10) {
-    files.sort((a, b) => a.lastOpenTime - b.lastOpenTime);
+    files.sort((a, b) => b.lastOpenTime - a.lastOpenTime);
     for (const { key: toDelete } of files.slice(10)) {
       await listStore.delete(toDelete);
       await contentStore.delete(toDelete);
