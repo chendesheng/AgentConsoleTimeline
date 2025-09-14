@@ -113,7 +113,8 @@
 .detail-body-header-value {
   flex: auto;
   overflow: auto;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
+  word-break: break-all;
   line-height: 1.3;
 }
 

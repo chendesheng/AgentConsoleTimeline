@@ -725,13 +725,13 @@ headersView entry =
             , keyValueText { name = "Status", value = String.fromInt entry.response.status }
             , keyValueText { name = "Address", value = Maybe.withDefault "" entry.serverIPAddress }
             ]
-        , h3 [] [ text "Request Headers" ]
+        , h3 [] [ text "Request" ]
         , div
             [ styleVar "--color" "var(--network-header-color)"
             , class "detail-body-headers"
             ]
             (List.map requestHeaderKeyValue entry.request.headers)
-        , h3 [] [ text "Response Headers" ]
+        , h3 [] [ text "Response" ]
         , div
             [ styleVar "--color" "var(--network-header-color)"
             , class "detail-body-headers"
