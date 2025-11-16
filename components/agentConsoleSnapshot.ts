@@ -64,7 +64,8 @@ export class AgentConsoleSnapshot extends LitElement {
       flex-flow: column;
       gap: 4px;
     }
-    select > option {
+    select > option,
+    select > optgroup {
       background-color: var(--background-color-content);
     }
     .snapshot {
