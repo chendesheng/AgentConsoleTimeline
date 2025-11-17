@@ -132,8 +132,26 @@ export class AgentConsoleSnapshotFrame extends LitElement {
 
   private handleMessage!: (e: MessageEvent) => void;
 
+  // this is true when agent console page we are debugging is a popout window
+  private static isPopoutWindow(href: string) {
+    return href.includes("visitor-popup.html") || href.includes("chat.html");
+  }
+
   connectedCallback(): void {
     super.connectedCallback();
+
+    // when initializing a snapshot for a popout window, we need have an empty state to bootstrap the popup window
+    if (AgentConsoleSnapshotFrame.isPopoutWindow(this.src)) {
+      this.getSnapshotWindow()?.postMessage(
+        {
+          type: "popupWindowRestoreState",
+          payload: {
+            agent: {},
+          },
+        },
+        "*",
+      );
+    }
 
     if (this.popoutWindow) {
       setTimeout(() => {
