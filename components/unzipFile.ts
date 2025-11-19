@@ -68,7 +68,7 @@ export function analysis(json: any) {
           );
           const changedPaths: string[] = [];
           getJsonPaths(delta, changedPaths);
-          console.log("changedPaths", changedPaths);
+          // console.log("changedPaths", changedPaths);
           if (relatedVisitorIds.length > 0 || changedPaths.length > 0) {
             entry.comment = JSON.stringify({ relatedVisitorIds, changedPaths });
             // console.log("related visitor ids", relatedVisitorIds);
