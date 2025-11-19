@@ -79,7 +79,26 @@ export class AgentConsoleSnapshotFrame extends LitElement {
       class="snapshot"
       src="${this.getSrc()}"
       allow="clipboard-read; clipboard-write"
+      @load=${this.handleIframeLoad}
     ></iframe>`;
+  }
+
+  private sendBootstrapPopupWindow() {
+    this.getSnapshotWindow()?.postMessage(
+      {
+        type: "popupWindowRestoreState",
+        payload: JSON.stringify({
+          agent: {
+            language: "en",
+            jwtToken: "mock",
+          },
+          ui: {
+            mychats: {},
+          },
+        }),
+      },
+      "*",
+    );
   }
 
   private sendToSnapshot() {
@@ -137,26 +156,26 @@ export class AgentConsoleSnapshotFrame extends LitElement {
     return href.includes("visitor-popup.html") || href.includes("chat.html");
   }
 
+  private handleIframeLoad() {
+    // when initializing a snapshot for a popout window, we need have an empty state to bootstrap the popup window
+    if (AgentConsoleSnapshotFrame.isPopoutWindow(this.src)) {
+      this.sendBootstrapPopupWindow();
+    }
+  }
+
   connectedCallback(): void {
     super.connectedCallback();
 
-    // when initializing a snapshot for a popout window, we need have an empty state to bootstrap the popup window
-    if (AgentConsoleSnapshotFrame.isPopoutWindow(this.src)) {
-      this.getSnapshotWindow()?.postMessage(
-        {
-          type: "popupWindowRestoreState",
-          payload: {
-            agent: {},
-          },
-        },
-        "*",
-      );
-    }
-
     if (this.popoutWindow) {
+      // this is a hack, only works when 1 second is enough for child window to be loaded
       setTimeout(() => {
-        this.sendToSnapshot();
-      }, 10);
+        if (AgentConsoleSnapshotFrame.isPopoutWindow(this.src)) {
+          this.sendBootstrapPopupWindow();
+        }
+        setTimeout(() => {
+          this.sendToSnapshot();
+        }, 100);
+      }, 1000);
     }
 
     this.handleMessage = (e: MessageEvent) => {
