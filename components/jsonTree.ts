@@ -1,5 +1,5 @@
 import { JsonViewer } from "@alenaksu/json-viewer/JsonViewer.js";
-import { html, css, LitElement, PropertyValues, unsafeCSS } from "lit";
+import { html, css, LitElement, PropertyValues } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import { sort as sortKeys } from "json-keys-sort";
 

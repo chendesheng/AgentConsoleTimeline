@@ -1,12 +1,4 @@
-import {
-  html,
-  svg,
-  css,
-  LitElement,
-  PropertyValues,
-  PropertyValueMap,
-  unsafeCSS,
-} from "lit";
+import { html, css, LitElement, PropertyValues, unsafeCSS } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import "./agentConsoleSnapshotFrame";
 import {

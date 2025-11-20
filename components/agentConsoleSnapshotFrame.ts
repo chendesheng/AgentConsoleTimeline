@@ -1,5 +1,5 @@
 import { html, css, LitElement, PropertyValues } from "lit";
-import { customElement, property, query, state } from "lit/decorators.js";
+import { customElement, property, query } from "lit/decorators.js";
 import { getPopoutWindow, PopoutWindow } from "./windowManager";
 
 export type ReduxStateAndActions = {

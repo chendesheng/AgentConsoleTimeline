@@ -1,5 +1,5 @@
-import { css, html, LitElement, PropertyValues, unsafeCSS } from "lit";
-import { customElement, property, query } from "lit/decorators.js";
+import { css, LitElement, PropertyValues, unsafeCSS } from "lit";
+import { customElement, property } from "lit/decorators.js";
 import hexEditCss from "js-hex-editor/dist/hex-editor.css?inline";
 import { HexEditor } from "js-hex-editor";
 

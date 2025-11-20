@@ -1,7 +1,6 @@
 import JSZip from "jszip";
-import { css, html, LitElement, PropertyValues, unsafeCSS } from "lit";
+import { html, LitElement, PropertyValues } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import exportUrl from "../assets/images/Export.svg";
 
 @customElement("export-button")
 export class ExportButton extends LitElement {
