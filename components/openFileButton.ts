@@ -1,5 +1,5 @@
 import { css, html, LitElement, unsafeCSS } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { customElement, property, query } from "lit/decorators.js";
 import { unzipFilesAndCreateCustomEvent } from "./unzipFile";
 import importUrl from "../assets/images/Import.svg";
 
@@ -24,6 +24,9 @@ export class OpenFileButton extends LitElement {
     const event = await unzipFilesAndCreateCustomEvent(files);
     this.dispatchEvent(event);
   }
+
+  @query("input")
+  private input?: HTMLInputElement;
 
   static styles = css`
     input[type="file"] {
@@ -78,7 +81,7 @@ export class OpenFileButton extends LitElement {
   `;
 
   handleClick() {
-    this.shadowRoot?.querySelector("input")?.click();
+    this.input?.click();
   }
 
   render() {
