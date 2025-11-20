@@ -46,57 +46,9 @@ export class ExportButton extends LitElement {
     await this.export();
   }
 
-  static styles = css`
-    input[type="file"] {
-      display: none;
-    }
-
-    button {
-      display: flex;
-      align-items: center;
-    }
-
-    button .icon {
-      margin-right: 2px;
-    }
-
-    button.text {
-      font-size: 12px;
-      background: none;
-      border: none;
-      cursor: pointer;
-      padding: 0;
-      color: inherit;
-    }
-
-    button.text:hover {
-      color: var(--text-color);
-    }
-
-    button.error {
-      color: var(--error-text-color);
-    }
-
-    button.error:hover {
-      color: var(--error-text-color);
-    }
-
-    .icon {
-      display: inline-block;
-      width: 1em;
-      height: 1em;
-      fill: currentColor;
-      vertical-align: middle;
-      overflow: hidden;
-      flex: none;
-      color: currentColor;
-    }
-
-    .icon.export {
-      background-color: currentColor;
-      mask: url("${unsafeCSS(exportUrl)}") no-repeat 100% 100%;
-    }
-  `;
+  protected createRenderRoot(): HTMLElement | DocumentFragment {
+    return this;
+  }
 
   render() {
     return html`<div>
