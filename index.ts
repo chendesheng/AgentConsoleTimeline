@@ -2,6 +2,7 @@
 /// <reference types="vite/types/importMeta.d.ts" />
 
 import "./components/jsonTree";
+import "./components/jsonTree2";
 import "./components/agentConsoleSnapshot";
 import "./components/agentConsoleSnapshotPlayer";
 import "./components/resizeDivider";
