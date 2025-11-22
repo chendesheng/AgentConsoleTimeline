@@ -26,6 +26,7 @@ type JsonTreeItem = Omit<TreeItem, "children"> & {
   children?: JsonTreeItem[];
   isArrayChild?: boolean;
   hidden?: boolean;
+  valueRender?: HTMLTemplateResult;
 };
 
 function isLeaf(item: TreeItem): boolean {
@@ -211,6 +212,97 @@ const jsonSummary = (json: any): HTMLTemplateResult => {
   return html`<span>${spans}</span>`;
 };
 
+function leafValueRenderer(
+  value: JsonType,
+  path: string[],
+): HTMLTemplateResult {
+  const lastPath = path[path.length - 1];
+  if (typeof value === "string") {
+    if (
+      URL.canParse(value) &&
+      (/Global\/agents\/[0-9a-fA-F-]+\/avatar/i.test(value) ||
+        /.svg$/.test(value))
+    ) {
+      return html`<a class="avatar" href="${value}" target="_blank"
+        ><img src="${value}" height="${ROW_HEIGHT}"
+      /></a>`;
+    } else if (URL.canParse(value)) {
+      return html`"<a class="text" href="${value}" target="_blank">${value}</a
+        >"`;
+    } else if (value.startsWith("<div>")) {
+      // set inner html
+      const div = document.createElement("div");
+      div.classList.add("html-preview");
+      div.innerHTML = value;
+      return html`${div}`;
+    } else if (
+      lastPath === "notificationIcon" ||
+      lastPath === "ico" ||
+      lastPath === "faviconImage"
+    ) {
+      return html`<img
+        class="image-preview"
+        src="${`data:image/png;base64,${value}`}"
+        height="${ROW_HEIGHT}"
+      />`;
+    } else if (
+      /^#[0-9a-fA-F]{6}$/.test(value) ||
+      /^#[0-9a-fA-F]{3}$/.test(value) ||
+      /^rgba\(\s*[0-9]+,\s*[0-9]+,\s*[0-9]+,\s*[0-9.]+\s*\)$/.test(value) ||
+      /^rgb\(\s*[0-9]+,\s*[0-9]+,\s*[0-9]+\s*\)$/.test(value)
+    ) {
+      // FIXME: add alpha
+      return html`<input
+          type="color"
+          value="${value.startsWith("rgb")
+            ? rgbaToHex(value)
+            : expandHex(value)}"
+        /><span class="value ${jsonType(value)}"
+          >${JSON.stringify(value)}</span
+        >`;
+    } else if (
+      ((path[0] === "config" ||
+        path[1] === "settings" ||
+        path[2]?.startsWith("sound")) &&
+        lastPath === "id") ||
+      ((path[0] === "config" || path[1] === "preference") &&
+        lastPath.endsWith("SoundId"))
+    ) {
+      return html`<button
+          class="play-sound"
+          @click=${(e: MouseEvent) => {
+            const button = e.currentTarget as HTMLButtonElement;
+            button.classList.toggle("playing");
+
+            const audio = document.createElement("audio");
+            audio.src = `https://chatserver11.comm100.io/DBResource/DBSound.ashx?soundId=${value}&siteId=10100000`;
+            audio.onended = () => button.classList.remove("playing");
+            audio.play();
+          }}
+        ></button
+        ><span class="value ${jsonType(value)}"
+          >${JSON.stringify(value)}</span
+        >`;
+    }
+  }
+
+  return html`<span class="value ${jsonType(value)}"
+    >${JSON.stringify(value)}</span
+  >`;
+}
+
+function expandHex(hex: string) {
+  if (hex.length === 4) {
+    return `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`;
+  }
+  return hex;
+}
+
+function rgbaToHex(rgba: string) {
+  const [r, g, b] = rgba.match(/\d+/g)!.map(Number);
+  return `#${r.toString(16)}${g.toString(16)}${b.toString(16)}`;
+}
+
 const jsonToTree = (
   json: object,
   path: string[] = [],
@@ -225,6 +317,7 @@ const jsonToTree = (
       summary: jsonSummary(json),
       type: "null",
       isArrayChild,
+      valueRender: html`<span class="value null">null</span>`,
     };
   } else if (Array.isArray(json)) {
     const children = json.map((value, index) =>
@@ -260,6 +353,7 @@ const jsonToTree = (
       summary: jsonSummary(json),
       type: jsonType(json),
       isArrayChild,
+      valueRender: leafValueRenderer(json, path),
     };
   }
 };
@@ -314,6 +408,14 @@ export class JsonTree2 extends LitElement {
     button {
       all: unset;
       cursor: pointer;
+    }
+    a.avatar {
+      font-size: 0;
+      height: ${ROW_HEIGHT}px;
+    }
+    a.text {
+      color: var(--syntax-highlight-string-color);
+      text-decoration: underline;
     }
     .label {
       display: flex;
@@ -442,6 +544,50 @@ export class JsonTree2 extends LitElement {
       padding: 0 0 0 1px;
       box-shadow: 0 1px 0 0 var(--border-color);
     }
+    .html-preview {
+      display: inline-block;
+      height: ${ROW_HEIGHT}px;
+    }
+    input[type="color"] {
+      height: ${ROW_HEIGHT - 2}px;
+      width: ${ROW_HEIGHT - 2}px;
+      padding: 0;
+      position: relative;
+    }
+    input[type="color" i]::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+    button.play-sound {
+      all: unset;
+      cursor: pointer;
+      user-select: none;
+      width: 1em;
+      height: 1em;
+      margin-right: 3px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: solid 1px currentColor;
+      border-radius: 100%;
+    }
+
+    button.play-sound:after {
+      content: "▶";
+      position: relative;
+      left: 1px;
+    }
+
+    button.play-sound.playing {
+      pointer-events: none;
+      opacity: 0.4;
+    }
+
+    button.play-sound.playing:after {
+      content: "⏹";
+      position: unset;
+      top: unset;
+      left: unset;
+    }
   `;
 
   #handleClick(event: MouseEvent) {
@@ -532,7 +678,7 @@ export class JsonTree2 extends LitElement {
           style="margin-left: ${indent}ch; top: ${top}px;"
         >
           <span class="key index">${item.key}</span>
-          <span class="value ${item.type}">${JSON.stringify(item.value)}</span>
+          ${item.valueRender}
         </div>`;
       } else {
         return html`<div
@@ -542,7 +688,7 @@ export class JsonTree2 extends LitElement {
           <span class="arrow-right invisible"></span>
           <span class="icon ${item.type}"></span>
           <span class="key">${JsonTree2.keyPrefix(item)}</span>
-          <span class="value ${item.type}">${JSON.stringify(item.value)}</span>
+          ${item.valueRender}
         </div>`;
       }
     }
