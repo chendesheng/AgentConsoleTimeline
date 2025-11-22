@@ -6,8 +6,9 @@ import {
   PropertyValues,
   unsafeCSS,
 } from "lit";
-import { customElement, property, state } from "lit/decorators.js";
+import { customElement, property, query, state } from "lit/decorators.js";
 import typeIcons from "../assets/images/TypeIcons.svg";
+import { sort as sortKeys } from "json-keys-sort";
 
 type TreeItem = {
   expanded?: boolean;
@@ -24,6 +25,7 @@ type JsonTreeItem = Omit<TreeItem, "children"> & {
   summary: HTMLTemplateResult;
   children?: JsonTreeItem[];
   isArrayChild?: boolean;
+  hidden?: boolean;
 };
 
 function isLeaf(item: TreeItem): boolean {
@@ -42,6 +44,56 @@ function getItemByPath(
     }
   }
   return current;
+}
+
+function setExpanded(tree: JsonTreeItem, expanded: boolean) {
+  tree.expanded = expanded;
+  tree.children?.forEach((child) => {
+    setExpanded(child, expanded);
+  });
+}
+
+function escapeRegExp(str: string) {
+  return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
+}
+
+function isMatchTreeItem(item: JsonTreeItem, filter: RegExp) {
+  if (item.key) {
+    if (item.isArrayChild && filter.source === item.key) {
+      return true;
+    } else if (!item.isArrayChild && filter.test(item.key)) {
+      return true;
+    } else if (typeof item.value === "string") {
+      return filter.test(item.value);
+    } else if (typeof item.value === "number") {
+      return filter.source === item.value.toString();
+    } else if (typeof item.value === "boolean") {
+      return filter.source === item.value.toString();
+    } else {
+      return false;
+    }
+  } else {
+    return true;
+  }
+}
+
+function filterTree(tree: JsonTreeItem, filter: RegExp) {
+  if (tree.children && tree.children.length > 0) {
+    for (const child of tree.children) {
+      filterTree(child, filter);
+    }
+    tree.hidden = !isMatchTreeItem(tree, filter);
+    if (tree.hidden) {
+      tree.hidden = tree.children.every((child) => child.hidden);
+    }
+  } else if (tree.key) {
+    tree.hidden = !isMatchTreeItem(tree, filter);
+  }
+}
+
+function clearFilter(tree: JsonTreeItem) {
+  tree.hidden = false;
+  tree.children?.forEach(clearFilter);
 }
 
 const jsonType = (json: any): JsonType => {
@@ -217,10 +269,19 @@ export class JsonTree2 extends LitElement {
 
   @state()
   private _tree!: JsonTreeItem;
+  @state()
+  private _showFilter = false;
+  @query("input")
+  private _input?: HTMLInputElement;
+  @state()
+  private _filter = "";
+  @query("div.actions button:last-child")
+  private _filterButton?: HTMLButtonElement;
 
   private generateTree() {
-    this._tree = jsonToTree(JSON.parse(this.data));
+    this._tree = jsonToTree(sortKeys(JSON.parse(this.data)));
     this._tree.expanded = true;
+    this._showFilter = false;
     console.log(this._tree);
   }
 
@@ -253,6 +314,7 @@ export class JsonTree2 extends LitElement {
       border-top: 0.4em solid transparent;
       border-bottom: 0.4em solid transparent;
       border-left: 0.7em solid currentColor;
+      color: var(--text-color-secondary);
     }
 
     .arrow-right.expanded {
@@ -322,6 +384,38 @@ export class JsonTree2 extends LitElement {
     .value.object {
       color: var(--syntax-highlight-object-color);
     }
+
+    .actions {
+      font-size: 10px;
+      height: 12px;
+    }
+    .actions button {
+      appearance: none;
+      -webkit-appearance: none;
+      all: unset;
+      cursor: pointer;
+      opacity: 0.5;
+      user-select: none;
+    }
+    .actions button:hover,
+    .actions button:focus,
+    .actions button:focus-visible {
+      opacity: 0.8;
+    }
+    .actions button:active {
+      opacity: 0.5;
+    }
+
+    .actions input {
+      color: var(--text-color);
+      border: none;
+      background: transparent;
+      outline: none;
+      width: 200px;
+      font-size: inherit;
+      padding: 0 0 0 1px;
+      box-shadow: 0 1px 0 0 var(--border-color);
+    }
   `;
 
   #handleClick(event: MouseEvent) {
@@ -338,6 +432,51 @@ export class JsonTree2 extends LitElement {
     }
   }
 
+  private handleCopy() {
+    navigator.clipboard.writeText(this.data);
+  }
+  private handleExpandAll() {
+    setExpanded(this._tree, true);
+    this.requestUpdate();
+  }
+  private handleCollapseAll() {
+    setExpanded(this._tree, false);
+    this.requestUpdate();
+  }
+  private handleInput(e: Event) {
+    if (!this._showFilter) return;
+    if (this._input?.value?.length === 0) {
+      clearFilter(this._tree);
+      this.requestUpdate();
+      return;
+    }
+
+    const input = e.target as HTMLInputElement;
+    const filter = new RegExp(escapeRegExp(input.value), "i");
+    filterTree(this._tree, filter);
+    this.requestUpdate();
+  }
+
+  private handleShowFilter() {
+    this._showFilter = true;
+  }
+
+  private handleKeyDown(e: KeyboardEvent) {
+    if (e.key === "Escape") {
+      this._showFilter = false;
+    }
+  }
+
+  private handleBlur(e: Event) {
+    if (this._input?.value?.length === 0) {
+      this._showFilter = false;
+    }
+  }
+
+  private static keyPrefix(item: JsonTreeItem): string | undefined {
+    return item.key ? `${item.key}: ` : undefined;
+  }
+
   protected renderLabel(item: JsonTreeItem, indent: number): any {
     if (isLeaf(item)) {
       if (item.isArrayChild) {
@@ -352,11 +491,13 @@ export class JsonTree2 extends LitElement {
         return html`<div class="label" style="margin-left: ${indent}ch">
           <span class="arrow-right invisible"></span>
           <span class="icon ${item.type}"></span>
-          <span class="key">${item.key ? `${item.key}: ` : ""}</span>
+          <span class="key">${JsonTree2.keyPrefix(item)}</span>
           <span class="value ${item.type}">${JSON.stringify(item.value)}</span>
         </div>`;
       }
     }
+
+    const expanded = item.expanded || !!this._input?.value?.length;
 
     return html`
       <button
@@ -368,62 +509,112 @@ export class JsonTree2 extends LitElement {
         ${item.isArrayChild
           ? html`<span class="key index">${item.key}</span>`
           : undefined}
-        ${item.expanded
+        ${expanded
           ? html`<span class="arrow-right expanded"></span>`
           : html`<span class="arrow-right"></span>`}
         ${item.isArrayChild
           ? undefined
           : html`<span class="icon ${item.type}"></span>`}
-        ${item.expanded
+        ${expanded
           ? html`<span
-              >${item.isArrayChild
-                ? undefined
-                : item.key
-                ? `${item.key}: `
-                : undefined}
+              >${item.isArrayChild ? undefined : JsonTree2.keyPrefix(item)}
               ${Array.isArray(item.value)
                 ? html`Array
                     <span class="value count">(${item.value.length})</span>`
                 : "Object"}</span
             >`
           : html`<span
-              >${item.isArrayChild
-                ? undefined
-                : item.key
-                ? `${item.key}: `
-                : undefined}
+              >${item.isArrayChild ? undefined : JsonTree2.keyPrefix(item)}
               ${item.summary}</span
             >`}
       </button>
     `;
   }
 
-  protected renderItem(item: JsonTreeItem, indent: number): any {
+  protected renderItem(
+    item: JsonTreeItem,
+    indent: number,
+  ): HTMLTemplateResult | undefined {
+    if (item.hidden) return;
+
+    const expanded = item.expanded || !!this._input?.value?.length;
     return html`${this.renderLabel(item, indent)}
-    ${item.children && item.expanded
-      ? item.children.map((child) =>
-          this.renderItem(child, indent + (item.isArrayChild ? 5 : 2)),
-        )
-      : null}`;
+    ${item.children && expanded
+      ? item.children.map((child) => {
+          return this.renderItem(child, indent + (item.isArrayChild ? 5 : 2));
+        })
+      : undefined}`;
+  }
+
+  renderActions() {
+    return html`<div class="actions">
+      ${this._showFilter
+        ? html`<input
+            type="search"
+            @input="${this.handleInput}"
+            @keydown="${this.handleKeyDown}"
+            @blur="${this.handleBlur}"
+            placeholder="Filter"
+          />`
+        : html`
+            <button tabindex="0" @click=${this.handleCopy}>Copy</button
+            >&nbsp;<button tabindex="0" @click=${this.handleCollapseAll}>
+              Collapse</button
+            >&nbsp;<button tabindex="0" @click=${this.handleExpandAll}>
+              Expand</button
+            >&nbsp;<button tabindex="0" @click=${this.handleShowFilter}>
+              Filter
+            </button>
+          `}
+    </div>`;
   }
 
   render() {
-    if (!this._tree) return html``;
+    if (!this._tree || !this._tree.children || this._tree.children.length === 0)
+      return html``;
     const children = this._tree.children;
-    return children && children.length > 0
-      ? html`${children.map((child) => this.renderItem(child, 0))}`
-      : null;
+    return html`${this.renderActions()}
+    ${children.map((child) => this.renderItem(child, 0))}`;
   }
 
   connectedCallback(): void {
     super.connectedCallback();
     this.generateTree();
+
+    // monitor shadowRoot size change
+    const observer = new ResizeObserver(() => {});
+    observer.observe(this.renderRoot as Element);
+  }
+
+  update(changedProperties: PropertyValues): void {
+    if (changedProperties.has("_showFilter")) {
+      if (!this._showFilter) {
+        this._filter = this._input?.value || "";
+      }
+    }
+    super.update(changedProperties);
   }
 
   updated(changedProperties: PropertyValues): void {
     super.updated(changedProperties);
     if (changedProperties.has("data")) {
       this.generateTree();
+    } else if (changedProperties.has("_showFilter")) {
+      if (this._showFilter) {
+        if (this._input) {
+          this._input.focus();
+          if (this._filter.length > 0) {
+            this._input.value = this._filter;
+            // apply filter by triggering input event
+            this._input.dispatchEvent(new Event("input", { bubbles: true }));
+            this._input.select();
+          }
+        }
+      } else {
+        this._filterButton?.focus();
+        clearFilter(this._tree);
+        this.requestUpdate();
+      }
     }
   }
 }
