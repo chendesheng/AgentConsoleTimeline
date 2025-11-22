@@ -505,16 +505,17 @@ export class JsonTree2 extends LitElement {
 
   private static totalRows(item: JsonTreeItem, hasFilter: boolean): number {
     const expanded = item.expanded || hasFilter;
-    if (item.hidden || !expanded) {
+    if (item.hidden) {
       return 0;
     }
-
-    return (
-      (item.key ? 1 : 0) +
-      (item.children
-        ?.map((child) => JsonTree2.totalRows(child, hasFilter))
-        .reduce((acc, child) => acc + child, 0) ?? 0)
-    );
+    let height = item.key ? 1 : 0;
+    if (expanded) {
+      height +=
+        item.children
+          ?.map((child) => JsonTree2.totalRows(child, hasFilter))
+          .reduce((acc, child) => acc + child, 0) ?? 0;
+    }
+    return height;
   }
 
   protected renderLabel(item: JsonTreeItem, indent: number): any {
@@ -522,8 +523,7 @@ export class JsonTree2 extends LitElement {
     if (this._renderRowIndex > this._visibleStartRowIndex + this._visibleRows)
       return;
 
-    const top =
-      ACTION_ROW_HEIGHT - ROW_HEIGHT + this._renderRowIndex * ROW_HEIGHT;
+    const top = ACTION_ROW_HEIGHT + (this._renderRowIndex - 1) * ROW_HEIGHT;
 
     if (isLeaf(item)) {
       if (item.isArrayChild) {
@@ -625,10 +625,11 @@ export class JsonTree2 extends LitElement {
       return html``;
     const children = this._tree.children;
     this._renderRowIndex = 0;
-    return html`<div
-      style="height: ${ACTION_ROW_HEIGHT +
-      JsonTree2.totalRows(this._tree, this._hasFilter) * ROW_HEIGHT}px;"
-    >
+    const height =
+      ACTION_ROW_HEIGHT +
+      JsonTree2.totalRows(this._tree, this._hasFilter) * ROW_HEIGHT +
+      10;
+    return html`<div style="height: ${height}px;">
       ${this.renderActions()}
       ${children.map((child) => this.renderItem(child, 0))}
     </div>`;
