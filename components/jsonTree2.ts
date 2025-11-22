@@ -6,7 +6,7 @@ import {
   PropertyValues,
   unsafeCSS,
 } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { customElement, property, state } from "lit/decorators.js";
 import typeIcons from "../assets/images/TypeIcons.svg";
 
 type TreeItem = {
@@ -23,6 +23,7 @@ type JsonTreeItem = Omit<TreeItem, "children"> & {
   type?: JsonType;
   summary: HTMLTemplateResult;
   children?: JsonTreeItem[];
+  isArrayChild?: boolean;
 };
 
 function isLeaf(item: TreeItem): boolean {
@@ -158,7 +159,11 @@ const jsonSummary = (json: any): HTMLTemplateResult => {
   return html`<span>${spans}</span>`;
 };
 
-const jsonToTree = (json: object, path: string[] = []): JsonTreeItem => {
+const jsonToTree = (
+  json: object,
+  path: string[] = [],
+  isArrayChild: boolean = false,
+): JsonTreeItem => {
   const key = path[path.length - 1];
   if (json === null) {
     return {
@@ -167,17 +172,19 @@ const jsonToTree = (json: object, path: string[] = []): JsonTreeItem => {
       path,
       summary: jsonSummary(json),
       type: "null",
+      isArrayChild,
     };
   } else if (Array.isArray(json)) {
     return {
       children: json.map((value, index) =>
-        jsonToTree(value, [...path, index.toString()]),
+        jsonToTree(value, [...path, index.toString()], true),
       ),
       value: json,
       key,
       path,
       summary: jsonSummary(json),
       type: "array",
+      isArrayChild,
     };
   } else if (typeof json === "object" && json !== null) {
     return {
@@ -189,6 +196,7 @@ const jsonToTree = (json: object, path: string[] = []): JsonTreeItem => {
       path,
       summary: jsonSummary(json),
       type: "object",
+      isArrayChild,
     };
   } else {
     return {
@@ -197,6 +205,7 @@ const jsonToTree = (json: object, path: string[] = []): JsonTreeItem => {
       path,
       summary: jsonSummary(json),
       type: jsonType(json),
+      isArrayChild,
     };
   }
 };
@@ -206,11 +215,21 @@ export class JsonTree2 extends LitElement {
   @property({ type: String })
   data: string = "";
 
+  @state()
   private _tree!: JsonTreeItem;
+
+  private generateTree() {
+    this._tree = jsonToTree(JSON.parse(this.data));
+    this._tree.expanded = true;
+    console.log(this._tree);
+  }
 
   static styles = css`
     :host {
-      padding: 4px;
+      padding: 1ch;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3em;
     }
     button {
       all: unset;
@@ -219,15 +238,11 @@ export class JsonTree2 extends LitElement {
     .label {
       display: flex;
       align-items: center;
-      gap: 2px;
+      gap: 4px;
     }
     div[role="treeitem"] {
       line-height: 1.5;
     }
-    .indent {
-      margin-left: 2ch;
-    }
-
     .arrow-right.invisible {
       visibility: hidden;
     }
@@ -272,12 +287,25 @@ export class JsonTree2 extends LitElement {
     .icon.null {
       background: url("${unsafeCSS(typeIcons)}#TypeNull-dark");
     }
-
+    .key,
+    .value {
+      cursor: default;
+    }
+    .key.index {
+      color: var(--text-color-secondary);
+      text-align: right;
+      width: 3ch;
+      flex: none;
+      margin-right: 1ch;
+    }
     .value.key {
       color: var(--syntax-highlight-boolean-color);
     }
     .value.string {
       color: var(--syntax-highlight-string-color);
+    }
+    .value.count {
+      color: var(--text-color-secondary);
     }
     .value.number {
       color: var(--syntax-highlight-number-color);
@@ -310,14 +338,24 @@ export class JsonTree2 extends LitElement {
     }
   }
 
-  protected renderLabel(item: JsonTreeItem): any {
+  protected renderLabel(item: JsonTreeItem, indent: number): any {
     if (isLeaf(item)) {
-      return html`<div class="label">
-        <span class="arrow-right invisible"></span>
-        <span class="icon ${item.type}"></span>
-        <span class="key">${item.key ? `${item.key}: ` : ""}</span>
-        <span class="value ${item.type}">${JSON.stringify(item.value)}</span>
-      </div>`;
+      if (item.isArrayChild) {
+        return html`<div
+          class="label array-child"
+          style="margin-left: ${indent}ch"
+        >
+          <span class="key index">${item.key}</span>
+          <span class="value ${item.type}">${JSON.stringify(item.value)}</span>
+        </div>`;
+      } else {
+        return html`<div class="label" style="margin-left: ${indent}ch">
+          <span class="arrow-right invisible"></span>
+          <span class="icon ${item.type}"></span>
+          <span class="key">${item.key ? `${item.key}: ` : ""}</span>
+          <span class="value ${item.type}">${JSON.stringify(item.value)}</span>
+        </div>`;
+      }
     }
 
     return html`
@@ -325,54 +363,67 @@ export class JsonTree2 extends LitElement {
         data-path=${item.path.join(".")}
         class="label"
         @click=${this.#handleClick}
+        style="margin-left: ${indent}ch"
       >
+        ${item.isArrayChild
+          ? html`<span class="key index">${item.key}</span>`
+          : undefined}
         ${item.expanded
           ? html`<span class="arrow-right expanded"></span>`
           : html`<span class="arrow-right"></span>`}
-        <span class="icon ${item.type}"></span>
+        ${item.isArrayChild
+          ? undefined
+          : html`<span class="icon ${item.type}"></span>`}
         ${item.expanded
           ? html`<span
-              >${item.key ? `${item.key}: ` : ""}
+              >${item.isArrayChild
+                ? undefined
+                : item.key
+                ? `${item.key}: `
+                : undefined}
               ${Array.isArray(item.value)
-                ? `Array[${item.value.length}]`
+                ? html`Array
+                    <span class="value count">(${item.value.length})</span>`
                 : "Object"}</span
             >`
           : html`<span
-              >${item.key ? `${item.key}: ` : ""} ${item.summary}</span
+              >${item.isArrayChild
+                ? undefined
+                : item.key
+                ? `${item.key}: `
+                : undefined}
+              ${item.summary}</span
             >`}
       </button>
     `;
   }
 
-  protected renderItem(item: JsonTreeItem): any {
-    return html`<div role="treeitem">
-      ${this.renderLabel(item)}
-      <div class="indent">
-        ${item.children && item.expanded
-          ? item.children.map((child) => this.renderItem(child))
-          : null}
-      </div>
-    </div>`;
+  protected renderItem(item: JsonTreeItem, indent: number): any {
+    return html`${this.renderLabel(item, indent)}
+    ${item.children && item.expanded
+      ? item.children.map((child) =>
+          this.renderItem(child, indent + (item.isArrayChild ? 5 : 2)),
+        )
+      : null}`;
   }
 
   render() {
     if (!this._tree) return html``;
-    return this.renderItem(this._tree);
+    const children = this._tree.children;
+    return children && children.length > 0
+      ? html`${children.map((child) => this.renderItem(child, 0))}`
+      : null;
   }
 
   connectedCallback(): void {
     super.connectedCallback();
-    this._tree = jsonToTree(JSON.parse(this.data));
-    this._tree.expanded = true;
-    console.log(this._tree);
+    this.generateTree();
   }
 
   updated(changedProperties: PropertyValues): void {
     super.updated(changedProperties);
     if (changedProperties.has("data")) {
-      this._tree = jsonToTree(JSON.parse(this.data));
-      this._tree.expanded = true;
-      console.log(this._tree);
+      this.generateTree();
     }
   }
 }
