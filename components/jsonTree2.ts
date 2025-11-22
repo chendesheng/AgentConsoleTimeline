@@ -227,10 +227,11 @@ const jsonToTree = (
       isArrayChild,
     };
   } else if (Array.isArray(json)) {
+    const children = json.map((value, index) =>
+      jsonToTree(value, [...path, index.toString()], true),
+    );
     return {
-      children: json.map((value, index) =>
-        jsonToTree(value, [...path, index.toString()], true),
-      ),
+      children,
       value: json,
       key,
       path,
@@ -239,10 +240,11 @@ const jsonToTree = (
       isArrayChild,
     };
   } else if (typeof json === "object" && json !== null) {
+    const children = Object.entries(json).map(
+      ([key, value]): JsonTreeItem => jsonToTree(value, [...path, key]),
+    );
     return {
-      children: Object.entries(json).map(
-        ([key, value]): JsonTreeItem => jsonToTree(value, [...path, key]),
-      ),
+      children,
       value: json,
       key,
       path,
@@ -273,10 +275,19 @@ export class JsonTree2 extends LitElement {
   private _showFilter = false;
   @query("input")
   private _input?: HTMLInputElement;
+  private get _hasFilter() {
+    return !!this._input?.value?.length;
+  }
   @state()
   private _filter = "";
   @query("div.actions button:last-child")
   private _filterButton?: HTMLButtonElement;
+
+  @state()
+  private _visibleStartRowIndex = 0;
+  @state()
+  private _visibleRows = 100;
+  private _renderRowIndex = 0;
 
   private generateTree() {
     this._tree = jsonToTree(sortKeys(JSON.parse(this.data)));
@@ -287,10 +298,15 @@ export class JsonTree2 extends LitElement {
 
   static styles = css`
     :host {
-      padding: 1ch;
       display: flex;
       flex-direction: column;
       gap: 0.3em;
+      position: relative;
+    }
+    :host > div {
+      width: 100%;
+      position: absolute;
+      left: 2ch;
     }
     button {
       all: unset;
@@ -300,6 +316,10 @@ export class JsonTree2 extends LitElement {
       display: flex;
       align-items: center;
       gap: 4px;
+      height: 15px;
+      line-height: 15px;
+      white-space: nowrap;
+      position: absolute;
     }
     div[role="treeitem"] {
       line-height: 1.5;
@@ -477,18 +497,43 @@ export class JsonTree2 extends LitElement {
     return item.key ? `${item.key}: ` : undefined;
   }
 
+  private static totalRows(item: JsonTreeItem, hasFilter: boolean): number {
+    const expanded = item.expanded || hasFilter;
+    if (item.hidden || !expanded) {
+      return 0;
+    } else {
+      if (item.children) {
+        return (
+          1 +
+          item.children
+            .map((child) => JsonTree2.totalRows(child, hasFilter))
+            .reduce((acc, child) => acc + child, 0)
+        );
+      } else {
+        return 1;
+      }
+    }
+  }
+
   protected renderLabel(item: JsonTreeItem, indent: number): any {
+    if (this._renderRowIndex < this._visibleStartRowIndex) return;
+    if (this._renderRowIndex > this._visibleStartRowIndex + this._visibleRows)
+      return;
+
     if (isLeaf(item)) {
       if (item.isArrayChild) {
         return html`<div
           class="label array-child"
-          style="margin-left: ${indent}ch"
+          style="margin-left: ${indent}ch; top: ${this._renderRowIndex * 15}px;"
         >
           <span class="key index">${item.key}</span>
           <span class="value ${item.type}">${JSON.stringify(item.value)}</span>
         </div>`;
       } else {
-        return html`<div class="label" style="margin-left: ${indent}ch">
+        return html`<div
+          class="label"
+          style="margin-left: ${indent}ch; top: ${this._renderRowIndex * 15}px;"
+        >
           <span class="arrow-right invisible"></span>
           <span class="icon ${item.type}"></span>
           <span class="key">${JsonTree2.keyPrefix(item)}</span>
@@ -497,14 +542,14 @@ export class JsonTree2 extends LitElement {
       }
     }
 
-    const expanded = item.expanded || !!this._input?.value?.length;
+    const expanded = item.expanded || this._hasFilter;
 
     return html`
       <button
         data-path=${item.path.join(".")}
         class="label"
         @click=${this.#handleClick}
-        style="margin-left: ${indent}ch"
+        style="margin-left: ${indent}ch; top: ${this._renderRowIndex * 15}px;"
       >
         ${item.isArrayChild
           ? html`<span class="key index">${item.key}</span>`
@@ -537,12 +582,13 @@ export class JsonTree2 extends LitElement {
   ): HTMLTemplateResult | undefined {
     if (item.hidden) return;
 
+    this._renderRowIndex++;
     const expanded = item.expanded || !!this._input?.value?.length;
     return html`${this.renderLabel(item, indent)}
     ${item.children && expanded
-      ? item.children.map((child) => {
-          return this.renderItem(child, indent + (item.isArrayChild ? 5 : 2));
-        })
+      ? item.children.map((child) =>
+          this.renderItem(child, indent + (item.isArrayChild ? 5 : 2)),
+        )
       : undefined}`;
   }
 
@@ -573,17 +619,33 @@ export class JsonTree2 extends LitElement {
     if (!this._tree || !this._tree.children || this._tree.children.length === 0)
       return html``;
     const children = this._tree.children;
-    return html`${this.renderActions()}
-    ${children.map((child) => this.renderItem(child, 0))}`;
+    this._renderRowIndex = 0;
+    return html`<div
+      style="height: ${JsonTree2.totalRows(this._tree, this._hasFilter) *
+      15}px;"
+    >
+      ${this.renderActions()}
+      ${children.map((child) => this.renderItem(child, 0))}
+    </div>`;
   }
 
   connectedCallback(): void {
     super.connectedCallback();
     this.generateTree();
 
+    const host = this.shadowRoot!.host;
     // monitor shadowRoot size change
-    const observer = new ResizeObserver(() => {});
-    observer.observe(this.renderRoot as Element);
+    const observer = new ResizeObserver((e) => {
+      const height = e[0].contentBoxSize[0].blockSize;
+      this._visibleRows = Math.ceil(height / 15);
+    });
+    observer.observe(host);
+
+    host.addEventListener("scroll", (e) => {
+      this._visibleStartRowIndex = Math.floor(
+        (e.currentTarget as HTMLElement).scrollTop / 15,
+      );
+    });
   }
 
   update(changedProperties: PropertyValues): void {
