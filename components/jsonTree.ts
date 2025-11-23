@@ -666,7 +666,7 @@ export class JsonTree extends LitElement {
       height: 1em;
     }
 
-    button.tracking:has(+ .arrow-right.invisible) {
+    button.tracking.no-expand-arrow {
       transform: unset;
     }
 
@@ -778,12 +778,13 @@ export class JsonTree extends LitElement {
 
   private renderTrackingButton(
     item: JsonTreeItem,
+    className?: string,
   ): HTMLTemplateResult | undefined {
     if (this.disableTrackingPath) return;
 
     return html`<button
       data-path=${item.pathStr}
-      class="tracking ${this.trackedPaths.includes(item.pathStr)
+      class="tracking ${className} ${this.trackedPaths.includes(item.pathStr)
         ? "enable-tracking"
         : ""}"
       @click=${this.handleClickTrackingButton}
@@ -811,7 +812,7 @@ export class JsonTree extends LitElement {
           class="label"
           style="margin-left: ${indent}ch; top: ${top}px;"
         >
-          ${this.renderTrackingButton(item)}
+          ${this.renderTrackingButton(item, "no-expand-arrow")}
           <span class="arrow-right invisible"></span>
           <span class="icon ${item.type}"></span>
           <span class="key">${JsonTree.keyPrefix(item)}</span>
