@@ -11,6 +11,7 @@ import typeIcons from "../assets/images/TypeIcons.svg";
 import showIcon from "../assets/images/Show.svg";
 import circleIcon from "../assets/images/Circle.svg";
 import { sort as sortKeys } from "json-keys-sort";
+import { keyed } from "lit/directives/keyed.js";
 
 type TreeItem = {
   expanded?: boolean;
@@ -460,7 +461,6 @@ export class JsonTree extends LitElement {
       height: ${ROW_HEIGHT}px;
       line-height: ${ROW_HEIGHT}px;
       white-space: nowrap;
-      position: absolute;
     }
     div[role="treeitem"] {
       line-height: 1.5;
@@ -657,7 +657,6 @@ export class JsonTree extends LitElement {
       color: var(--text-color-secondary);
       position: absolute;
       display: none;
-      left: 0;
       transform: translateX(-100%);
       mask: url("${unsafeCSS(circleIcon)}") no-repeat center;
       mask-size: 50% 50%;
@@ -679,6 +678,12 @@ export class JsonTree extends LitElement {
     .label:hover button.tracking.enable-tracking {
       display: block;
       opacity: 1;
+    }
+
+    .visible-rows {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
     }
   `;
 
@@ -802,16 +807,13 @@ export class JsonTree extends LitElement {
       if (item.isArrayChild) {
         return html`<div
           class="label array-child"
-          style="margin-left: ${indent}ch; top: ${top}px;"
+          style="margin-left: ${indent}ch;"
         >
           <span class="key index">${item.key}</span>
           ${item.valueRender}
         </div>`;
       } else {
-        return html`<div
-          class="label"
-          style="margin-left: ${indent}ch; top: ${top}px;"
-        >
+        return html`<div class="label" style="margin-left: ${indent}ch;">
           ${this.renderTrackingButton(item, "no-expand-arrow")}
           <span class="arrow-right invisible"></span>
           <span class="icon ${item.type}"></span>
@@ -828,7 +830,7 @@ export class JsonTree extends LitElement {
         data-path=${item.pathStr}
         class="label"
         @click=${this.handleClick}
-        style="margin-left: ${indent}ch; top: ${top}px;"
+        style="margin-left: ${indent}ch;"
       >
         ${this.renderTrackingButton(item)}
         ${item.isArrayChild
@@ -867,11 +869,12 @@ export class JsonTree extends LitElement {
     const expanded = item.expanded || this._hasFilter;
     return html`${this.renderLabel(item, indent)}
     ${item.children && expanded
-      ? item.children
-          .map((child) =>
+      ? item.children.map((child) =>
+          keyed(
+            child.pathStr,
             this.renderItem(child, indent + (item.isArrayChild ? 5 : 2)),
-          )
-          .filter(Boolean)
+          ),
+        )
       : undefined}`;
   }
 
@@ -910,7 +913,15 @@ export class JsonTree extends LitElement {
     const height = ACTION_ROW_HEIGHT + this._totalVisibleRows * ROW_HEIGHT + 10;
     return html`<div style="height: ${height}px;">
       ${this.renderActions()}
-      ${children.map((child) => this.renderItem(child, 0)).filter(Boolean)}
+      <div
+        class="visible-rows"
+        style="top: ${ACTION_ROW_HEIGHT +
+        this._visibleStartRowIndex * ROW_HEIGHT}px;"
+      >
+        ${children.map((child) =>
+          keyed(child.pathStr, this.renderItem(child, 0)),
+        )}
+      </div>
     </div>`;
   }
 
