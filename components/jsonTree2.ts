@@ -214,6 +214,7 @@ const jsonSummary = (json: any): HTMLTemplateResult => {
 
 function leafValueRenderer(
   value: JsonType,
+  soundUrl: string,
   path: string[],
 ): HTMLTemplateResult {
   const lastPath = path[path.length - 1];
@@ -227,8 +228,9 @@ function leafValueRenderer(
         ><img src="${value}" height="${ROW_HEIGHT}"
       /></a>`;
     } else if (URL.canParse(value)) {
-      return html`"<a class="text" href="${value}" target="_blank">${value}</a
-        >"`;
+      return html`<span class="value string"
+        >"<a href="${value}" target="_blank">${value}</a>"</span
+      >`;
     } else if (value.startsWith("<div>")) {
       // set inner html
       const div = document.createElement("div");
@@ -275,8 +277,9 @@ function leafValueRenderer(
             button.classList.toggle("playing");
 
             const audio = document.createElement("audio");
-            audio.src = `https://chatserver11.comm100.io/DBResource/DBSound.ashx?soundId=${value}&siteId=10100000`;
+            audio.src = soundUrl.replace("{soundId}", value);
             audio.onended = () => button.classList.remove("playing");
+            audio.onerror = () => button.classList.remove("playing");
             audio.play();
           }}
         ></button
@@ -305,8 +308,9 @@ function rgbaToHex(rgba: string) {
 
 const jsonToTree = (
   json: object,
-  path: string[] = [],
-  isArrayChild: boolean = false,
+  path: string[],
+  isArrayChild: boolean,
+  soundUrl: string,
 ): JsonTreeItem => {
   const key = path[path.length - 1];
   if (json === null) {
@@ -321,7 +325,7 @@ const jsonToTree = (
     };
   } else if (Array.isArray(json)) {
     const children = json.map((value, index) =>
-      jsonToTree(value, [...path, index.toString()], true),
+      jsonToTree(value, [...path, index.toString()], true, soundUrl),
     );
     return {
       children,
@@ -334,7 +338,8 @@ const jsonToTree = (
     };
   } else if (typeof json === "object" && json !== null) {
     const children = Object.entries(json).map(
-      ([key, value]): JsonTreeItem => jsonToTree(value, [...path, key]),
+      ([key, value]): JsonTreeItem =>
+        jsonToTree(value, [...path, key], false, soundUrl),
     );
     return {
       children,
@@ -353,7 +358,7 @@ const jsonToTree = (
       summary: jsonSummary(json),
       type: jsonType(json),
       isArrayChild,
-      valueRender: leafValueRenderer(json, path),
+      valueRender: leafValueRenderer(json, soundUrl, path),
     };
   }
 };
@@ -387,7 +392,15 @@ export class JsonTree2 extends LitElement {
   private _renderRowIndex = 0;
 
   private generateTree() {
-    this._tree = jsonToTree(sortKeys(JSON.parse(this.data)));
+    const reduxState = JSON.parse(this.data);
+    const siteId = reduxState.agent.siteId;
+    const chatServerUrl = reduxState.config?.settings?.urls?.chatServer;
+    this._tree = jsonToTree(
+      sortKeys(reduxState),
+      [],
+      false,
+      `${chatServerUrl}/DBResource/DBSound.ashx?soundId={soundId}&siteId=${siteId}`,
+    );
     this._tree.expanded = true;
     this._showFilter = false;
     console.log(this._tree);
@@ -412,10 +425,6 @@ export class JsonTree2 extends LitElement {
     a.avatar {
       font-size: 0;
       height: ${ROW_HEIGHT}px;
-    }
-    a.text {
-      color: var(--syntax-highlight-string-color);
-      text-decoration: underline;
     }
     .label {
       display: flex;
@@ -491,6 +500,9 @@ export class JsonTree2 extends LitElement {
     .value.string {
       color: var(--syntax-highlight-string-color);
     }
+    .value.string a {
+      color: inherit;
+    }
     .value.count {
       color: var(--text-color-secondary);
     }
@@ -549,8 +561,8 @@ export class JsonTree2 extends LitElement {
       height: ${ROW_HEIGHT}px;
     }
     input[type="color"] {
-      height: ${ROW_HEIGHT - 2}px;
-      width: ${ROW_HEIGHT - 2}px;
+      height: 1em;
+      width: 1em;
       padding: 0;
       position: relative;
     }
