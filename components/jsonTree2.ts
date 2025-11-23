@@ -391,7 +391,7 @@ export class JsonTree2 extends LitElement {
   private _tree!: JsonTreeItem;
   @state()
   private _showFilter = false;
-  @query("input")
+  @query("div.actions input")
   private _input?: HTMLInputElement;
   private get _hasFilter() {
     return !!this._input?.value?.length;
@@ -642,7 +642,7 @@ export class JsonTree2 extends LitElement {
     }
   `;
 
-  #handleClick(event: MouseEvent) {
+  private handleClick(event: MouseEvent) {
     const pathStr = (event.currentTarget as HTMLElement).getAttribute(
       "data-path",
     );
@@ -756,7 +756,7 @@ export class JsonTree2 extends LitElement {
       <button
         data-path=${item.path.join(".")}
         class="label"
-        @click=${this.#handleClick}
+        @click=${this.handleClick}
         style="margin-left: ${indent}ch; top: ${top}px;"
       >
         ${item.isArrayChild
