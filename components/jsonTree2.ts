@@ -270,14 +270,14 @@ function leafValueRenderer(
       /^rgb\(\s*[0-9]+,\s*[0-9]+,\s*[0-9]+\s*\)$/.test(value)
     ) {
       // FIXME: add alpha
-      return html`<input
+      return html`<span class="value ${jsonType(value)}"
+        ><input
           type="color"
           value="${value.startsWith("rgb")
             ? rgbaToHex(value)
             : expandHex(value)}"
-        /><span class="value ${jsonType(value)}"
-          >${JSON.stringify(value)}</span
-        >`;
+        />${JSON.stringify(value)}</span
+      >`;
     } else if (
       ((path[0] === "config" ||
         path[1] === "settings" ||
@@ -286,7 +286,8 @@ function leafValueRenderer(
       ((path[0] === "config" || path[1] === "preference") &&
         lastPath.endsWith("SoundId"))
     ) {
-      return html`<button
+      return html`<span class="value ${jsonType(value)}"
+        ><button
           class="play-sound"
           @click=${(e: MouseEvent) => {
             const button = e.currentTarget as HTMLButtonElement;
@@ -299,9 +300,8 @@ function leafValueRenderer(
             audio.play();
           }}
         ></button
-        ><span class="value ${jsonType(value)}"
-          >${JSON.stringify(value)}</span
-        >`;
+        >${JSON.stringify(value)}</span
+      >`;
     }
   }
 
