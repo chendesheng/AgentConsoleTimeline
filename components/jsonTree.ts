@@ -628,7 +628,7 @@ export class JsonTree extends LitElement {
       this._tree,
       this._hasFilter,
     );
-    const height = ACTION_ROW_HEIGHT + this._totalVisibleRows * ROW_HEIGHT + 10;
+    const height = ACTION_ROW_HEIGHT + this._totalVisibleRows * ROW_HEIGHT;
     return html`<div style="height: ${height}px;">
       ${this.renderActions()}
       <div
