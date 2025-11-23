@@ -124,7 +124,7 @@ detailTabs selected entry =
 
 jsonViewer : Bool -> String -> Bool -> List String -> String -> Html DetailMsg
 jsonViewer initialExpanded className disableTrackingPath trackedPaths json =
-    Html.node "json-tree2"
+    Html.node "json-tree"
         [ class className
         , property "data" <| Encode.string json
         , property "initialExpanded" <| Encode.bool initialExpanded
