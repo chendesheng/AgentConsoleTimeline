@@ -95,7 +95,7 @@ export class ResizeDivier extends LitElement {
         detail: {
           dx,
           dy,
-          isFinished: isFinished,
+          isFinished,
         },
       }),
     );

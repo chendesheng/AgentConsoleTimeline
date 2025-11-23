@@ -12,314 +12,23 @@ import showIcon from "../assets/images/Show.svg";
 import circleIcon from "../assets/images/Circle.svg";
 import { sort as sortKeys } from "json-keys-sort";
 import { keyed } from "lit/directives/keyed.js";
-
-type TreeItem = {
-  expanded?: boolean;
-  children?: TreeItem[];
-};
-
-type JsonType = "array" | "object" | "string" | "number" | "boolean" | "null";
-
-type JsonTreeItem = Omit<TreeItem, "children"> & {
-  path: string[];
-  pathStr: string;
-  key?: string;
-  value: any;
-  type?: JsonType;
-  summary: HTMLTemplateResult;
-  children?: JsonTreeItem[];
-  isArrayChild?: boolean;
-  hidden?: boolean;
-  valueRender?: HTMLTemplateResult;
-};
-
-function isLeaf(item: TreeItem): boolean {
-  return item.children === undefined;
-}
-
-function getItemByPath(
-  tree: JsonTreeItem,
-  path: string[],
-): JsonTreeItem | undefined {
-  let current: JsonTreeItem | undefined = tree;
-  for (const key of path) {
-    if (!current) break;
-    if (current.children) {
-      current = current.children.find((child) => child.key === key);
-    }
-  }
-  return current;
-}
-
-function setExpanded(tree: JsonTreeItem, expanded: boolean) {
-  tree.expanded = expanded;
-  tree.children?.forEach((child) => {
-    setExpanded(child, expanded);
-  });
-}
+import {
+  ACTION_ROW_HEIGHT,
+  clearFilter,
+  filterTree,
+  getItemByPath,
+  isLeaf,
+  JsonTreeItem,
+  jsonType,
+  ROW_HEIGHT,
+  setExpanded,
+} from "./jsonTree/model";
+import { jsonSummary } from "./jsonTree/tokenizer";
+import { leafValueRenderer } from "./jsonTree/leafValurRender";
+import { tryParseNestedJson } from "./jsonTree/nested";
 
 function escapeRegExp(str: string) {
   return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
-}
-
-function isMatchTreeItem(item: JsonTreeItem, filter: RegExp) {
-  if (item.key) {
-    if (item.isArrayChild && filter.source === item.key) {
-      return true;
-    } else if (!item.isArrayChild && filter.test(item.key)) {
-      return true;
-    } else if (typeof item.value === "string") {
-      return filter.test(item.value);
-    } else if (typeof item.value === "number") {
-      return filter.source === item.value.toString();
-    } else if (typeof item.value === "boolean") {
-      return filter.source === item.value.toString();
-    } else {
-      return false;
-    }
-  } else {
-    return true;
-  }
-}
-
-function filterTree(tree: JsonTreeItem, filter: RegExp) {
-  if (tree.children && tree.children.length > 0) {
-    for (const child of tree.children) {
-      filterTree(child, filter);
-    }
-    tree.hidden = !isMatchTreeItem(tree, filter);
-    if (tree.hidden) {
-      tree.hidden = tree.children.every((child) => child.hidden);
-    }
-  } else if (tree.key) {
-    tree.hidden = !isMatchTreeItem(tree, filter);
-  }
-}
-
-function clearFilter(tree: JsonTreeItem) {
-  tree.hidden = false;
-  tree.children?.forEach(clearFilter);
-}
-
-const jsonType = (json: any): JsonType => {
-  if (json === null) {
-    return "null";
-  } else if (Array.isArray(json)) {
-    return "array";
-  } else if (typeof json === "object" && json !== null) {
-    return "object";
-  } else if (typeof json === "string") {
-    return "string";
-  } else if (typeof json === "number") {
-    return "number";
-  } else if (typeof json === "boolean") {
-    return "boolean";
-  } else {
-    throw new Error(`Unknown JSON type: ${typeof json}`);
-  }
-};
-
-function tokenizeJson(
-  json: any,
-  callback: (
-    type: "key" | "value" | ":" | "," | "[" | "]" | "{" | "}" | "ellipsis",
-    text: any,
-  ) => "stop" | undefined,
-) {
-  if (json === undefined) {
-    return callback("value", json);
-  } else if (typeof json === "string") {
-    return callback("value", JSON.stringify(json));
-  } else if (typeof json === "boolean") {
-    return callback("value", json);
-  } else if (typeof json === "number") {
-    return callback("value", json);
-  } else if (json === null) {
-    return callback("value", null);
-  } else if (Array.isArray(json)) {
-    callback("[", "[");
-    let i = 0;
-    for (; i < json.length; i++) {
-      let next = tokenizeJson(json[i], callback);
-      if (i < json.length - 1) {
-        next = callback(",", ", ");
-      }
-      if (next === "stop") break;
-    }
-    if (i < json.length - 1) {
-      callback("ellipsis", "\u2026");
-    }
-    callback("]", "]");
-  } else if (typeof json === "object") {
-    callback("{", "{");
-    const entries = Object.entries(json);
-    let i = 0;
-    for (; i < entries.length; i++) {
-      const [key, value] = entries[i]!;
-      let next = callback("key", key);
-      next = callback(":", ": ");
-      if (next === "stop") break;
-      next = tokenizeJson(value, callback);
-      if (i < entries.length - 1) {
-        next = callback(",", ", ");
-      }
-      if (next === "stop") break;
-    }
-    if (i < entries.length - 1) {
-      callback("ellipsis", "\u2026");
-    }
-    callback("}", "}");
-  }
-}
-
-function getClass(
-  type: "key" | "value" | ":" | "," | "[" | "]" | "{" | "}" | "ellipsis",
-  value: any,
-) {
-  if (type === "key") return "value key";
-  if (type === "value") {
-    if (value === null) return "value null";
-    if (value === undefined) return "value undefined";
-    if (typeof value === "string") return "value string";
-    if (typeof value === "number") return "value number";
-    if (typeof value === "boolean") return "value boolean";
-    return "value";
-  }
-  if (type === ":") return "";
-  if (type === ",") return "";
-  if (type === "[") return "";
-  if (type === "]") return "";
-  if (type === "{") return "";
-  if (type === "}") return "";
-  if (type === "ellipsis") return "";
-  return "";
-}
-
-const jsonSummary = (json: any): HTMLTemplateResult => {
-  let length = 0;
-  let spans: HTMLTemplateResult[] = [];
-
-  tokenizeJson(json, (type, val) => {
-    const text =
-      val === null ? "null" : val === undefined ? "undefined" : val.toString();
-    length += text.length;
-
-    spans.push(html`<span class="${getClass(type, val)}">${text}</span>`);
-
-    // TODO: limit length base on the width of the container
-    if (length > 100) {
-      return "stop";
-    }
-    return undefined;
-  });
-
-  return html`<span>${spans}</span>`;
-};
-
-function leafValueRenderer(
-  value: JsonType,
-  soundUrl: string,
-  pathStr: string,
-): HTMLTemplateResult {
-  if (typeof value === "string") {
-    if (
-      URL.canParse(value) &&
-      (/Global\/agents\/[0-9a-fA-F-]+\/avatar/i.test(value) ||
-        /.svg$/.test(value))
-    ) {
-      return html`<a class="avatar" href="${value}" target="_blank"
-        ><img src="${value}" height="${ROW_HEIGHT}"
-      /></a>`;
-    } else if (URL.canParse(value)) {
-      return html`<span class="value string"
-        >"<a href="${value}" target="_blank">${value}</a>"</span
-      >`;
-    } else if (
-      pathStr.endsWith(".agentConsoleLogoCodeSnippet") ||
-      pathStr.endsWith(".controlPanelLogoCodeSnippet")
-    ) {
-      const anchorName = `--preview-${pathStr}`;
-      const id = `html-preview-${pathStr}`;
-      return html`<span class="value ${jsonType(value)}"
-        ><button
-          popovertarget="${id}"
-          class="preview"
-          style="anchor-name: ${anchorName};"
-        ></button>
-        <div
-          id="${id}"
-          class="html-preview ${pathStr.slice(pathStr.lastIndexOf(".") + 1)}"
-          style="position-anchor: ${anchorName}; top: calc(anchor(bottom) + 4px); left: anchor(left); position-try-fallbacks: flip-block;"
-          popover="auto"
-          .innerHTML=${value}
-        ></div>
-        ${JSON.stringify(value)}</span
-      >`;
-    } else if (
-      pathStr.endsWith(".notificationIcon") ||
-      pathStr.endsWith(".ico") ||
-      pathStr.endsWith(".faviconImage")
-    ) {
-      return html`<img
-        class="image-preview"
-        src="${`data:image/png;base64,${value}`}"
-        height="${ROW_HEIGHT}"
-      />`;
-    } else if (
-      /^#[0-9a-fA-F]{6}$/.test(value) ||
-      /^#[0-9a-fA-F]{3}$/.test(value) ||
-      /^rgba\(\s*[0-9]+,\s*[0-9]+,\s*[0-9]+,\s*[0-9.]+\s*\)$/.test(value) ||
-      /^rgb\(\s*[0-9]+,\s*[0-9]+,\s*[0-9]+\s*\)$/.test(value)
-    ) {
-      // FIXME: add alpha
-      return html`<span class="value ${jsonType(value)}"
-        ><input
-          type="color"
-          value="${value.startsWith("rgb")
-            ? rgbaToHex(value)
-            : expandHex(value)}"
-        />
-        ${JSON.stringify(value)}</span
-      >`;
-    } else if (
-      (pathStr.startsWith("config.settings.sound") &&
-        pathStr.endsWith(".id")) ||
-      (pathStr.startsWith("config.preference") && pathStr.endsWith("SoundId"))
-    ) {
-      return html`<span class="value ${jsonType(value)}"
-        ><button
-          class="play-sound"
-          @click=${(e: MouseEvent) => {
-            const button = e.currentTarget as HTMLButtonElement;
-            button.classList.toggle("playing");
-
-            const audio = document.createElement("audio");
-            audio.src = soundUrl.replace("{soundId}", value);
-            audio.onended = () => button.classList.remove("playing");
-            audio.onerror = () => button.classList.remove("playing");
-            audio.play();
-          }}
-        ></button
-        >${JSON.stringify(value)}</span
-      >`;
-    }
-  }
-
-  return html`<span class="value ${jsonType(value)}"
-    >${JSON.stringify(value)}</span
-  >`;
-}
-
-function expandHex(hex: string) {
-  if (hex.length === 4) {
-    return `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`;
-  }
-  return hex;
-}
-
-function rgbaToHex(rgba: string) {
-  const [r, g, b] = rgba.match(/\d+/g)!.map(Number);
-  return `#${r.toString(16)}${g.toString(16)}${b.toString(16)}`;
 }
 
 const jsonToTree = (
@@ -384,9 +93,6 @@ const jsonToTree = (
   }
 };
 
-const ROW_HEIGHT = 18;
-const ACTION_ROW_HEIGHT = 20;
-
 @customElement("json-tree")
 export class JsonTree extends LitElement {
   @property({ type: String })
@@ -416,22 +122,28 @@ export class JsonTree extends LitElement {
   private _visibleStartRowIndex = 0;
   @state()
   private _visibleRows = 100;
+
+  @state()
+  private _showNestedJson: boolean = false;
+  private handleParseNestedJson() {
+    this._showNestedJson = !this._showNestedJson;
+  }
+
   private _renderRowIndex = 0;
   private _totalVisibleRows = 0;
 
   private generateTree() {
-    const reduxState = JSON.parse(this.data);
+    const reduxState: any = sortKeys(JSON.parse(this.data));
     const siteId = reduxState.agent?.siteId;
     const chatServerUrl = reduxState.config?.settings?.urls?.chatServer;
     this._tree = jsonToTree(
-      sortKeys(reduxState),
+      this._showNestedJson ? tryParseNestedJson(reduxState) : reduxState,
       [],
       false,
       `${chatServerUrl}/DBResource/DBSound.ashx?soundId={soundId}&siteId=${siteId}`,
     );
     this._tree.expanded = true;
     this._showFilter = false;
-    console.log(this._tree);
   }
 
   static styles = css`
@@ -898,6 +610,9 @@ export class JsonTree extends LitElement {
             </button>
             <button tabindex="0" @click=${this.handleExpandAll}>Expand</button>
             <button tabindex="0" @click=${this.handleShowFilter}>Filter</button>
+            <button tabindex="0" @click=${this.handleParseNestedJson}>
+              ${this._showNestedJson ? "⊟Nested" : "⊞Nested"}
+            </button>
           `}
     </div>`;
   }
@@ -957,6 +672,8 @@ export class JsonTree extends LitElement {
   updated(changedProperties: PropertyValues): void {
     super.updated(changedProperties);
     if (changedProperties.has("data")) {
+      this.generateTree();
+    } else if (changedProperties.has("_showNestedJson")) {
       this.generateTree();
     } else if (changedProperties.has("_showFilter")) {
       if (this._showFilter) {
