@@ -8,6 +8,7 @@ import {
 } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import typeIcons from "../assets/images/TypeIcons.svg";
+import showIcon from "../assets/images/show.svg";
 import { sort as sortKeys } from "json-keys-sort";
 
 type TreeItem = {
@@ -231,12 +232,27 @@ function leafValueRenderer(
       return html`<span class="value string"
         >"<a href="${value}" target="_blank">${value}</a>"</span
       >`;
-    } else if (value.startsWith("<div>")) {
-      // set inner html
-      const div = document.createElement("div");
-      div.classList.add("html-preview");
-      div.innerHTML = value;
-      return html`${div}`;
+    } else if (
+      lastPath === "agentConsoleLogoCodeSnippet" ||
+      lastPath === "controlPanelLogoCodeSnippet"
+    ) {
+      const anchorName = `--preview-${lastPath}`;
+      const id = `html-preview-${lastPath}`;
+      return html`<span class="value ${jsonType(value)}"
+        ><button
+          popovertarget="${id}"
+          class="preview"
+          style="anchor-name: ${anchorName};"
+        ></button>
+        <div
+          id="${id}"
+          class="html-preview ${lastPath}"
+          style="position-anchor: ${anchorName}; top: calc(anchor(bottom) + 4px); left: anchor(left);"
+          popover="auto"
+          .innerHTML=${value}
+        ></div>
+        ${JSON.stringify(value)}</span
+      >`;
     } else if (
       lastPath === "notificationIcon" ||
       lastPath === "ico" ||
@@ -393,7 +409,7 @@ export class JsonTree2 extends LitElement {
 
   private generateTree() {
     const reduxState = JSON.parse(this.data);
-    const siteId = reduxState.agent.siteId;
+    const siteId = reduxState.agent?.siteId;
     const chatServerUrl = reduxState.config?.settings?.urls?.chatServer;
     this._tree = jsonToTree(
       sortKeys(reduxState),
@@ -465,6 +481,15 @@ export class JsonTree2 extends LitElement {
       flex: none;
     }
 
+    button.preview {
+      display: inline-block;
+      width: 1.2em;
+      height: 1.2em;
+      flex: none;
+      mask: url("${unsafeCSS(showIcon)}") no-repeat center;
+      vertical-align: middle;
+      background-color: var(--text-color-secondary);
+    }
     .icon.object {
       background: url("${unsafeCSS(typeIcons)}#TypeObject-dark");
     }
@@ -557,8 +582,20 @@ export class JsonTree2 extends LitElement {
       box-shadow: 0 1px 0 0 var(--border-color);
     }
     .html-preview {
-      display: inline-block;
-      height: ${ROW_HEIGHT}px;
+      position: fixed;
+      margin: 0;
+      inset: unset;
+      border: none;
+      padding: 8px;
+      border-radius: 4px;
+      box-shadow: 0px 0px 4px 0px black;
+    }
+    .html-preview.controlPanelLogoCodeSnippet a[role="button"] {
+      margin-top: unset !important;
+      margin-bottom: unset !important;
+    }
+    .html-preview.agentConsoleLogoCodeSnippet a {
+      margin: unset !important;
     }
     input[type="color"] {
       height: 1em;
@@ -625,6 +662,8 @@ export class JsonTree2 extends LitElement {
   }
   private handleCollapseAll() {
     setExpanded(this._tree, false);
+    // root is always expanded
+    this._tree.expanded = true;
     this.requestUpdate();
   }
   private handleInput(e: Event) {
@@ -666,7 +705,7 @@ export class JsonTree2 extends LitElement {
     if (item.hidden) {
       return 0;
     }
-    let height = item.key ? 1 : 0;
+    let height = item.key === undefined ? 0 : 1;
     if (expanded) {
       height +=
         item.children
@@ -749,9 +788,11 @@ export class JsonTree2 extends LitElement {
     const expanded = item.expanded || this._hasFilter;
     return html`${this.renderLabel(item, indent)}
     ${item.children && expanded
-      ? item.children.map((child) =>
-          this.renderItem(child, indent + (item.isArrayChild ? 5 : 2)),
-        )
+      ? item.children
+          .map((child) =>
+            this.renderItem(child, indent + (item.isArrayChild ? 5 : 2)),
+          )
+          .filter(Boolean)
       : undefined}`;
   }
 
