@@ -278,7 +278,8 @@ function leafValueRenderer(
           value="${value.startsWith("rgb")
             ? rgbaToHex(value)
             : expandHex(value)}"
-        />${JSON.stringify(value)}</span
+        />
+        ${JSON.stringify(value)}</span
       >`;
     } else if (
       (pathStr.startsWith("config.settings.sound") &&
@@ -615,7 +616,7 @@ export class JsonTree extends LitElement {
       height: 1em;
       width: 1em;
       padding: 0;
-      position: relative;
+      vertical-align: middle;
     }
     input[type="color" i]::-webkit-color-swatch-wrapper {
       padding: 0;
