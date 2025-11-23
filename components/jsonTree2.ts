@@ -9,6 +9,7 @@ import {
 import { customElement, property, query, state } from "lit/decorators.js";
 import typeIcons from "../assets/images/TypeIcons.svg";
 import showIcon from "../assets/images/show.svg";
+import circleIcon from "../assets/images/circle.svg";
 import { sort as sortKeys } from "json-keys-sort";
 
 type TreeItem = {
@@ -20,6 +21,7 @@ type JsonType = "array" | "object" | "string" | "number" | "boolean" | "null";
 
 type JsonTreeItem = Omit<TreeItem, "children"> & {
   path: string[];
+  pathStr: string;
   key?: string;
   value: any;
   type?: JsonType;
@@ -216,9 +218,8 @@ const jsonSummary = (json: any): HTMLTemplateResult => {
 function leafValueRenderer(
   value: JsonType,
   soundUrl: string,
-  path: string[],
+  pathStr: string,
 ): HTMLTemplateResult {
-  const lastPath = path[path.length - 1];
   if (typeof value === "string") {
     if (
       URL.canParse(value) &&
@@ -233,11 +234,11 @@ function leafValueRenderer(
         >"<a href="${value}" target="_blank">${value}</a>"</span
       >`;
     } else if (
-      lastPath === "agentConsoleLogoCodeSnippet" ||
-      lastPath === "controlPanelLogoCodeSnippet"
+      pathStr.endsWith(".agentConsoleLogoCodeSnippet") ||
+      pathStr.endsWith(".controlPanelLogoCodeSnippet")
     ) {
-      const anchorName = `--preview-${lastPath}`;
-      const id = `html-preview-${lastPath}`;
+      const anchorName = `--preview-${pathStr}`;
+      const id = `html-preview-${pathStr}`;
       return html`<span class="value ${jsonType(value)}"
         ><button
           popovertarget="${id}"
@@ -246,7 +247,7 @@ function leafValueRenderer(
         ></button>
         <div
           id="${id}"
-          class="html-preview ${lastPath}"
+          class="html-preview ${pathStr.slice(pathStr.lastIndexOf(".") + 1)}"
           style="position-anchor: ${anchorName}; top: calc(anchor(bottom) + 4px); left: anchor(left);"
           popover="auto"
           .innerHTML=${value}
@@ -254,9 +255,9 @@ function leafValueRenderer(
         ${JSON.stringify(value)}</span
       >`;
     } else if (
-      lastPath === "notificationIcon" ||
-      lastPath === "ico" ||
-      lastPath === "faviconImage"
+      pathStr.endsWith(".notificationIcon") ||
+      pathStr.endsWith(".ico") ||
+      pathStr.endsWith(".faviconImage")
     ) {
       return html`<img
         class="image-preview"
@@ -279,12 +280,9 @@ function leafValueRenderer(
         />${JSON.stringify(value)}</span
       >`;
     } else if (
-      ((path[0] === "config" ||
-        path[1] === "settings" ||
-        path[2]?.startsWith("sound")) &&
-        lastPath === "id") ||
-      ((path[0] === "config" || path[1] === "preference") &&
-        lastPath.endsWith("SoundId"))
+      (pathStr.startsWith("config.settings.sound") &&
+        pathStr.endsWith(".id")) ||
+      (pathStr.startsWith("config.preference") && pathStr.endsWith("SoundId"))
     ) {
       return html`<span class="value ${jsonType(value)}"
         ><button
@@ -329,11 +327,13 @@ const jsonToTree = (
   soundUrl: string,
 ): JsonTreeItem => {
   const key = path[path.length - 1];
+  const pathStr = path.join(".");
   if (json === null) {
     return {
       value: json,
       key,
       path,
+      pathStr,
       summary: jsonSummary(json),
       type: "null",
       isArrayChild,
@@ -348,6 +348,7 @@ const jsonToTree = (
       value: json,
       key,
       path,
+      pathStr,
       summary: jsonSummary(json),
       type: "array",
       isArrayChild,
@@ -362,6 +363,7 @@ const jsonToTree = (
       value: json,
       key,
       path,
+      pathStr,
       summary: jsonSummary(json),
       type: "object",
       isArrayChild,
@@ -371,10 +373,11 @@ const jsonToTree = (
       value: json,
       key,
       path,
+      pathStr,
       summary: jsonSummary(json),
       type: jsonType(json),
       isArrayChild,
-      valueRender: leafValueRenderer(json, soundUrl, path),
+      valueRender: leafValueRenderer(json, soundUrl, pathStr),
     };
   }
 };
@@ -386,6 +389,12 @@ const ACTION_ROW_HEIGHT = 20;
 export class JsonTree2 extends LitElement {
   @property({ type: String })
   data: string = "";
+
+  @property({ type: Array })
+  trackedPaths: string[] = [];
+
+  @property({ type: Boolean })
+  disableTrackingPath = false;
 
   @state()
   private _tree!: JsonTreeItem;
@@ -438,6 +447,7 @@ export class JsonTree2 extends LitElement {
     button {
       all: unset;
       cursor: pointer;
+      user-select: none;
     }
     a.avatar {
       font-size: 0;
@@ -590,8 +600,9 @@ export class JsonTree2 extends LitElement {
       inset: unset;
       border: none;
       padding: 8px;
-      border-radius: 4px;
-      box-shadow: 0px 0px 4px 0px black;
+      border-radius: 8px;
+      box-shadow: 0px 0px 4px 0px var(--border-color);
+      background-color: var(--background-color);
     }
     .html-preview.controlPanelLogoCodeSnippet a[role="button"] {
       margin-top: unset !important;
@@ -639,6 +650,35 @@ export class JsonTree2 extends LitElement {
       position: unset;
       top: unset;
       left: unset;
+    }
+
+    button.tracking {
+      cursor: pointer;
+      color: var(--text-color-secondary);
+      position: absolute;
+      display: none;
+      left: 0;
+      transform: translateX(-100%);
+      mask: url("${unsafeCSS(circleIcon)}") no-repeat center;
+      mask-size: 50% 50%;
+      background-color: var(--text-color-secondary);
+      width: 1em;
+      height: 1em;
+    }
+
+    button.tracking:has(+ .arrow-right.invisible) {
+      transform: unset;
+    }
+
+    .label:hover button.tracking {
+      display: block;
+      opacity: 0.6;
+    }
+
+    button.tracking.enable-tracking,
+    .label:hover button.tracking.enable-tracking {
+      display: block;
+      opacity: 1;
     }
   `;
 
@@ -721,6 +761,35 @@ export class JsonTree2 extends LitElement {
     return height;
   }
 
+  private handleClickTrackingButton(e: MouseEvent) {
+    e.stopPropagation();
+    const button = e.currentTarget as HTMLButtonElement;
+    button.classList.toggle("enable-tracking");
+
+    const pathStr = button.getAttribute("data-path");
+    if (pathStr) {
+      this.dispatchEvent(
+        new CustomEvent("togglePath", {
+          detail: pathStr,
+        }),
+      );
+    }
+  }
+
+  private renderTrackingButton(
+    item: JsonTreeItem,
+  ): HTMLTemplateResult | undefined {
+    if (this.disableTrackingPath) return;
+
+    return html`<button
+      data-path=${item.pathStr}
+      class="tracking ${this.trackedPaths.includes(item.pathStr)
+        ? "enable-tracking"
+        : ""}"
+      @click=${this.handleClickTrackingButton}
+    ></button>`;
+  }
+
   protected renderLabel(item: JsonTreeItem, indent: number): any {
     if (this._renderRowIndex < this._visibleStartRowIndex) return;
     if (this._renderRowIndex > this._visibleStartRowIndex + this._visibleRows)
@@ -742,6 +811,7 @@ export class JsonTree2 extends LitElement {
           class="label"
           style="margin-left: ${indent}ch; top: ${top}px;"
         >
+          ${this.renderTrackingButton(item)}
           <span class="arrow-right invisible"></span>
           <span class="icon ${item.type}"></span>
           <span class="key">${JsonTree2.keyPrefix(item)}</span>
@@ -754,11 +824,12 @@ export class JsonTree2 extends LitElement {
 
     return html`
       <button
-        data-path=${item.path.join(".")}
+        data-path=${item.pathStr}
         class="label"
         @click=${this.handleClick}
         style="margin-left: ${indent}ch; top: ${top}px;"
       >
+        ${this.renderTrackingButton(item)}
         ${item.isArrayChild
           ? html`<span class="key index">${item.key}</span>`
           : undefined}
