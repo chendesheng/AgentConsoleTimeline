@@ -550,8 +550,8 @@ export class JsonTree2 extends LitElement {
 
     .actions {
       font-size: 10px;
-      height: 12px;
-      padding-top: 8px;
+      height: ${ACTION_ROW_HEIGHT}px;
+      line-height: ${ACTION_ROW_HEIGHT}px;
       position: sticky;
       z-index: 1;
       top: 0;
