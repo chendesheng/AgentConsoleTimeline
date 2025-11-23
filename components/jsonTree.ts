@@ -248,7 +248,7 @@ function leafValueRenderer(
         <div
           id="${id}"
           class="html-preview ${pathStr.slice(pathStr.lastIndexOf(".") + 1)}"
-          style="position-anchor: ${anchorName}; top: calc(anchor(bottom) + 4px); left: anchor(left);"
+          style="position-anchor: ${anchorName}; top: calc(anchor(bottom) + 4px); left: anchor(left); position-try-fallbacks: flip-block;"
           popover="auto"
           .innerHTML=${value}
         ></div>
