@@ -8,8 +8,8 @@ import {
 } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import typeIcons from "../assets/images/TypeIcons.svg";
-import showIcon from "../assets/images/show.svg";
-import circleIcon from "../assets/images/circle.svg";
+import showIcon from "../assets/images/Show.svg";
+import circleIcon from "../assets/images/Circle.svg";
 import { sort as sortKeys } from "json-keys-sort";
 
 type TreeItem = {
