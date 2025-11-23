@@ -152,7 +152,7 @@ export async function unzipFiles(file: File) {
 
 async function toFile(file: JSZip.JSZipObject) {
   const content = await file.async("uint8array");
-  return new File([content], file.name);
+  return new File([new Uint8Array(content)], file.name);
 }
 
 function getJsonPaths(json: any, result: string[], p: string[] = []) {

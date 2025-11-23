@@ -13,18 +13,6 @@ declare module "*.elm" {
   };
 }
 
-declare module "@alenaksu/json-viewer/JsonViewer.js" {
-  export class JsonViewer extends HTMLElement {
-    expandAll(): void;
-    collapseAll(): void;
-    resetFilter(): void;
-    filter(regex: RegExp): void;
-    requestUpdate(): void;
-    static customRenderer(value: any, path: string): any;
-    static styles: any;
-  }
-}
-
 declare module "js-beautify" {
   export function html(html: string): string;
   export function css(css: string): string;
