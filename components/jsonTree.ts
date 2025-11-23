@@ -887,14 +887,12 @@ export class JsonTree extends LitElement {
             placeholder="Filter"
           />`
         : html`
-            <button tabindex="0" @click=${this.handleCopy}>Copy</button
-            >&nbsp;<button tabindex="0" @click=${this.handleCollapseAll}>
-              Collapse</button
-            >&nbsp;<button tabindex="0" @click=${this.handleExpandAll}>
-              Expand</button
-            >&nbsp;<button tabindex="0" @click=${this.handleShowFilter}>
-              Filter
+            <button tabindex="0" @click=${this.handleCopy}>Copy</button>
+            <button tabindex="0" @click=${this.handleCollapseAll}>
+              Collapse
             </button>
+            <button tabindex="0" @click=${this.handleExpandAll}>Expand</button>
+            <button tabindex="0" @click=${this.handleShowFilter}>Filter</button>
           `}
     </div>`;
   }
