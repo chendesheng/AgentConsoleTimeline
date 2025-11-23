@@ -801,8 +801,6 @@ export class JsonTree extends LitElement {
     if (this._renderRowIndex > this._visibleStartRowIndex + this._visibleRows)
       return;
 
-    const top = ACTION_ROW_HEIGHT + (this._renderRowIndex - 1) * ROW_HEIGHT;
-
     if (isLeaf(item)) {
       if (item.isArrayChild) {
         return html`<div
