@@ -724,7 +724,11 @@ export class JsonTree extends LitElement {
     }
 
     const input = e.target as HTMLInputElement;
-    const filter = new RegExp(escapeRegExp(input.value), "i");
+    const hasCapitalLetter = input.value.match(/[A-Z]/);
+    const filter = new RegExp(
+      escapeRegExp(input.value),
+      hasCapitalLetter ? "" : "i",
+    );
     filterTree(this._tree, filter);
     this.requestUpdate();
   }
