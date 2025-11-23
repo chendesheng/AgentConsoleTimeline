@@ -121,7 +121,7 @@ export class JsonTree extends LitElement {
   @state()
   private _visibleStartRowIndex = 0;
   @state()
-  private _visibleRows = 100;
+  private _visibleRows = 10;
 
   @state()
   private _showNestedJson: boolean = false;
@@ -148,15 +148,17 @@ export class JsonTree extends LitElement {
 
   static styles = css`
     :host {
-      display: flex;
       flex-direction: column;
       gap: 0.3em;
       position: relative;
+      overflow-y: auto;
+      overflow-x: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     :host > div {
-      width: calc(100% - 2ch);
-      position: absolute;
-      left: 2ch;
+      width: 100%;
+      position: relative;
     }
     button {
       all: unset;
@@ -649,7 +651,7 @@ export class JsonTree extends LitElement {
     // monitor shadowRoot size change
     const observer = new ResizeObserver((e) => {
       const height = e[0].contentBoxSize[0].blockSize;
-      this._visibleRows = Math.ceil(height / ROW_HEIGHT);
+      this._visibleRows = Math.max(10, Math.ceil(height / ROW_HEIGHT));
     });
     observer.observe(host);
 
