@@ -169,6 +169,9 @@ export class JsonTree extends LitElement {
       font-size: 0;
       height: ${ROW_HEIGHT}px;
     }
+    a.avatar img {
+      border-radius: 100%;
+    }
     .label {
       display: flex;
       align-items: center;

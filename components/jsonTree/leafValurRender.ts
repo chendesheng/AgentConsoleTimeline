@@ -10,7 +10,8 @@ export function leafValueRenderer(
     if (
       URL.canParse(value) &&
       (/Global\/agents\/[0-9a-fA-F-]+\/avatar/i.test(value) ||
-        /.svg$/.test(value))
+        /.svg$/.test(value) ||
+        /\/chatbots\/([^\/]+)\/avatar\?/.test(value))
     ) {
       return html`<a class="avatar" href="${value}" target="_blank"
         ><img src="${value}" height="${ROW_HEIGHT}"
