@@ -151,7 +151,7 @@ export async function unzipFiles(file: File) {
 }
 
 async function toFile(file: JSZip.JSZipObject) {
-  const content = (await file.async("uint8array")) as Uint8Array<ArrayBuffer>;
+  const content = await file.async("uint8array");
   return new File([content], file.name);
 }
 

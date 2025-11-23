@@ -1,5 +1,6 @@
 {
   "files.exclude": {
     "**/.elm/0.19.1/**": true
-  }
+  },
+  "typescript.tsdk": "node_modules/typescript/lib"
 }
