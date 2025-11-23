@@ -406,6 +406,7 @@ export class JsonTree2 extends LitElement {
   @state()
   private _visibleRows = 100;
   private _renderRowIndex = 0;
+  private _totalVisibleRows = 0;
 
   private generateTree() {
     const reduxState = JSON.parse(this.data);
@@ -430,7 +431,7 @@ export class JsonTree2 extends LitElement {
       position: relative;
     }
     :host > div {
-      width: 100%;
+      width: calc(100% - 2ch);
       position: absolute;
       left: 2ch;
     }
@@ -551,8 +552,10 @@ export class JsonTree2 extends LitElement {
       font-size: 10px;
       height: 12px;
       padding-top: 8px;
-      position: absolute;
+      position: sticky;
+      z-index: 1;
       top: 0;
+      background-color: var(--background-color);
     }
     .actions button {
       appearance: none;
@@ -700,7 +703,10 @@ export class JsonTree2 extends LitElement {
     return item.key ? `${item.key}: ` : undefined;
   }
 
-  private static totalRows(item: JsonTreeItem, hasFilter: boolean): number {
+  private static totalVisibleRows(
+    item: JsonTreeItem,
+    hasFilter: boolean,
+  ): number {
     const expanded = item.expanded || hasFilter;
     if (item.hidden) {
       return 0;
@@ -709,7 +715,7 @@ export class JsonTree2 extends LitElement {
     if (expanded) {
       height +=
         item.children
-          ?.map((child) => JsonTree2.totalRows(child, hasFilter))
+          ?.map((child) => JsonTree2.totalVisibleRows(child, hasFilter))
           .reduce((acc, child) => acc + child, 0) ?? 0;
     }
     return height;
@@ -783,6 +789,7 @@ export class JsonTree2 extends LitElement {
     indent: number,
   ): HTMLTemplateResult | undefined {
     if (item.hidden) return;
+    if (this._renderRowIndex >= this._totalVisibleRows) return;
 
     this._renderRowIndex++;
     const expanded = item.expanded || this._hasFilter;
@@ -824,13 +831,14 @@ export class JsonTree2 extends LitElement {
       return html``;
     const children = this._tree.children;
     this._renderRowIndex = 0;
-    const height =
-      ACTION_ROW_HEIGHT +
-      JsonTree2.totalRows(this._tree, this._hasFilter) * ROW_HEIGHT +
-      10;
+    this._totalVisibleRows = JsonTree2.totalVisibleRows(
+      this._tree,
+      this._hasFilter,
+    );
+    const height = ACTION_ROW_HEIGHT + this._totalVisibleRows * ROW_HEIGHT + 10;
     return html`<div style="height: ${height}px;">
       ${this.renderActions()}
-      ${children.map((child) => this.renderItem(child, 0))}
+      ${children.map((child) => this.renderItem(child, 0)).filter(Boolean)}
     </div>`;
   }
 

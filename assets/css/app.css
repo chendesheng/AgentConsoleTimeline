@@ -89,7 +89,8 @@
 
 .app section.detail {
   flex: auto;
-  background-color: rgb(43, 43, 43);
+  --background-color: rgb(43, 43, 43);
+  background-color: var(--background-color);
   border-left: solid 1px var(--border-color);
   display: flex;
   flex-flow: column;
