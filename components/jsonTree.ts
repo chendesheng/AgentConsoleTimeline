@@ -29,8 +29,9 @@ import {
   setExpanded,
   totalVisibleRows,
   visibleItems,
+  getSummary,
+  renderLeafValue,
 } from "./jsonTree/model";
-import { jsonSummary } from "./jsonTree/tokenizer";
 import { leafValueRenderer } from "./jsonTree/leafValurRender";
 import { tryParseNestedJson } from "./jsonTree/nested";
 import { productionPlatformsPrefixes } from "./domains";
@@ -97,7 +98,6 @@ const jsonToTree = (
       path,
       pathStr,
       parentPathStr,
-      summary: jsonSummary(json),
       type: "array",
       isArrayChild,
     };
@@ -117,7 +117,6 @@ const jsonToTree = (
       path,
       pathStr,
       parentPathStr,
-      summary: jsonSummary(json),
       type: "object",
       isArrayChild,
     };
@@ -129,10 +128,9 @@ const jsonToTree = (
       path,
       pathStr,
       parentPathStr,
-      summary: jsonSummary(json),
       type: jsonType(json),
       isArrayChild,
-      valueRender: leafValueRenderer(json, pathStr, options),
+      valueRender: () => leafValueRenderer(json, pathStr, options),
     };
   }
 };
@@ -178,19 +176,24 @@ export class JsonTree extends LitElement {
   private _selectedPath: string | undefined;
 
   private selectNextPath() {
-    this._selectedPath = getNextItem(this._tree, this._selectedPath)?.pathStr;
+    this._selectedPath = getNextItem(
+      this._tree,
+      this._hasFilter,
+      this._selectedPath,
+    )?.pathStr;
     if (!this._selectedPath) {
-      this._selectedPath = getFirstItem(this._tree)?.pathStr;
+      this._selectedPath = getFirstItem(this._tree, this._hasFilter)?.pathStr;
     }
   }
 
   private selectPreviousPath() {
     this._selectedPath = getPreviousItem(
       this._tree,
+      this._hasFilter,
       this._selectedPath,
     )?.pathStr;
     if (!this._selectedPath) {
-      this._selectedPath = getLastItem(this._tree)?.pathStr;
+      this._selectedPath = getLastItem(this._tree, this._hasFilter)?.pathStr;
     }
   }
 
@@ -555,6 +558,7 @@ export class JsonTree extends LitElement {
     this.requestUpdate();
   }
   private handleInput(e: Event) {
+    e.stopPropagation();
     if (!this._showFilter) return;
     if (this._input?.value?.length === 0) {
       clearFilter(this._tree);
@@ -577,6 +581,7 @@ export class JsonTree extends LitElement {
   }
 
   private handleFilterInputKeydown(e: KeyboardEvent) {
+    e.stopPropagation();
     if (e.key === "Escape") {
       this._showFilter = false;
     }
@@ -594,7 +599,7 @@ export class JsonTree extends LitElement {
   private scrollToPath(pathStr: string) {
     if (!this.shadowRoot) return;
 
-    const index = indexOfPathStr(this._tree, pathStr);
+    const index = indexOfPathStr(this._tree, this._hasFilter, pathStr);
     if (index === -1) return;
     if (index <= this._visibleStartRowIndex) {
       this.shadowRoot.host.scrollTop = index * ROW_HEIGHT;
@@ -726,7 +731,7 @@ export class JsonTree extends LitElement {
           tabindex="0"
         >
           <span class="key index">${item.key}</span>
-          ${item.valueRender}
+          ${renderLeafValue(item)}
         </div>`;
       } else {
         return html`<div
@@ -739,7 +744,7 @@ export class JsonTree extends LitElement {
           <span class="arrow-right invisible"></span>
           <span class="icon ${item.type}"></span>
           <span class="key">${JsonTree.keyPrefix(item)}</span>
-          ${item.valueRender}
+          ${renderLeafValue(item)}
         </div>`;
       }
     }
@@ -772,7 +777,7 @@ export class JsonTree extends LitElement {
             >`
           : html`<span class="summary"
               >${item.isArrayChild ? undefined : JsonTree.keyPrefix(item)}
-              ${item.summary}</span
+              ${getSummary(item)}</span
             >`}
       </button>
     `;
@@ -821,6 +826,7 @@ export class JsonTree extends LitElement {
       ${repeat(
         visibleItems(
           this._tree,
+          this._hasFilter,
           this._visibleStartRowIndex,
           this._visibleStartRowIndex + this._visibleRows,
         ),
