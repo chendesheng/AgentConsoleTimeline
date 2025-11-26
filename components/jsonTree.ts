@@ -578,7 +578,25 @@ export class JsonTree extends LitElement {
 
       const row = getRowElement(e.target as Node);
       const pathStr = row?.getAttribute("data-path");
-      if (pathStr) this.toggleExpandByPathStr(pathStr, false);
+      if (pathStr) {
+        const path = pathStr.split(".");
+        const item = getItemByPath(this._tree, path);
+        if (item) {
+          if (isLeaf(item) || !item.expanded) {
+            const pathStr = path.slice(0, -1).join(".");
+            const ele = this.shadowRoot?.querySelector(
+              `.label[data-path="${pathStr}"]`,
+            ) as HTMLElement;
+            if (ele) {
+              ele.dispatchEvent(new Event("click", { bubbles: true }));
+              ele.focus();
+            }
+          } else {
+            item.expanded = false;
+            this.requestUpdate();
+          }
+        }
+      }
     } else if (e.key === "ArrowRight" || e.key === "l") {
       e.preventDefault();
 
@@ -612,6 +630,13 @@ export class JsonTree extends LitElement {
           { once: true },
         );
       }
+    } else if (e.key === "d" && e.ctrlKey) {
+      e.preventDefault();
+      // scroll down by half page
+      this.shadowRoot?.host.scrollBy({
+        top: (ROW_HEIGHT * this._visibleRows) / 2,
+        behavior: "smooth",
+      });
     }
   }
 
