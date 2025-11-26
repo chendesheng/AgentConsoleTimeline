@@ -545,7 +545,7 @@ export class JsonTree extends LitElement {
   private handleVisibleRowsKeydown(e: KeyboardEvent) {
     e.stopPropagation();
 
-    if (e.key === "ArrowUp") {
+    if (e.key === "ArrowUp" || e.key === "k") {
       e.preventDefault();
 
       const row = getRowElement(e.target as Node);
@@ -554,7 +554,7 @@ export class JsonTree extends LitElement {
         previousRow.scrollIntoView({ behavior: "smooth", block: "nearest" });
         previousRow.focus();
       }
-    } else if (e.key === "ArrowDown") {
+    } else if (e.key === "ArrowDown" || e.key === "j") {
       e.preventDefault();
 
       const row = getRowElement(e.target as Node);
@@ -563,19 +563,19 @@ export class JsonTree extends LitElement {
         nextRow.scrollIntoView({ behavior: "smooth", block: "nearest" });
         nextRow.focus();
       }
-    } else if (e.key === "ArrowLeft") {
+    } else if (e.key === "ArrowLeft" || e.key === "h") {
       e.preventDefault();
 
       const row = getRowElement(e.target as Node);
       const pathStr = row?.getAttribute("data-path");
       if (pathStr) this.toggleExpandByPathStr(pathStr, false);
-    } else if (e.key === "ArrowRight") {
+    } else if (e.key === "ArrowRight" || e.key === "l") {
       e.preventDefault();
 
       const row = getRowElement(e.target as Node);
       const pathStr = row?.getAttribute("data-path");
       if (pathStr) this.toggleExpandByPathStr(pathStr, true);
-    } else if (e.key === "Enter") {
+    } else if (e.key === "o" || e.key === "Space") {
       e.preventDefault();
 
       const row = getRowElement(e.target as Node);
