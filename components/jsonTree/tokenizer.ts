@@ -87,8 +87,7 @@ export const jsonSummary = (json: any): HTMLTemplateResult => {
 
     spans.push(html`<span class="${getClass(type, val)}">${text}</span>`);
 
-    // TODO: limit length base on the width of the container
-    if (length > 100) {
+    if (length > 300) {
       return "stop";
     }
     return undefined;
