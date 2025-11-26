@@ -1,0 +1,740 @@
+[
+  {
+    "Id": 1,
+    "ModuleId": "Global",
+    "Name": "Manage Site Profile",
+    "Description": "• View/Edit Site Profile <br/>• Update subdomain"
+  },
+  {
+    "Id": 2,
+    "ModuleId": "Global",
+    "Name": "Manage Agent & Agent Roles",
+    "Description": "• Add/View/Edit/Delete agents<br/>• View/Edit agents' permissions<br/>• Add/View/Edit/Delete Agent Roles <br/><span style='color:red;'>(Note: With this option selected, agents who have manage Agent & Agent roles permission can add any agents to the Administrators role.)</span>"
+  },
+  {
+    "Id": 3,
+    "ModuleId": "Global",
+    "Name": "View Audit Log",
+    "Description": "• View/Query agents important activities in {ShortBranding} modules"
+  },
+  {
+    "Id": 4,
+    "ModuleId": "Global",
+    "Name": "View Agent Report",
+    "Description": "• View/Export Availability Report<br/>• View/Export Canned Message Report"
+  },
+  {
+    "Id": 5,
+    "ModuleId": "Global",
+    "Name": "Manage Security",
+    "Description": "• View/Edit Password Policy<br/>• Add/View/Edit/Delete IP Allowlist <br/>• Enable/View/Edit/Disable Agent SSO"
+  },
+  {
+    "Id": 6,
+    "ModuleId": "Global",
+    "Name": "Manage My Profile",
+    "Description": "• Edit My Profile"
+  },
+  {
+    "Id": 7,
+    "ModuleId": "Global",
+    "Name": "Manage Departments",
+    "Description": "• Enable/Disable/Create/Edit/Delete Departments"
+  },
+  {
+    "Id": 8,
+    "ModuleId": "Global",
+    "Name": "Manage Custom Away Status",
+    "Description": "• Enable/Disable/Create/Edit/Delete Custom Away Status"
+  },
+  {
+    "Id": 9,
+    "ModuleId": "Global",
+    "Name": "Manage Credit Card Masking",
+    "Description": "• Enable/Disable Credit Card Masking"
+  },
+  {
+    "Id": 10,
+    "ModuleId": "Global",
+    "Name": "Manage Public Canned Messages",
+    "Description": "• Create/Edit/Delete Public Canned Messages"
+  },
+  {
+    "Id": 11,
+    "ModuleId": "Global",
+    "Name": "Manage Private Canned Messages",
+    "Description": "• Create/Edit/Delete/View Private Canned Messages"
+  },
+  {
+    "Id": 12,
+    "ModuleId": "Global",
+    "Name": "Manage Integration",
+    "Description": "• Create/Delete Webhooks<br/>• Enable/Disable/Create/Edit/Delete Agent Console Extensions<br/>• Enable/Disable/Update other integrations under Integrations & API"
+  },
+  {
+    "Id": 13,
+    "ModuleId": "Global",
+    "Name": "View All Agents",
+    "Description": "• View all agents in Agent Console"
+  },
+  {
+    "Id": 14,
+    "ModuleId": "Global",
+    "Name": "Chat with Other Agents",
+    "Description": "• Send messages to other Online/Away agents from the Agent Console<br/>• Receive messages from other Online/Away agents from the Agent Console"
+  },
+  {
+    "Id": 15,
+    "ModuleId": "Global",
+    "Name": "Set Agent Away",
+    "Description": "• Set Agent Status from Online to Away"
+  },
+  {
+    "Id": 16,
+    "ModuleId": "Global",
+    "Name": "Log Agents Off",
+    "Description": "• Log agents off the Agent Console"
+  },
+  {
+    "Id": 17,
+    "ModuleId": "Global",
+    "Name": "View Chats Between Agents in My Departments",
+    "Description": "• View the transcripts of chats between agents in my departments"
+  },
+  {
+    "Id": 18,
+    "ModuleId": "Global",
+    "Name": "View All Chats Between Agents",
+    "Description": "• View the transcripts of all chats between agents"
+  },
+  {
+    "Id": 19,
+    "ModuleId": "Ticketing",
+    "Name": "Manage Tags",
+    "Description": "• Create/View/Edit/Delete Tags"
+  },
+  {
+    "Id": 20,
+    "ModuleId": "Global",
+    "Name": "Manage Restricted Words",
+    "Description": "• Add/View/Edit/Delete Restricted Words"
+  },
+  {
+    "Id": 21,
+    "ModuleId": "Global",
+    "Name": "Manage Skills",
+    "Description": "• Enable/Disable/Create/Edit/Delete Skills"
+  },
+  {
+    "Id": 22,
+    "ModuleId": "Global",
+    "Name": "Generate 2FA Backup Code for Agent",
+    "Description": "Manually generate a two-factor authentication backup code for site agents"
+  },
+  {
+    "Id": 23,
+    "ModuleId": "Global",
+    "Name": "Manage Auto Translation",
+    "Description": "• View auto translation<br/>• Enable/Disable auto translation"
+  },
+  {
+    "Id": 24,
+    "ModuleId": "Global",
+    "Name": "Custom SMTP Servers",
+    "Description": "• Allow all your emails to be sent through my own SMTP servers"
+  },
+  {
+    "Id": 25,
+    "ModuleId": "Global",
+    "Name": "View All Login History",
+    "Description": "• View the login history of all agents."
+  },
+  {
+    "Id": 100,
+    "ModuleId": "Global",
+    "Name": "Log into Agent Console",
+    "Description": "• Log into the Agent Console"
+  },
+  {
+    "Id": 501,
+    "ModuleId": "Global",
+    "Name": "Manage Billing Info",
+    "Description": "• Change Billing Period<br/>• Edit Billing Info<br/>• Edit Payment Info"
+  },
+  {
+    "Id": 502,
+    "ModuleId": "Global",
+    "Name": "Add/Switch/Remove Product",
+    "Description": "• Purchase {ShortBranding} product plans"
+  },
+  {
+    "Id": 505,
+    "ModuleId": "Global",
+    "Name": "View Balance History",
+    "Description": "• View the debit/credit balance history"
+  },
+  {
+    "Id": 506,
+    "ModuleId": "Bot",
+    "Name": "Monitor and Take Over AI Agent Chats",
+    "Description": "• Monitor and take over my department's AI Agent chat requests<br/>• Monitor and take over AI Agent chat requests which do not belong to any departments"
+  },
+  {
+    "Id": 507,
+    "ModuleId": "Bot",
+    "Name": "Manage AI Agents",
+    "Description": "• Add/Edit/Delete/Import AI Agents.<br/>• Change AI Agent settings & Advanced Settings."
+  },
+  {
+    "Id": 509,
+    "ModuleId": "Bot",
+    "Name": "Manage AI Copilot",
+    "Description": "• Manage all features of AI Copilot product.<br/>"
+  },
+  {
+    "Id": 510,
+    "ModuleId": "Bot",
+    "Name": "View AI Agent Reports",
+    "Description": "• View/Export AI Agent reports<br/>"
+  },
+  {
+    "Id": 512,
+    "ModuleId": "Bot",
+    "Name": "Manage Task Bots",
+    "Description": "• View/Add/Edit/Delete/Import/Export Task Bots<br/>"
+  },
+  {
+    "Id": 513,
+    "ModuleId": "Bot",
+    "Name": "View Task Bot Reports",
+    "Description": "• View/Export Task Bot reports"
+  },
+  {
+    "Id": 514,
+    "ModuleId": "Bot",
+    "Name": "Manage Voice Bots",
+    "Description": "• View/Add/Edit/Delete/Import/Export Voice Bots"
+  },
+  {
+    "Id": 515,
+    "ModuleId": "Bot",
+    "Name": "Manage Voice Bot Intents, Entities, Learning & Smart Triggers",
+    "Description": "• Add/Edit/Delete Voice Bot Intents <br/>• Add/Edit/Delete Voice Bot Entities <br/>• Add/Edit/Delete Voice Bot Learning Questions <br/>• Add/Edit/Delete Voice Bot Smart Triggers <br/>"
+  },
+  {
+    "Id": 516,
+    "ModuleId": "Bot",
+    "Name": "View Voice Bot Call Log",
+    "Description": "• View/Export Voice Bot Call Log"
+  },
+  {
+    "Id": 517,
+    "ModuleId": "Bot",
+    "Name": "View Voice Bot Reports",
+    "Description": "• View/Export Voice Bot reports"
+  },
+  {
+    "Id": 518,
+    "ModuleId": "Bot",
+    "Name": "View Task Bot Collected Leads & Booked Meetings",
+    "Description": "• View Task Bot Collected Leads <br/>• View Task Bot Booked Meetings <br/>"
+  },
+  {
+    "Id": 519,
+    "ModuleId": "Bot",
+    "Name": "View AI Agents",
+    "Description": "• View AI Agent menus<br/>• View AI Agents and Advanced Settings<br/>• Export AI Agents<br/>• View Knowledge, Topics, Events, Functions, Learning<br/>• Test AI Agent<br/>• View AI Agent Collected Leads<br/>• View AI Agent Booked Meetings"
+  },
+  {
+    "Id": 523,
+    "ModuleId": "Bot",
+    "Name": "manageaiagentknowledgetopicsfunctionseventslearning",
+    "Description": ""
+  },
+  {
+    "Id": 524,
+    "ModuleId": "Bot",
+    "Name": "Manage AI Quality Assurance Reviews",
+    "Description": "Create/Delete AI quality assurance reviews"
+  },
+  {
+    "Id": 525,
+    "ModuleId": "Bot",
+    "Name": "View All Assigned Opportunities",
+    "Description": "View all coaching opportunities assigned to the agents of the site"
+  },
+  {
+    "Id": 526,
+    "ModuleId": "Bot",
+    "Name": "View AI Knowledge Analyses",
+    "Description": "View AI Knowledge analyses."
+  },
+  {
+    "Id": 527,
+    "ModuleId": "Bot",
+    "Name": "Manage AI Knowledge Analyses",
+    "Description": "Create/Delete AI Knowledge analyses."
+  },
+  {
+    "Id": 528,
+    "ModuleId": "Bot",
+    "Name": "View and Manage AI Knowledge Recommendations",
+    "Description": "View and manage AI Knowledge recommendations."
+  },
+  {
+    "Id": 529,
+    "ModuleId": "Bot",
+    "Name": "View Quizzes Management",
+    "Description": "View quizzes management"
+  },
+  {
+    "Id": 530,
+    "ModuleId": "Bot",
+    "Name": "Manage Quizzes",
+    "Description": "Create/Edit/Delete quizzes"
+  },
+  {
+    "Id": 531,
+    "ModuleId": "Bot",
+    "Name": "View All Assigned Quizzes",
+    "Description": "View all quizzes assigned to the agents of the site"
+  },
+  {
+    "Id": 533,
+    "ModuleId": "Bot",
+    "Name": "View AI Quality Assurance Reviews",
+    "Description": "View AI quality Assurance reviews"
+  },
+  {
+    "Id": 1001,
+    "ModuleId": "LiveChat",
+    "Name": "Accept Chats",
+    "Description": "• Accept my department's chat requests<br/>•  Accept chat requests which do not belong to any departments"
+  },
+  {
+    "Id": 1002,
+    "ModuleId": "LiveChat",
+    "Name": "View My Departments' Chats and Offline Messages",
+    "Description": "• View my departments' chat transcripts and offline messages<br/>• Send my departments' chat transcripts and offline messages to specified email address(es)<br/>• Attach my departments' chat transcripts and offline messages to tickets"
+  },
+  {
+    "Id": 1003,
+    "ModuleId": "LiveChat",
+    "Name": "View All Chats and Offline Messages",
+    "Description": "• View all ongoing chats under Visitors tab in Agent Console<br/>• View any chat transcripts and offline messages<br/>• Send any chat transcripts and offline messages to specified email address(es)<br/>• Attach any chat transcripts and offline messages to tickets"
+  },
+  {
+    "Id": 1004,
+    "ModuleId": "LiveChat",
+    "Name": "Delete Transcripts",
+    "Description": "• Delete any chat transcripts, offline messages"
+  },
+  {
+    "Id": 1005,
+    "ModuleId": "LiveChat",
+    "Name": "Manage Campaigns",
+    "Description": "• Get Livechat code<br/>• Enable/disable multiple campaigns<br/>• Create/edit/delete campaigns, and customize the settings of chat button, Pre-chat window, chat window, Chatbot and so on"
+  },
+  {
+    "Id": 1006,
+    "ModuleId": "LiveChat",
+    "Name": "Manage Settings",
+    "Description": "• Enable/Disable/Edit auto accept visitors' chat requests <br/>• Enable/Disable Audio & Video Chat<br/>• Enable/Disable Screen Sharing<br/>• Enable/Disable/Create/Edit Conversions<br/>• Enable/Disable/Create/Edit/Delete Segmentations<br/>• Enable/Disable/Customize Visitor Single Sign-On<br/>• Enable/Disable/Create/Edit/Delete Shifts"
+  },
+  {
+    "Id": 1007,
+    "ModuleId": "LiveChat",
+    "Name": "View Reports",
+    "Description": "• View/Export Live Chat reports"
+  },
+  {
+    "Id": 1008,
+    "ModuleId": "LiveChat",
+    "Name": "Manage Ban List",
+    "Description": "• Edit/Lift Bans<br/>• Ban a visitor/contact/user by ID/IP"
+  },
+  {
+    "Id": 1009,
+    "ModuleId": "LiveChat",
+    "Name": "Refuse Chats",
+    "Description": "• Decline my departments' chat requests<br/>• Decline chat requests which do not belong to any departments"
+  },
+  {
+    "Id": 1010,
+    "ModuleId": "LiveChat",
+    "Name": "Invite Visitors to Chat",
+    "Description": "• Manually send chat invitations to onsite visitors"
+  },
+  {
+    "Id": 1011,
+    "ModuleId": "LiveChat",
+    "Name": "Join Chats",
+    "Description": "• Join my departments' ongoing chats<br/>• Join ongoing chats which do not belong to any departments"
+  },
+  {
+    "Id": 1012,
+    "ModuleId": "LiveChat",
+    "Name": "Transfer Chats",
+    "Description": "• Transfer ongoing chats to other Online/Away agents<br/>• Transfer ongoing chats to other online departments"
+  },
+  {
+    "Id": 1013,
+    "ModuleId": "LiveChat",
+    "Name": "Monitor All Chats",
+    "Description": "• Invisibly monitor any ongoing chats"
+  },
+  {
+    "Id": 1014,
+    "ModuleId": "LiveChat",
+    "Name": "Monitor My Departments' Chats",
+    "Description": "• Invisibly monitor my departments' ongoing chats"
+  },
+  {
+    "Id": 1015,
+    "ModuleId": "LiveChat",
+    "Name": "Capture",
+    "Description": "• Capture onsite visitors so that their entries will stay in the visitor list even when they've left your website<br/>• Release the captured visitors"
+  },
+  {
+    "Id": 1017,
+    "ModuleId": "Global",
+    "Name": "Manage Secure Form",
+    "Description": "• Create/Edit/Delete PCI forms"
+  },
+  {
+    "Id": 1018,
+    "ModuleId": "LiveChat",
+    "Name": "Manage Custom Variables",
+    "Description": "• Enable/Disable/Create/Edit/Delete Custom Variables"
+  },
+  {
+    "Id": 1019,
+    "ModuleId": "LiveChat",
+    "Name": "View All In Site Visitors",
+    "Description": "• View all in site visitors in Agent Console"
+  },
+  {
+    "Id": 1022,
+    "ModuleId": "LiveChat",
+    "Name": "Manage Cookie Restriction",
+    "Description": "• Enable/Disable Cookie Restriction"
+  },
+  {
+    "Id": 1023,
+    "ModuleId": "LiveChat",
+    "Name": "View My Own Chats and Offline Messages",
+    "Description": "• View my own chat transcript and offline messages<br/>• Send my own chat transcripts and offline messages to specified email address(es)<br/>• Attach my own chat transcripts and offline messages to tickets"
+  },
+  {
+    "Id": 1024,
+    "ModuleId": "LiveChat",
+    "Name": "Manage Fields",
+    "Description": "Edit/Add/Delete fields that are used under Pre-chat, Post-chat, Offline Message and Agent Wrap-up forms"
+  },
+  {
+    "Id": 1025,
+    "ModuleId": "LiveChat",
+    "Name": "Request Rating From Visitors",
+    "Description": "• Send a rating form to visitors during the chat to collect feedback."
+  },
+  {
+    "Id": 1026,
+    "ModuleId": "LiveChat",
+    "Name": "Request Screen Sharing",
+    "Description": "• Share agent's screen with visitors.<br/>• Request visitors to share their own screens."
+  },
+  {
+    "Id": 1027,
+    "ModuleId": "LiveChat",
+    "Name": "Agent Message Recall",
+    "Description": "• Allow agent to recall the message that has been sent."
+  },
+  {
+    "Id": 2000,
+    "ModuleId": "Contact",
+    "Name": "Manage Contacts",
+    "Description": "• Create/Edit/Delete Contacts"
+  },
+  {
+    "Id": 2001,
+    "ModuleId": "Contact",
+    "Name": "Manage Contact Fields",
+    "Description": "• Create/Edit/Delete Custom Fields"
+  },
+  {
+    "Id": 2002,
+    "ModuleId": "Contact",
+    "Name": "Manage Contact Triggers",
+    "Description": "• Create/Edit/Delete Contact Triggers"
+  },
+  {
+    "Id": 2003,
+    "ModuleId": "Contact",
+    "Name": "View Contacts",
+    "Description": "• View Contacts"
+  },
+  {
+    "Id": 2004,
+    "ModuleId": "Contact",
+    "Name": "Merge Contacts",
+    "Description": "Merge duplicate contact entries into a single contact record."
+  },
+  {
+    "Id": 2005,
+    "ModuleId": "Global",
+    "Name": "View Visitor/Contact Identifiable Information",
+    "Description": "• View Contact Identity in Agent Console, Contact Management and Outreach<br/>• View Visitor email and phone number in Agent Console and Live Chat History"
+  },
+  {
+    "Id": 3000,
+    "ModuleId": "Outreach",
+    "Name": "Manage Outreach Campaigns",
+    "Description": "• Create/View/Edit/Delete Campaigns"
+  },
+  {
+    "Id": 3001,
+    "ModuleId": "Outreach",
+    "Name": "Manage Message Records",
+    "Description": "• View Message Records <br/>• Attach Message To Ticket"
+  },
+  {
+    "Id": 9001,
+    "ModuleId": "KB",
+    "Name": "Manage Articles",
+    "Description": "• Create/Edit/Delete categories<br />• Arrange the category display order<br />• Create/Edit/Delete articles<br />• Create/Edit/Delete tags<br />"
+  },
+  {
+    "Id": 9002,
+    "ModuleId": "KB",
+    "Name": "Manage Custom Pages",
+    "Description": "• Create/Edit/Delete Custom Pages <br />"
+  },
+  {
+    "Id": 9003,
+    "ModuleId": "KB",
+    "Name": "Manage Images",
+    "Description": "• Create/Edit/Delete images<br />"
+  },
+  {
+    "Id": 9004,
+    "ModuleId": "KB",
+    "Name": "Manage Design",
+    "Description": "• Edit Design<br />"
+  },
+  {
+    "Id": 9005,
+    "ModuleId": "KB",
+    "Name": "Manage Multiple Knowledge Bases",
+    "Description": "• Create/Edit/Delete Knowledge Bases"
+  },
+  {
+    "Id": 16001,
+    "ModuleId": "Ticketing",
+    "Name": "Manage Assigned to Me Tickets",
+    "Description": "• Create/View/Edit assigned-to-me tickets<br/>• Add/Delete tags, add notes to assigned-to-me tickets<br/>• Restore assigned-to-me tickets from the Recycle Bin"
+  },
+  {
+    "Id": 16002,
+    "ModuleId": "Ticketing",
+    "Name": "View Tickets that Do not Belong to Any Department",
+    "Description": "• View tickets that do not belong to any department"
+  },
+  {
+    "Id": 16003,
+    "ModuleId": "Ticketing",
+    "Name": "Manage Tickets that Do not Belong to Any Department",
+    "Description": "• Create/View/Edit tickets that do not belong to any department<br/>• Add/Delete tags, add notes to tickets that do not belong to any department<br/>• Restore tickets that do not belong to any departments from the Recycle Bin"
+  },
+  {
+    "Id": 16004,
+    "ModuleId": "Ticketing",
+    "Name": "View Tickets in My Departments",
+    "Description": "• View tickets in my departments"
+  },
+  {
+    "Id": 16005,
+    "ModuleId": "Ticketing",
+    "Name": "Manage Tickets in My Departments",
+    "Description": "• Create/View/Edit tickets in my departments <br/>• Add/Delete tags, add notes to tickets in my departments<br/>• Restore tickets in my departments from the Recycle Bin"
+  },
+  {
+    "Id": 16006,
+    "ModuleId": "Ticketing",
+    "Name": "View Tickets that Belong to Any Department",
+    "Description": "• View tickets that belong to any department"
+  },
+  {
+    "Id": 16007,
+    "ModuleId": "Ticketing",
+    "Name": "Manage Tickets that Belong to Any Department",
+    "Description": "• Create/View/Edit tickets that belong to any department <br/>• Add/Delete tags, add notes to tickets that belong to any department <br/>• Restore tickets that belong to any departments from the Recycle Bin"
+  },
+  {
+    "Id": 16008,
+    "ModuleId": "Ticketing",
+    "Name": "Permanently Delete Tickets",
+    "Description": "• Permanently delete tickets from the Recycle Bin"
+  },
+  {
+    "Id": 16009,
+    "ModuleId": "Ticketing",
+    "Name": "Manage All Views",
+    "Description": "• Create/Edit/Delete any views<br/><span style='color:red;'>(Note: When this option is not selected, agents can still manage <b>their own</b> views.)</span>"
+  },
+  {
+    "Id": 16010,
+    "ModuleId": "Ticketing",
+    "Name": "Manage Channels",
+    "Description": "• Enable/Disable/Delete/Edit Ticketing & Messaging channels, including Email, Facebook, Twitter, WeChat, SMS and more"
+  },
+  {
+    "Id": 16012,
+    "ModuleId": "Ticketing",
+    "Name": "Manage Settings",
+    "Description": "Include Routing Rules, Auto Distribution, Triggers, SLA Policies, Operating Hours & Holidays, Fields & Mappings, Visitor SSO"
+  },
+  {
+    "Id": 16013,
+    "ModuleId": "Ticketing",
+    "Name": "View Reports",
+    "Description": "• View/Query ticket reports"
+  },
+  {
+    "Id": 16014,
+    "ModuleId": "Ticketing",
+    "Name": "View & Manage Blocked Senders",
+    "Description": "• View/Create/Edit/Delete blocked sender"
+  },
+  {
+    "Id": 16015,
+    "ModuleId": "Ticketing",
+    "Name": "View & Manage Junk Messages",
+    "Description": "• View junk messages<br/>• Mark junk messages as Not junk<br/>• Permanently delete junk messages"
+  },
+  {
+    "Id": 16016,
+    "ModuleId": "Ticketing",
+    "Name": "Delete All Tickets Under A View",
+    "Description": "Move all tickets under a view to Recycle Bin"
+  },
+  {
+    "Id": 16017,
+    "ModuleId": "Ticketing",
+    "Name": "Split Ticket",
+    "Description": "• Split the ticket message into a new ticket<br/>• Move the ticket message to an existing ticket"
+  },
+  {
+    "Id": 16018,
+    "ModuleId": "Ticketing",
+    "Name": "Link Tickets",
+    "Description": "Link a ticket to multiple related tickets."
+  },
+  {
+    "Id": 17001,
+    "ModuleId": "Global",
+    "Name": "Manage Custom Report",
+    "Description": "Create/Edit/Delete/View/Copy/Export Custom Reports."
+  },
+  {
+    "Id": 17002,
+    "ModuleId": "Global",
+    "Name": "View Custom Report",
+    "Description": "View/Export Custom Reports."
+  },
+  {
+    "Id": 17003,
+    "ModuleId": "Global",
+    "Name": "Manage Report Scheduling",
+    "Description": "Allow agent can create/edit/delete the report schedules."
+  },
+  {
+    "Id": 18001,
+    "ModuleId": "Voice",
+    "Name": "Manage Voice",
+    "Description": "Manage Voice settings in Control Panel"
+  },
+  {
+    "Id": 18002,
+    "ModuleId": "Voice",
+    "Name": "Use Voice",
+    "Description": "Use Voice to make and receive calls in Agent Console"
+  },
+  {
+    "Id": 20000,
+    "ModuleId": "Queue",
+    "Name": "Manage Location and Queue Settings",
+    "Description": "• Manage all the location settings and queue settings<br/>• Create/Edit/Remove queues and locations<br/>• Add/Edit/Remove form fields<br/>• Assign agents to queue<br/>• Manage queue working hours & holidays<br/>• Manage queue language items<br/>• Customize notifications template<br/>• Configure the SMS account settings"
+  },
+  {
+    "Id": 20001,
+    "ModuleId": "Queue",
+    "Name": "Manage My Queue Status and Available Serving Agent Count",
+    "Description": "• Manually close or open the queue in the agent console<br/>• Update the available serving agent count in the agent console"
+  },
+  {
+    "Id": 20002,
+    "ModuleId": "Queue",
+    "Name": "Manage All Queues",
+    "Description": "• View the list of all queues from different locations in the agent console<br/>• Open and close all the queues and update available serving agent count in the agent console<br/>• Summon/Remove/Add customers, and mark customers as No-show/Arrived for all queues in the agent console"
+  },
+  {
+    "Id": 20003,
+    "ModuleId": "Queue",
+    "Name": "View Queue Session History",
+    "Description": "• View the list of queues session history in the control panel<br/>• Export the queue session history to a file"
+  },
+  {
+    "Id": 20004,
+    "ModuleId": "Queue",
+    "Name": "Delete Queue Session History",
+    "Description": "• Delete the queue session history from the control panel"
+  },
+  {
+    "Id": 21001,
+    "ModuleId": "Booking",
+    "Name": "Manage Appointment Booking Page and Service Details",
+    "Description": "• Add/edit/remove the booking page<br/>• Add/edit/remove service<br/>• Manage service settings including input fields, associated agents, service availability, language items, and notification templates"
+  },
+  {
+    "Id": 21002,
+    "ModuleId": "Booking",
+    "Name": "Manage Agent Booking Page and Availability",
+    "Description": "• Manage all agent booking page<br/>• Manage all agent availability and blocked time"
+  },
+  {
+    "Id": 21003,
+    "ModuleId": "Booking",
+    "Name": "Manage My Own Booking Page And Availability",
+    "Description": "• Manage my agent booking page basic settings<br/>• Manage my own availability and blocked time for booking"
+  },
+  {
+    "Id": 21004,
+    "ModuleId": "Booking",
+    "Name": "Manage All Appointments in Agent Console",
+    "Description": "• View all your agents' booked appointment details and their assignee in a unified calendar in Agent Console<br/>• Switch to other agents' calendar and view appointments<br/>• Reschedule/Cancel other agents' appointments<br/>• Mark other agents' appointments as no-show"
+  },
+  {
+    "Id": 22001,
+    "ModuleId": "Ticketing",
+    "Name": "Delete Tickets",
+    "Description": "Move selected tickets to Recycle Bin"
+  },
+  {
+    "Id": 22002,
+    "ModuleId": "Ticketing",
+    "Name": "Export Tickets",
+    "Description": "• Export selected tickets<br/>• Export all tickets in a view"
+  },
+  {
+    "Id": 22003,
+    "ModuleId": "Ticketing",
+    "Name": "Schedule Ticket Reply",
+    "Description": "Allow agents to schedule ticket replies to be sent at a future time."
+  },
+  {
+    "Id": 22004,
+    "ModuleId": "Ticketing",
+    "Name": "Batch Reply",
+    "Description": "• Send batch replies to all selected tickets with one action."
+  }
+]

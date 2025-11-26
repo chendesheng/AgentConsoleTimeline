@@ -181,6 +181,8 @@ export class JsonTree extends LitElement {
 
   private generateTree() {
     const reduxState: any = sortKeys(JSON.parse(this.data));
+    reduxState.agent?.permissions?.sort((a: any, b: any) => a - b);
+
     const siteId = +reduxState.agent?.siteId;
     const chatServerUrl = reduxState.config?.settings?.urls?.chatServer;
     const controlPanelUrl = reduxState.config?.settings?.urls?.controlPanel;
@@ -329,6 +331,9 @@ export class JsonTree extends LitElement {
     .value a {
       color: inherit;
     }
+    .value.number .permission {
+      color: var(--text-color-secondary);
+    }
     .value.count {
       color: var(--text-color-secondary);
     }
@@ -459,6 +464,11 @@ export class JsonTree extends LitElement {
       transform: unset;
     }
 
+    .label.copied {
+      transition: background-color 0.2s ease-in-out;
+      background-color: var(--background-color) !important;
+    }
+
     .label:hover,
     .label:focus-visible,
     .label:focus-within {
@@ -488,7 +498,7 @@ export class JsonTree extends LitElement {
   private toggleExpandByPathStr(pathStr: string, forceExpanded?: boolean) {
     const path = pathStr.split(".");
     const item = getItemByPath(this._tree, path);
-    if (item) {
+    if (item && !isLeaf(item)) {
       item.expanded = forceExpanded ?? !item.expanded;
       this.requestUpdate();
     }
@@ -581,6 +591,27 @@ export class JsonTree extends LitElement {
       const row = getRowElement(e.target as Node);
       const pathStr = row?.getAttribute("data-path");
       if (pathStr) this.toggleExpandByPathStr(pathStr);
+    } else if (e.key === "y") {
+      e.preventDefault();
+
+      const row = getRowElement(e.target as Node);
+      const pathStr = row?.getAttribute("data-path");
+      if (row && pathStr) {
+        const toCopy = JSON.stringify(
+          getItemByPath(this._tree, pathStr.split("."))?.value,
+          null,
+          2,
+        );
+        navigator.clipboard.writeText(toCopy);
+        row.classList.add("copied");
+        row.addEventListener(
+          "transitionend",
+          () => {
+            row.classList.remove("copied");
+          },
+          { once: true },
+        );
+      }
     }
   }
 
@@ -651,7 +682,7 @@ export class JsonTree extends LitElement {
       if (item.isArrayChild) {
         return html`<div
           class="label array-child"
-          data-parent-path=${item.parentPathStr}
+          data-path=${item.pathStr}
           tabindex="0"
           style="padding-left: ${indent}ch;"
         >
@@ -661,7 +692,7 @@ export class JsonTree extends LitElement {
       } else {
         return html`<div
           class="label"
-          data-parent-path=${item.parentPathStr}
+          data-path=${item.pathStr}
           tabindex="0"
           style="padding-left: ${indent}ch;"
         >
@@ -679,7 +710,6 @@ export class JsonTree extends LitElement {
     return html`
       <button
         class="label"
-        data-parent-path=${item.parentPathStr}
         data-path=${item.pathStr}
         style="padding-left: ${indent}ch;"
         tabindex="0"

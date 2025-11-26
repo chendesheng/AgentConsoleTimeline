@@ -1,5 +1,6 @@
 import { html, HTMLTemplateResult } from "lit";
 import { jsonType, JsonType, ROW_HEIGHT } from "./model";
+import PermissionItems from "./T_Global_PermissionItem.json";
 
 export function leafValueRenderer(
   value: JsonType,
@@ -226,6 +227,24 @@ export function leafValueRenderer(
         `${options.controlPanelUrl}/livechat/history/chats/transcriptdetail/?chatId=${value}`,
         value,
       );
+    } else if (/\.permissions\.[0-9]+$/.test(pathStr)) {
+      const permission = PermissionItems.find(
+        (permission) => permission.Id === value,
+      );
+      if (permission) {
+        return html`<span
+          class="value number"
+          title="${permission.Description.replace(/<br\s*\/>/g, "\n")
+            .replace(/<span[^>]+>\s*(.*?)\s*<\/span>/g, "$1")
+            .replace(/<b>\s*(.*?)\s*<\/b>/g, "$1")}"
+          >${value}
+          <span class="permission"
+            >(${permission.ModuleId} - ${permission.Name})</span
+          ></span
+        >`;
+      } else {
+        return html`<span class="value number">${value}</span>`;
+      }
     }
   }
 
