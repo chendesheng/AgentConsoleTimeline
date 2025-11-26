@@ -15,7 +15,9 @@ export function leafValueRenderer(
     parentJson?: object;
   },
 ): HTMLTemplateResult {
-  if (typeof value === "string") {
+  if (value === null) {
+    return html`<span class="value null">null</span>`;
+  } else if (typeof value === "string") {
     if (
       URL.canParse(value) &&
       (/Global\/agents\/[0-9a-fA-F-]+\/avatar/i.test(value) ||

@@ -6,22 +6,29 @@ import {
   PropertyValues,
   unsafeCSS,
 } from "lit";
+import { repeat } from "lit/directives/repeat.js";
 import { customElement, property, query, state } from "lit/decorators.js";
 import typeIcons from "../assets/images/TypeIcons.svg";
 import showIcon from "../assets/images/Show.svg";
 import circleIcon from "../assets/images/Circle.svg";
 import { sort as sortKeys } from "json-keys-sort";
-import { keyed } from "lit/directives/keyed.js";
 import {
   ACTION_ROW_HEIGHT,
   clearFilter,
   filterTree,
-  getItemByPath,
+  getFirstItem,
+  getItemByPathStr,
+  getLastItem,
+  getNextItem,
+  getPreviousItem,
+  indexOfPathStr,
   isLeaf,
   JsonTreeItem,
   jsonType,
   ROW_HEIGHT,
   setExpanded,
+  totalVisibleRows,
+  visibleItems,
 } from "./jsonTree/model";
 import { jsonSummary } from "./jsonTree/tokenizer";
 import { leafValueRenderer } from "./jsonTree/leafValurRender";
@@ -57,8 +64,8 @@ function getPartnerPortalUrl(controlPanelUrl?: string) {
 const jsonToTree = (
   json: object,
   path: string[],
+  indent: number,
   options: {
-    isArrayChild: boolean;
     soundUrl: string;
     campaignPreviewUrl: string;
     controlPanelUrl: string;
@@ -68,30 +75,22 @@ const jsonToTree = (
     parentJson?: object;
   },
 ): JsonTreeItem => {
-  const isArrayChild = options.isArrayChild;
   const key = path[path.length - 1];
   const pathStr = path.join(".");
   const parentPathStr = path.slice(0, -1).join(".");
-  if (json === null) {
-    return {
-      value: json,
-      key,
-      path,
-      pathStr,
-      parentPathStr,
-      summary: jsonSummary(json),
-      type: "null",
-      isArrayChild,
-      valueRender: html`<span class="value null">null</span>`,
-    };
-  } else if (Array.isArray(json)) {
+  const nextIndent = Array.isArray(options.parentJson)
+    ? indent + options.parentJson.length.toString().length + 5
+    : indent + 2;
+  const isArrayChild = Array.isArray(options.parentJson);
+  if (json !== null && Array.isArray(json)) {
     const children = json.map((value, index) =>
-      jsonToTree(value, [...path, index.toString()], {
+      jsonToTree(value, [...path, index.toString()], nextIndent, {
         ...options,
-        isArrayChild: true,
+        parentJson: json,
       }),
     );
     return {
+      indent,
       children,
       value: json,
       key,
@@ -102,16 +101,16 @@ const jsonToTree = (
       type: "array",
       isArrayChild,
     };
-  } else if (typeof json === "object" && json !== null) {
+  } else if (json !== null && typeof json === "object") {
     const children = Object.entries(json).map(
       ([key, value]): JsonTreeItem =>
-        jsonToTree(value, [...path, key], {
+        jsonToTree(value, [...path, key], nextIndent, {
           ...options,
-          isArrayChild: false,
           parentJson: json,
         }),
     );
     return {
+      indent,
       children,
       value: json,
       key,
@@ -124,6 +123,7 @@ const jsonToTree = (
     };
   } else {
     return {
+      indent,
       value: json,
       key,
       path,
@@ -139,6 +139,11 @@ const jsonToTree = (
 
 @customElement("json-tree")
 export class JsonTree extends LitElement {
+  constructor() {
+    super();
+    this.renderItem = this.renderItem.bind(this);
+  }
+
   @property({ type: String })
   data: string = "";
 
@@ -169,6 +174,25 @@ export class JsonTree extends LitElement {
   private _visibleStartRowIndex = 0;
   @state()
   private _visibleRows = 10;
+  @state()
+  private _selectedPath: string | undefined;
+
+  private selectNextPath() {
+    this._selectedPath = getNextItem(this._tree, this._selectedPath)?.pathStr;
+    if (!this._selectedPath) {
+      this._selectedPath = getFirstItem(this._tree)?.pathStr;
+    }
+  }
+
+  private selectPreviousPath() {
+    this._selectedPath = getPreviousItem(
+      this._tree,
+      this._selectedPath,
+    )?.pathStr;
+    if (!this._selectedPath) {
+      this._selectedPath = getLastItem(this._tree)?.pathStr;
+    }
+  }
 
   @state()
   private _showNestedJson: boolean = false;
@@ -191,8 +215,8 @@ export class JsonTree extends LitElement {
     this._tree = jsonToTree(
       this._showNestedJson ? tryParseNestedJson(reduxState) : reduxState,
       [],
+      this.initialIndent - 2,
       {
-        isArrayChild: false,
         soundUrl: `${chatServerUrl}/DBResource/DBSound.ashx?soundId={soundId}&siteId=${siteId}`,
         // https://livechat3dash.testing.comm100dev.io/frontEnd/livechatpage/assets/livechat/previewpage/?campaignId=23daa136-1361-44aa-bf52-8dc92d8a3925&siteId=10008&lang=en
         campaignPreviewUrl: `${controlPanelUrl}/frontEnd/livechatpage/assets/livechat/previewpage/?campaignId={campaignId}&siteId=${siteId}&lang=en`,
@@ -243,6 +267,9 @@ export class JsonTree extends LitElement {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      position: absolute;
+      width: 100%;
+      box-sizing: border-box;
     }
     div[role="treeitem"] {
       line-height: 1.5;
@@ -469,9 +496,18 @@ export class JsonTree extends LitElement {
       background-color: var(--background-color) !important;
     }
 
-    .label:hover,
-    .label:focus-visible,
-    .label:focus-within {
+    .label:focus {
+      outline: none;
+    }
+    .label:hover {
+      background-color: var(--selected-background-color-unfocused);
+    }
+
+    .rows:focus-within .label.selected {
+      background-color: var(--selected-background-color);
+    }
+
+    .label.selected {
       background-color: var(--selected-background-color-unfocused);
     }
 
@@ -485,30 +521,24 @@ export class JsonTree extends LitElement {
       display: block;
       opacity: 1;
     }
-
-    .visible-rows {
-      position: absolute;
-      display: flex;
-      flex-direction: column;
-      width: 100%;
-      overflow: hidden;
-    }
   `;
 
   private toggleExpandByPathStr(pathStr: string, forceExpanded?: boolean) {
-    const path = pathStr.split(".");
-    const item = getItemByPath(this._tree, path);
+    const item = getItemByPathStr(this._tree, pathStr);
     if (item && !isLeaf(item)) {
       item.expanded = forceExpanded ?? !item.expanded;
       this.requestUpdate();
     }
   }
 
-  private handleClickVisibleRow(event: MouseEvent) {
+  private handleClick(event: MouseEvent) {
     const pathStr = getRowElement(event.target as HTMLElement)?.getAttribute(
       "data-path",
     );
-    if (pathStr) this.toggleExpandByPathStr(pathStr);
+    if (pathStr) {
+      this.toggleExpandByPathStr(pathStr);
+      this._selectedPath = pathStr;
+    }
   }
 
   private handleCopy() {
@@ -552,45 +582,47 @@ export class JsonTree extends LitElement {
     }
   }
 
-  private handleVisibleRowsKeydown(e: KeyboardEvent) {
+  private getElementByPathStr(
+    pathStr: string | undefined,
+  ): HTMLElement | undefined {
+    if (!pathStr) return undefined;
+    return this.shadowRoot?.querySelector(
+      `.label[data-path="${pathStr}"]`,
+    ) as HTMLElement;
+  }
+
+  private scrollToPath(pathStr: string) {
+    if (!this.shadowRoot) return;
+
+    const index = indexOfPathStr(this._tree, pathStr);
+    if (index === -1) return;
+    if (index <= this._visibleStartRowIndex) {
+      this.shadowRoot.host.scrollTop = index * ROW_HEIGHT;
+    } else if (index >= this._visibleStartRowIndex + this._visibleRows) {
+      this.shadowRoot.host.scrollTop = (index - this._visibleRows) * ROW_HEIGHT;
+    }
+  }
+
+  private handleKeydown(e: KeyboardEvent) {
     e.stopPropagation();
 
     if (e.key === "ArrowUp" || e.key === "k") {
       e.preventDefault();
 
-      const row = getRowElement(e.target as Node);
-      const previousRow = row ? getPreviousRow(row) : undefined;
-      if (previousRow) {
-        previousRow.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        previousRow.focus();
-      }
+      this.selectPreviousPath();
     } else if (e.key === "ArrowDown" || e.key === "j") {
       e.preventDefault();
 
-      const row = getRowElement(e.target as Node);
-      const nextRow = row ? getNextRow(row) : undefined;
-      if (nextRow) {
-        nextRow.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        nextRow.focus();
-      }
+      this.selectNextPath();
     } else if (e.key === "ArrowLeft" || e.key === "h") {
       e.preventDefault();
 
-      const row = getRowElement(e.target as Node);
-      const pathStr = row?.getAttribute("data-path");
-      if (pathStr) {
-        const path = pathStr.split(".");
-        const item = getItemByPath(this._tree, path);
+      if (this._selectedPath) {
+        const item = getItemByPathStr(this._tree, this._selectedPath);
         if (item) {
           if (isLeaf(item) || !item.expanded) {
-            const pathStr = path.slice(0, -1).join(".");
-            const ele = this.shadowRoot?.querySelector(
-              `.label[data-path="${pathStr}"]`,
-            ) as HTMLElement;
-            if (ele) {
-              ele.dispatchEvent(new Event("click", { bubbles: true }));
-              ele.focus();
-            }
+            this._selectedPath = item.parentPathStr;
+            this.toggleExpandByPathStr(this._selectedPath, false);
           } else {
             item.expanded = false;
             this.requestUpdate();
@@ -599,36 +631,33 @@ export class JsonTree extends LitElement {
       }
     } else if (e.key === "ArrowRight" || e.key === "l") {
       e.preventDefault();
-
-      const row = getRowElement(e.target as Node);
-      const pathStr = row?.getAttribute("data-path");
-      if (pathStr) this.toggleExpandByPathStr(pathStr, true);
+      if (this._selectedPath)
+        this.toggleExpandByPathStr(this._selectedPath, true);
     } else if (e.key === "o" || e.key === "Space") {
       e.preventDefault();
 
-      const row = getRowElement(e.target as Node);
-      const pathStr = row?.getAttribute("data-path");
-      if (pathStr) this.toggleExpandByPathStr(pathStr);
+      if (this._selectedPath) this.toggleExpandByPathStr(this._selectedPath);
     } else if (e.key === "y") {
       e.preventDefault();
 
-      const row = getRowElement(e.target as Node);
-      const pathStr = row?.getAttribute("data-path");
-      if (row && pathStr) {
+      if (this._selectedPath) {
         const toCopy = JSON.stringify(
-          getItemByPath(this._tree, pathStr.split("."))?.value,
+          getItemByPathStr(this._tree, this._selectedPath)?.value,
           null,
           2,
         );
         navigator.clipboard.writeText(toCopy);
-        row.classList.add("copied");
-        row.addEventListener(
-          "transitionend",
-          () => {
-            row.classList.remove("copied");
-          },
-          { once: true },
-        );
+        const row = this.getElementByPathStr(this._selectedPath);
+        if (row) {
+          row.classList.add("copied");
+          row.addEventListener(
+            "transitionend",
+            () => {
+              row.classList.remove("copied");
+            },
+            { once: true },
+          );
+        }
       }
     } else if (e.key === "d" && e.ctrlKey) {
       e.preventDefault();
@@ -648,24 +677,6 @@ export class JsonTree extends LitElement {
 
   private static keyPrefix(item: JsonTreeItem): string | undefined {
     return item.key ? `${item.key}: ` : undefined;
-  }
-
-  private static totalVisibleRows(
-    item: JsonTreeItem,
-    hasFilter: boolean,
-  ): number {
-    const expanded = item.expanded || hasFilter;
-    if (item.hidden) {
-      return 0;
-    }
-    let height = item.key === undefined ? 0 : 1;
-    if (expanded) {
-      height +=
-        item.children
-          ?.map((child) => JsonTree.totalVisibleRows(child, hasFilter))
-          .reduce((acc, child) => acc + child, 0) ?? 0;
-    }
-    return height;
   }
 
   private handleClickTrackingButton(e: MouseEvent) {
@@ -698,28 +709,31 @@ export class JsonTree extends LitElement {
     ></button>`;
   }
 
-  protected renderLabel(item: JsonTreeItem, indent: number): any {
-    if (this._renderRowIndex < this._visibleStartRowIndex) return;
-    if (this._renderRowIndex > this._visibleStartRowIndex + this._visibleRows)
-      return;
+  protected renderItem(item: JsonTreeItem): HTMLTemplateResult | undefined {
+    const selectedClass = item.pathStr === this._selectedPath ? "selected" : "";
+    const top =
+      ACTION_ROW_HEIGHT +
+      (this._visibleStartRowIndex + this._renderRowIndex) * ROW_HEIGHT;
+    const style = `padding-left: ${item.indent}ch;top: ${top}px;`;
+    this._renderRowIndex++;
 
     if (isLeaf(item)) {
       if (item.isArrayChild) {
         return html`<div
-          class="label array-child"
+          class="label array-child ${selectedClass}"
           data-path=${item.pathStr}
+          style=${style}
           tabindex="0"
-          style="padding-left: ${indent}ch;"
         >
           <span class="key index">${item.key}</span>
           ${item.valueRender}
         </div>`;
       } else {
         return html`<div
-          class="label"
+          class="label ${selectedClass}"
           data-path=${item.pathStr}
+          style=${style}
           tabindex="0"
-          style="padding-left: ${indent}ch;"
         >
           ${this.renderTrackingButton(item, "no-expand-arrow")}
           <span class="arrow-right invisible"></span>
@@ -734,10 +748,9 @@ export class JsonTree extends LitElement {
 
     return html`
       <button
-        class="label"
+        class="label ${selectedClass}"
         data-path=${item.pathStr}
-        style="padding-left: ${indent}ch;"
-        tabindex="0"
+        style=${style}
       >
         ${this.renderTrackingButton(item)}
         ${item.isArrayChild
@@ -763,26 +776,6 @@ export class JsonTree extends LitElement {
             >`}
       </button>
     `;
-  }
-
-  protected renderItem(
-    item: JsonTreeItem,
-    indent: number,
-  ): HTMLTemplateResult | undefined {
-    if (item.hidden) return;
-    if (this._renderRowIndex >= this._totalVisibleRows) return;
-
-    this._renderRowIndex++;
-    const expanded = item.expanded || this._hasFilter;
-    return html`${this.renderLabel(item, indent)}
-    ${item.children && expanded
-      ? item.children.map((child) =>
-          keyed(
-            child.pathStr,
-            this.renderItem(child, indent + (item.isArrayChild ? 5 : 2)),
-          ),
-        )
-      : undefined}`;
   }
 
   renderActions() {
@@ -815,26 +808,25 @@ export class JsonTree extends LitElement {
   render() {
     if (!this._tree || !this._tree.children || this._tree.children.length === 0)
       return html``;
-    const children = this._tree.children;
     this._renderRowIndex = 0;
-    this._totalVisibleRows = JsonTree.totalVisibleRows(
-      this._tree,
-      this._hasFilter,
-    );
+    this._totalVisibleRows = totalVisibleRows(this._tree, this._hasFilter);
     const height = ACTION_ROW_HEIGHT + this._totalVisibleRows * ROW_HEIGHT;
-    return html`<div style="height: ${height}px;">
+    return html`<div
+      class="rows"
+      style="height: ${height}px;"
+      @keydown=${this.handleKeydown}
+      @click=${this.handleClick}
+    >
       ${this.renderActions()}
-      <div
-        class="visible-rows"
-        style="top: ${ACTION_ROW_HEIGHT +
-        this._visibleStartRowIndex * ROW_HEIGHT}px;"
-        @keydown=${this.handleVisibleRowsKeydown}
-        @click=${this.handleClickVisibleRow}
-      >
-        ${children.map((child) =>
-          keyed(child.pathStr, this.renderItem(child, this.initialIndent)),
-        )}
-      </div>
+      ${repeat(
+        visibleItems(
+          this._tree,
+          this._visibleStartRowIndex,
+          this._visibleStartRowIndex + this._visibleRows,
+        ),
+        (item) => item.pathStr,
+        this.renderItem,
+      )}
     </div>`;
   }
 
@@ -846,14 +838,13 @@ export class JsonTree extends LitElement {
     // monitor shadowRoot size change
     const observer = new ResizeObserver((e) => {
       const height = e[0].contentBoxSize[0].blockSize;
-      this._visibleRows = Math.max(10, Math.ceil(height / ROW_HEIGHT) + 2);
+      this._visibleRows = Math.max(10, Math.ceil(height / ROW_HEIGHT));
     });
     observer.observe(host);
 
     host.addEventListener("scroll", (e) => {
-      this._visibleStartRowIndex = Math.max(
-        0,
-        Math.floor((e.currentTarget as HTMLElement).scrollTop / ROW_HEIGHT) - 1,
+      this._visibleStartRowIndex = Math.floor(
+        (e.currentTarget as HTMLElement).scrollTop / ROW_HEIGHT,
       );
     });
   }
@@ -873,6 +864,9 @@ export class JsonTree extends LitElement {
       this.generateTree();
     } else if (changedProperties.has("_showNestedJson")) {
       this.generateTree();
+    } else if (changedProperties.has("_selectedPath")) {
+      if (this._selectedPath) this.scrollToPath(this._selectedPath);
+      // this.getElementByPathStr(this._selectedPath)?.focus();
     } else if (changedProperties.has("_showFilter")) {
       if (this._showFilter) {
         if (this._input) {
@@ -900,25 +894,5 @@ const getRowElement = (ele: Node): HTMLElement | undefined => {
       return p;
     }
     p = p.parentNode;
-  }
-};
-
-const getPreviousRow = (row: HTMLElement) => {
-  let cur = row?.previousSibling;
-  while (cur) {
-    if (cur instanceof HTMLElement && cur.classList.contains("label")) {
-      return cur;
-    }
-    cur = cur.previousSibling;
-  }
-};
-
-const getNextRow = (row: HTMLElement) => {
-  let cur = row?.nextSibling;
-  while (cur) {
-    if (cur instanceof HTMLElement && cur.classList.contains("label")) {
-      return cur;
-    }
-    cur = cur.nextSibling;
   }
 };
