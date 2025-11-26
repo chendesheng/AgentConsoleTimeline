@@ -19,6 +19,7 @@ export type JsonType =
 export type JsonTreeItem = Omit<TreeItem, "children"> & {
   path: string[];
   pathStr: string;
+  parentPathStr: string;
   key?: string;
   value: any;
   type?: JsonType;

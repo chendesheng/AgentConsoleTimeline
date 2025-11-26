@@ -32,7 +32,11 @@ function escapeRegExp(str: string) {
   return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
 }
 
-function getPartnerPortalUrl(controlPanelUrl: string) {
+function getPartnerPortalUrl(controlPanelUrl?: string) {
+  if (!controlPanelUrl) {
+    return;
+  }
+
   if (controlPanelUrl.includes("dash.testing.comm100dev.io")) {
     return controlPanelUrl.replace(
       "dash.testing.comm100dev.io",
@@ -67,12 +71,14 @@ const jsonToTree = (
   const isArrayChild = options.isArrayChild;
   const key = path[path.length - 1];
   const pathStr = path.join(".");
+  const parentPathStr = path.slice(0, -1).join(".");
   if (json === null) {
     return {
       value: json,
       key,
       path,
       pathStr,
+      parentPathStr,
       summary: jsonSummary(json),
       type: "null",
       isArrayChild,
@@ -91,6 +97,7 @@ const jsonToTree = (
       key,
       path,
       pathStr,
+      parentPathStr,
       summary: jsonSummary(json),
       type: "array",
       isArrayChild,
@@ -110,6 +117,7 @@ const jsonToTree = (
       key,
       path,
       pathStr,
+      parentPathStr,
       summary: jsonSummary(json),
       type: "object",
       isArrayChild,
@@ -120,6 +128,7 @@ const jsonToTree = (
       key,
       path,
       pathStr,
+      parentPathStr,
       summary: jsonSummary(json),
       type: jsonType(json),
       isArrayChild,
@@ -132,6 +141,9 @@ const jsonToTree = (
 export class JsonTree extends LitElement {
   @property({ type: String })
   data: string = "";
+
+  @property({ type: Number })
+  initialIndent: number = 2;
 
   @property({ type: Array })
   trackedPaths: string[] = [];
@@ -218,6 +230,7 @@ export class JsonTree extends LitElement {
     }
     a.avatar img {
       border-radius: 100%;
+      flex: none;
     }
     .label {
       display: flex;
@@ -226,6 +239,8 @@ export class JsonTree extends LitElement {
       height: ${ROW_HEIGHT}px;
       line-height: ${ROW_HEIGHT}px;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     div[role="treeitem"] {
       line-height: 1.5;
@@ -265,6 +280,7 @@ export class JsonTree extends LitElement {
       mask: url("${unsafeCSS(showIcon)}") no-repeat center;
       vertical-align: middle;
       background-color: var(--text-color-secondary);
+      flex: none;
     }
     .icon.object {
       background: url("${unsafeCSS(typeIcons)}#TypeObject-dark");
@@ -287,6 +303,11 @@ export class JsonTree extends LitElement {
     .key,
     .value {
       cursor: default;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .key {
+      flex: none;
     }
     .key.index {
       color: var(--text-color-secondary);
@@ -294,6 +315,10 @@ export class JsonTree extends LitElement {
       width: 3ch;
       flex: none;
       margin-right: 1ch;
+    }
+    .summary {
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .value.key {
       color: var(--syntax-highlight-boolean-color);
@@ -434,6 +459,12 @@ export class JsonTree extends LitElement {
       transform: unset;
     }
 
+    .label:hover,
+    .label:focus-visible,
+    .label:focus-within {
+      background-color: var(--selected-background-color-unfocused);
+    }
+
     .label:hover button.tracking {
       display: block;
       opacity: 0.6;
@@ -449,21 +480,25 @@ export class JsonTree extends LitElement {
       position: absolute;
       display: flex;
       flex-direction: column;
+      width: 100%;
+      overflow: hidden;
     }
   `;
 
-  private handleClick(event: MouseEvent) {
-    const pathStr = (event.currentTarget as HTMLElement).getAttribute(
+  private toggleExpandByPathStr(pathStr: string, forceExpanded?: boolean) {
+    const path = pathStr.split(".");
+    const item = getItemByPath(this._tree, path);
+    if (item) {
+      item.expanded = forceExpanded ?? !item.expanded;
+      this.requestUpdate();
+    }
+  }
+
+  private handleClickVisibleRow(event: MouseEvent) {
+    const pathStr = getRowElement(event.target as HTMLElement)?.getAttribute(
       "data-path",
     );
-    const path = pathStr === "" ? [] : pathStr?.split(".");
-    if (path) {
-      const item = getItemByPath(this._tree, path);
-      if (item) {
-        item.expanded = !item.expanded;
-        this.requestUpdate();
-      }
-    }
+    if (pathStr) this.toggleExpandByPathStr(pathStr);
   }
 
   private handleCopy() {
@@ -501,9 +536,51 @@ export class JsonTree extends LitElement {
     this._showFilter = true;
   }
 
-  private handleKeyDown(e: KeyboardEvent) {
+  private handleFilterInputKeydown(e: KeyboardEvent) {
     if (e.key === "Escape") {
       this._showFilter = false;
+    }
+  }
+
+  private handleVisibleRowsKeydown(e: KeyboardEvent) {
+    e.stopPropagation();
+
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+
+      const row = getRowElement(e.target as Node);
+      const previousRow = row ? getPreviousRow(row) : undefined;
+      if (previousRow) {
+        previousRow.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        previousRow.focus();
+      }
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+
+      const row = getRowElement(e.target as Node);
+      const nextRow = row ? getNextRow(row) : undefined;
+      if (nextRow) {
+        nextRow.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        nextRow.focus();
+      }
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+
+      const row = getRowElement(e.target as Node);
+      const pathStr = row?.getAttribute("data-path");
+      if (pathStr) this.toggleExpandByPathStr(pathStr, false);
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+
+      const row = getRowElement(e.target as Node);
+      const pathStr = row?.getAttribute("data-path");
+      if (pathStr) this.toggleExpandByPathStr(pathStr, true);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+
+      const row = getRowElement(e.target as Node);
+      const pathStr = row?.getAttribute("data-path");
+      if (pathStr) this.toggleExpandByPathStr(pathStr);
     }
   }
 
@@ -574,13 +651,20 @@ export class JsonTree extends LitElement {
       if (item.isArrayChild) {
         return html`<div
           class="label array-child"
-          style="margin-left: ${indent}ch;"
+          data-parent-path=${item.parentPathStr}
+          tabindex="0"
+          style="padding-left: ${indent}ch;"
         >
           <span class="key index">${item.key}</span>
           ${item.valueRender}
         </div>`;
       } else {
-        return html`<div class="label" style="margin-left: ${indent}ch;">
+        return html`<div
+          class="label"
+          data-parent-path=${item.parentPathStr}
+          tabindex="0"
+          style="padding-left: ${indent}ch;"
+        >
           ${this.renderTrackingButton(item, "no-expand-arrow")}
           <span class="arrow-right invisible"></span>
           <span class="icon ${item.type}"></span>
@@ -594,10 +678,11 @@ export class JsonTree extends LitElement {
 
     return html`
       <button
-        data-path=${item.pathStr}
         class="label"
-        @click=${this.handleClick}
-        style="margin-left: ${indent}ch;"
+        data-parent-path=${item.parentPathStr}
+        data-path=${item.pathStr}
+        style="padding-left: ${indent}ch;"
+        tabindex="0"
       >
         ${this.renderTrackingButton(item)}
         ${item.isArrayChild
@@ -610,14 +695,14 @@ export class JsonTree extends LitElement {
           ? undefined
           : html`<span class="icon ${item.type}"></span>`}
         ${expanded
-          ? html`<span
+          ? html`<span class="summary"
               >${item.isArrayChild ? undefined : JsonTree.keyPrefix(item)}
               ${Array.isArray(item.value)
                 ? html`Array
                     <span class="value count">(${item.value.length})</span>`
                 : "Object"}</span
             >`
-          : html`<span
+          : html`<span class="summary"
               >${item.isArrayChild ? undefined : JsonTree.keyPrefix(item)}
               ${item.summary}</span
             >`}
@@ -646,12 +731,15 @@ export class JsonTree extends LitElement {
   }
 
   renderActions() {
-    return html`<div class="actions">
+    return html`<div
+      class="actions"
+      style="padding-left: ${this.initialIndent}ch;"
+    >
       ${this._showFilter
         ? html`<input
             type="search"
             @input="${this.handleInput}"
-            @keydown="${this.handleKeyDown}"
+            @keydown="${this.handleFilterInputKeydown}"
             @blur="${this.handleBlur}"
             placeholder="Filter"
           />`
@@ -685,9 +773,11 @@ export class JsonTree extends LitElement {
         class="visible-rows"
         style="top: ${ACTION_ROW_HEIGHT +
         this._visibleStartRowIndex * ROW_HEIGHT}px;"
+        @keydown=${this.handleVisibleRowsKeydown}
+        @click=${this.handleClickVisibleRow}
       >
         ${children.map((child) =>
-          keyed(child.pathStr, this.renderItem(child, 0)),
+          keyed(child.pathStr, this.renderItem(child, this.initialIndent)),
         )}
       </div>
     </div>`;
@@ -701,13 +791,14 @@ export class JsonTree extends LitElement {
     // monitor shadowRoot size change
     const observer = new ResizeObserver((e) => {
       const height = e[0].contentBoxSize[0].blockSize;
-      this._visibleRows = Math.max(10, Math.ceil(height / ROW_HEIGHT));
+      this._visibleRows = Math.max(10, Math.ceil(height / ROW_HEIGHT) + 2);
     });
     observer.observe(host);
 
     host.addEventListener("scroll", (e) => {
-      this._visibleStartRowIndex = Math.floor(
-        (e.currentTarget as HTMLElement).scrollTop / ROW_HEIGHT,
+      this._visibleStartRowIndex = Math.max(
+        0,
+        Math.floor((e.currentTarget as HTMLElement).scrollTop / ROW_HEIGHT) - 1,
       );
     });
   }
@@ -746,3 +837,33 @@ export class JsonTree extends LitElement {
     }
   }
 }
+
+const getRowElement = (ele: Node): HTMLElement | undefined => {
+  let p: Node | null = ele;
+  while (p) {
+    if (p instanceof HTMLElement && p.classList.contains("label")) {
+      return p;
+    }
+    p = p.parentNode;
+  }
+};
+
+const getPreviousRow = (row: HTMLElement) => {
+  let cur = row?.previousSibling;
+  while (cur) {
+    if (cur instanceof HTMLElement && cur.classList.contains("label")) {
+      return cur;
+    }
+    cur = cur.previousSibling;
+  }
+};
+
+const getNextRow = (row: HTMLElement) => {
+  let cur = row?.nextSibling;
+  while (cur) {
+    if (cur instanceof HTMLElement && cur.classList.contains("label")) {
+      return cur;
+    }
+    cur = cur.nextSibling;
+  }
+};

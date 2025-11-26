@@ -68,7 +68,6 @@
 .detail-body {
   flex: auto;
   overflow: auto;
-  margin-left: 12px;
 }
 
 .detail-body.audio {

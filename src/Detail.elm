@@ -122,11 +122,12 @@ detailTabs selected entry =
             detailTabsByEntryKind (Har.getEntryKind entry)
 
 
-jsonViewer : Bool -> String -> Bool -> List String -> String -> Html DetailMsg
-jsonViewer initialExpanded className disableTrackingPath trackedPaths json =
+jsonViewer : Bool -> Int -> String -> Bool -> List String -> String -> Html DetailMsg
+jsonViewer initialExpanded initialIndent className disableTrackingPath trackedPaths json =
     Html.node "json-tree"
         [ class className
         , property "data" <| Encode.string json
+        , property "initialIndent" <| Encode.int initialIndent
         , property "initialExpanded" <| Encode.bool initialExpanded
         , property "trackedPaths" <| Encode.list Encode.string trackedPaths
         , property "disableTrackingPath" <| Encode.bool disableTrackingPath
@@ -286,14 +287,14 @@ svgViewer svg =
         []
 
 
-jsonDataViewer : DetailViewTool -> Bool -> Bool -> String -> Bool -> List String -> String -> Html DetailMsg
-jsonDataViewer tool initialExpanded format className disableTrackingPath trackedPaths json =
+jsonDataViewer : DetailViewTool -> Bool -> Int -> Bool -> String -> Bool -> List String -> String -> Html DetailMsg
+jsonDataViewer tool initialExpanded initialIndent format className disableTrackingPath trackedPaths json =
     case tool of
         Raw ->
             codeEditor "json" format json
 
         _ ->
-            jsonViewer initialExpanded className disableTrackingPath trackedPaths json
+            jsonViewer initialExpanded initialIndent className disableTrackingPath trackedPaths json
 
 
 agentConsoleSnapshotPlayer : Bool -> List Har.Entry -> String -> Maybe String -> List String -> Html DetailMsg
@@ -433,7 +434,7 @@ requestHeaderKeyValue { name, value } =
                     [ text value
                     , case parseToken value of
                         Ok v ->
-                            jsonViewer False "" True [] <| "{\"payload\":" ++ v ++ "}"
+                            jsonViewer False 0 "" True [] <| "{\"payload\":" ++ v ++ "}"
 
                         _ ->
                             text ""
@@ -442,7 +443,7 @@ requestHeaderKeyValue { name, value } =
             else if String.toLower name == "cookie" then
                 div []
                     [ text value
-                    , jsonViewer False "" True [] <| "{\"payload\":" ++ parseCookies value ++ "}"
+                    , jsonViewer False 0 "" True [] <| "{\"payload\":" ++ parseCookies value ++ "}"
                     ]
 
             else
@@ -651,6 +652,7 @@ responseView tool entry trackedPaths =
                     jsonDataViewer
                         tool
                         (entryKind /= ReduxState)
+                        2
                         (entryKind /= NetworkHttp)
                         "detail-body"
                         (entryKind /= ReduxState)
@@ -787,7 +789,7 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
                     LogMessage ->
                         entry
                             |> Har.getLogMessage
-                            |> Maybe.map (jsonViewer True "detail-body" True [])
+                            |> Maybe.map (jsonViewer True 2 "detail-body" True [])
                             |> Maybe.withDefault noContent
 
                     _ ->
@@ -804,7 +806,7 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
                     _ ->
                         entry
                             |> Har.getRequestBody
-                            |> Maybe.map (jsonDataViewer tool True True "detail-body" True trackedPaths)
+                            |> Maybe.map (jsonDataViewer tool True 2 True "detail-body" True trackedPaths)
                             |> Maybe.withDefault noContent
 
             Response ->
