@@ -26,9 +26,28 @@ import {
 import { jsonSummary } from "./jsonTree/tokenizer";
 import { leafValueRenderer } from "./jsonTree/leafValurRender";
 import { tryParseNestedJson } from "./jsonTree/nested";
+import { productionPlatformsPrefixes } from "./domains";
 
 function escapeRegExp(str: string) {
   return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
+}
+
+function getPartnerPortalUrl(controlPanelUrl: string) {
+  if (controlPanelUrl.includes("dash.testing.comm100dev.io")) {
+    return controlPanelUrl.replace(
+      "dash.testing.comm100dev.io",
+      "partner.testing.comm100dev.io",
+    );
+  } else if (
+    productionPlatformsPrefixes.some((p) => controlPanelUrl.includes(p))
+  ) {
+    return "https://partner.comm100.io";
+  } else if (controlPanelUrl.includes("comm100staging.com")) {
+    return "https://partner.comm100staging.com";
+  } else {
+    console.warn(`Unknown partner portal url: ${controlPanelUrl}`);
+    return "https://partner.comm100.io";
+  }
 }
 
 const jsonToTree = (
@@ -39,6 +58,9 @@ const jsonToTree = (
     soundUrl: string;
     campaignPreviewUrl: string;
     controlPanelUrl: string;
+    partnerPortalUrl: string;
+    siteId: number;
+    partnerId: number;
     parentJson?: object;
   },
 ): JsonTreeItem => {
@@ -147,9 +169,11 @@ export class JsonTree extends LitElement {
 
   private generateTree() {
     const reduxState: any = sortKeys(JSON.parse(this.data));
-    const siteId = reduxState.agent?.siteId;
+    const siteId = +reduxState.agent?.siteId;
     const chatServerUrl = reduxState.config?.settings?.urls?.chatServer;
     const controlPanelUrl = reduxState.config?.settings?.urls?.controlPanel;
+    const partnerPortalUrl = getPartnerPortalUrl(controlPanelUrl);
+    const partnerId = +reduxState.partner?.partnerId;
     this._tree = jsonToTree(
       this._showNestedJson ? tryParseNestedJson(reduxState) : reduxState,
       [],
@@ -160,6 +184,9 @@ export class JsonTree extends LitElement {
         campaignPreviewUrl: `${controlPanelUrl}/frontEnd/livechatpage/assets/livechat/previewpage/?campaignId={campaignId}&siteId=${siteId}&lang=en`,
         // https://dash11.comm100.io/ui/10100000/livechat/campaign/installation/?scopingcampaignid=28f5d50f-45f8-401e-beac-283e2d67a7b3
         controlPanelUrl: `${controlPanelUrl}/ui/${siteId}`,
+        partnerPortalUrl: `${partnerPortalUrl}/ui/${partnerId}`,
+        siteId,
+        partnerId,
       },
     );
     this._tree.expanded = true;
@@ -274,7 +301,7 @@ export class JsonTree extends LitElement {
     .value.string {
       color: var(--syntax-highlight-string-color);
     }
-    .value.string a {
+    .value a {
       color: inherit;
     }
     .value.count {
