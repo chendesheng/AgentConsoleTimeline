@@ -34,9 +34,15 @@ function escapeRegExp(str: string) {
 const jsonToTree = (
   json: object,
   path: string[],
-  isArrayChild: boolean,
-  soundUrl: string,
+  options: {
+    isArrayChild: boolean;
+    soundUrl: string;
+    campaignPreviewUrl: string;
+    controlPanelUrl: string;
+    parentJson?: object;
+  },
 ): JsonTreeItem => {
+  const isArrayChild = options.isArrayChild;
   const key = path[path.length - 1];
   const pathStr = path.join(".");
   if (json === null) {
@@ -52,7 +58,10 @@ const jsonToTree = (
     };
   } else if (Array.isArray(json)) {
     const children = json.map((value, index) =>
-      jsonToTree(value, [...path, index.toString()], true, soundUrl),
+      jsonToTree(value, [...path, index.toString()], {
+        ...options,
+        isArrayChild: true,
+      }),
     );
     return {
       children,
@@ -67,7 +76,11 @@ const jsonToTree = (
   } else if (typeof json === "object" && json !== null) {
     const children = Object.entries(json).map(
       ([key, value]): JsonTreeItem =>
-        jsonToTree(value, [...path, key], false, soundUrl),
+        jsonToTree(value, [...path, key], {
+          ...options,
+          isArrayChild: false,
+          parentJson: json,
+        }),
     );
     return {
       children,
@@ -88,7 +101,7 @@ const jsonToTree = (
       summary: jsonSummary(json),
       type: jsonType(json),
       isArrayChild,
-      valueRender: leafValueRenderer(json, soundUrl, pathStr),
+      valueRender: leafValueRenderer(json, pathStr, options),
     };
   }
 };
@@ -136,11 +149,18 @@ export class JsonTree extends LitElement {
     const reduxState: any = sortKeys(JSON.parse(this.data));
     const siteId = reduxState.agent?.siteId;
     const chatServerUrl = reduxState.config?.settings?.urls?.chatServer;
+    const controlPanelUrl = reduxState.config?.settings?.urls?.controlPanel;
     this._tree = jsonToTree(
       this._showNestedJson ? tryParseNestedJson(reduxState) : reduxState,
       [],
-      false,
-      `${chatServerUrl}/DBResource/DBSound.ashx?soundId={soundId}&siteId=${siteId}`,
+      {
+        isArrayChild: false,
+        soundUrl: `${chatServerUrl}/DBResource/DBSound.ashx?soundId={soundId}&siteId=${siteId}`,
+        // https://livechat3dash.testing.comm100dev.io/frontEnd/livechatpage/assets/livechat/previewpage/?campaignId=23daa136-1361-44aa-bf52-8dc92d8a3925&siteId=10008&lang=en
+        campaignPreviewUrl: `${controlPanelUrl}/frontEnd/livechatpage/assets/livechat/previewpage/?campaignId={campaignId}&siteId=${siteId}&lang=en`,
+        // https://dash11.comm100.io/ui/10100000/livechat/campaign/installation/?scopingcampaignid=28f5d50f-45f8-401e-beac-283e2d67a7b3
+        controlPanelUrl: `${controlPanelUrl}/ui/${siteId}`,
+      },
     );
     this._tree.expanded = true;
     this._showFilter = false;
