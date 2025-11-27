@@ -26,7 +26,7 @@ import {
   JsonTreeItem,
   ROW_HEIGHT,
   setExpanded,
-  totalVisibleRows,
+  totalRows,
   visibleItems,
   getSummary,
   renderLeafValue,
@@ -131,7 +131,7 @@ export class JsonTree extends LitElement {
   }
 
   private _renderRowIndex = 0;
-  private _totalVisibleRows = 0;
+  private _totalRows = 0;
 
   private generateTree() {
     const reduxState: any = sortKeys(JSON.parse(this.data));
@@ -782,8 +782,8 @@ export class JsonTree extends LitElement {
     if (!this._tree || !this._tree.children || this._tree.children.length === 0)
       return html``;
     this._renderRowIndex = 0;
-    this._totalVisibleRows = totalVisibleRows(this._tree, this._hasFilter);
-    const height = ACTION_ROW_HEIGHT + this._totalVisibleRows * ROW_HEIGHT;
+    this._totalRows = totalRows(this._tree, this._hasFilter);
+    const height = ACTION_ROW_HEIGHT + this._totalRows * ROW_HEIGHT;
     return html`<div
       class="rows"
       style="height: ${height}px;"

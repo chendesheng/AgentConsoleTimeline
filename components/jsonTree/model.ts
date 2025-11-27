@@ -224,10 +224,7 @@ export function getFirstItem(tree: JsonTreeItem, hasFilter: boolean) {
   if (!done) return value;
 }
 
-export function totalVisibleRows(
-  item: JsonTreeItem,
-  hasFilter: boolean,
-): number {
+export function totalRows(item: JsonTreeItem, hasFilter: boolean): number {
   const iter = hasFilter ? walkTreeIncludeCollapsed(item) : walkTree(item);
   let count = 0;
   for (const _ of iter) {
