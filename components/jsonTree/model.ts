@@ -37,23 +37,28 @@ export function isLeaf(item: TreeItem): boolean {
   return item.children === undefined;
 }
 
+export function isRoot(item: JsonTreeItem): boolean {
+  return item.key === undefined;
+}
+
 export function filterTree(tree: JsonTreeItem, filter: RegExp) {
-  if (tree.children && tree.children.length > 0) {
+  tree.hidden = !isMatchTreeItem(tree, filter);
+
+  if (tree.children) {
     for (const child of tree.children) {
       filterTree(child, filter);
     }
-    tree.hidden = !isMatchTreeItem(tree, filter);
+
     if (tree.hidden) {
       tree.hidden = tree.children.every((child) => child.hidden);
     }
-  } else if (tree.key) {
-    tree.hidden = !isMatchTreeItem(tree, filter);
   }
 }
 
 export function clearFilter(tree: JsonTreeItem) {
-  tree.hidden = false;
-  tree.children?.forEach(clearFilter);
+  for (const item of walkTreeAll(tree)) {
+    item.hidden = false;
+  }
 }
 
 export function jsonType(json: any): JsonType {
@@ -75,22 +80,21 @@ export function jsonType(json: any): JsonType {
 }
 
 function isMatchTreeItem(item: JsonTreeItem, filter: RegExp) {
-  if (item.key) {
-    if (typeof item.key === "number" && filter.source === item.key.toString()) {
-      return true;
-    } else if (typeof item.key === "string" && filter.test(item.key)) {
-      return true;
-    } else if (typeof item.value === "string") {
-      return filter.test(item.value);
-    } else if (typeof item.value === "number") {
-      return filter.source === item.value.toString();
-    } else if (typeof item.value === "boolean") {
-      return filter.source === item.value.toString();
-    } else {
-      return false;
-    }
-  } else {
+  if (isRoot(item)) return true;
+
+  if (typeof item.key === "number" && filter.source === item.key.toString()) {
     return true;
+  } else if (typeof item.key === "string" && filter.test(item.key)) {
+    return true;
+  } else if (typeof item.value === "string") {
+    return filter.test(item.value);
+  } else if (
+    typeof item.value === "number" ||
+    typeof item.value === "boolean"
+  ) {
+    return filter.source === item.value.toString();
+  } else {
+    return false;
   }
 }
 
@@ -123,17 +127,25 @@ export function getItemByPathStr(
 }
 
 export function setExpanded(tree: JsonTreeItem, expanded: boolean) {
-  tree.expanded = expanded;
-  tree.children?.forEach((child) => {
-    setExpanded(child, expanded);
-  });
+  for (const item of walkTreeIncludeCollapsed(tree)) {
+    item.expanded = expanded;
+  }
+}
+
+function* walkTreeAll(tree: JsonTreeItem): Generator<JsonTreeItem, void, void> {
+  if (!isRoot(tree)) yield tree;
+  if (tree.children) {
+    for (const child of tree.children) {
+      yield* walkTreeAll(child);
+    }
+  }
 }
 
 function* walkTreeIncludeCollapsed(
   tree: JsonTreeItem,
 ): Generator<JsonTreeItem, void, void> {
   if (tree.hidden) return;
-  yield tree;
+  if (!isRoot(tree)) yield tree;
   if (tree.children) {
     for (const child of tree.children) {
       yield* walkTreeIncludeCollapsed(child);
@@ -143,8 +155,9 @@ function* walkTreeIncludeCollapsed(
 
 function* walkTree(tree: JsonTreeItem): Generator<JsonTreeItem, void, void> {
   if (tree.hidden) return;
-  yield tree;
-  if (tree.expanded && tree.children) {
+  if (!isRoot(tree)) yield tree;
+  if (!tree.expanded) return;
+  if (tree.children) {
     for (const child of tree.children) {
       yield* walkTree(child);
     }
@@ -207,8 +220,6 @@ export function getLastItem(tree: JsonTreeItem, hasFilter: boolean) {
 
 export function getFirstItem(tree: JsonTreeItem, hasFilter: boolean) {
   const iter = hasFilter ? walkTreeIncludeCollapsed(tree) : walkTree(tree);
-  iter.next();
-
   const { value, done } = iter.next();
   if (!done) return value;
 }
@@ -233,9 +244,6 @@ export function* visibleItems(
 ) {
   let i = 0;
   const iter = hasFilter ? walkTreeIncludeCollapsed(tree) : walkTree(tree);
-  const { done } = iter.next();
-  if (done) return;
-
   for (const item of iter) {
     if (i >= startIndex && i < endIndex) {
       yield item;
