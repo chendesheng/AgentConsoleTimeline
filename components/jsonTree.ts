@@ -24,15 +24,14 @@ import {
   indexOfPathStr,
   isLeaf,
   JsonTreeItem,
-  jsonType,
   ROW_HEIGHT,
   setExpanded,
   totalVisibleRows,
   visibleItems,
   getSummary,
   renderLeafValue,
+  jsonToTree,
 } from "./jsonTree/model";
-import { leafValueRenderer } from "./jsonTree/leafValurRender";
 import { tryParseNestedJson } from "./jsonTree/nested";
 import { productionPlatformsPrefixes } from "./domains";
 
@@ -61,77 +60,6 @@ function getPartnerPortalUrl(controlPanelUrl?: string) {
     return "https://partner.comm100.io";
   }
 }
-
-const jsonToTree = (
-  json: object,
-  path: string[],
-  indent: number,
-  options: {
-    soundUrl: string;
-    campaignPreviewUrl: string;
-    controlPanelUrl: string;
-    partnerPortalUrl: string;
-    siteId: number;
-    partnerId: number;
-    parentJson?: object;
-  },
-): JsonTreeItem => {
-  const key = Array.isArray(options.parentJson)
-    ? parseInt(path[path.length - 1])
-    : path[path.length - 1];
-  const parentPathStr = path.slice(0, -1).join(".");
-  const pathStr = [parentPathStr, key?.toString()].filter(Boolean).join(".");
-  const nextIndent = Array.isArray(options.parentJson)
-    ? indent + options.parentJson.length.toString().length + 5
-    : indent + 2;
-  if (json !== null && Array.isArray(json)) {
-    const children = json.map((value, index) =>
-      jsonToTree(value, [...path, index.toString()], nextIndent, {
-        ...options,
-        parentJson: json,
-      }),
-    );
-    return {
-      indent,
-      children,
-      value: json,
-      key,
-      path,
-      pathStr,
-      parentPathStr,
-      type: "array",
-    };
-  } else if (json !== null && typeof json === "object") {
-    const children = Object.entries(json).map(
-      ([key, value]): JsonTreeItem =>
-        jsonToTree(value, [...path, key], nextIndent, {
-          ...options,
-          parentJson: json,
-        }),
-    );
-    return {
-      indent,
-      children,
-      value: json,
-      key,
-      path,
-      pathStr,
-      parentPathStr,
-      type: "object",
-    };
-  } else {
-    return {
-      indent,
-      value: json,
-      key,
-      path,
-      pathStr,
-      parentPathStr,
-      type: jsonType(json),
-      valueRender: () => leafValueRenderer(json, pathStr, options),
-    };
-  }
-};
 
 @customElement("json-tree")
 export class JsonTree extends LitElement {

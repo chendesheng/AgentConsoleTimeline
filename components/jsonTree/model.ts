@@ -1,5 +1,6 @@
 import { HTMLTemplateResult } from "lit";
 import { jsonSummary } from "./tokenizer";
+import { leafValueRenderer } from "./leafValurRender";
 
 export const ROW_HEIGHT = 18;
 export const ACTION_ROW_HEIGHT = 20;
@@ -272,3 +273,74 @@ export function renderLeafValue(
   item.valueRenderCache = item.valueRender?.();
   return item.valueRenderCache;
 }
+
+export const jsonToTree = (
+  json: object,
+  path: string[],
+  indent: number,
+  options: {
+    soundUrl: string;
+    campaignPreviewUrl: string;
+    controlPanelUrl: string;
+    partnerPortalUrl: string;
+    siteId: number;
+    partnerId: number;
+    parentJson?: object;
+  },
+): JsonTreeItem => {
+  const key = Array.isArray(options.parentJson)
+    ? parseInt(path[path.length - 1])
+    : path[path.length - 1];
+  const parentPathStr = path.slice(0, -1).join(".");
+  const pathStr = [parentPathStr, key?.toString()].filter(Boolean).join(".");
+  const nextIndent = Array.isArray(options.parentJson)
+    ? indent + options.parentJson.length.toString().length + 5
+    : indent + 2;
+  if (json !== null && Array.isArray(json)) {
+    const children = json.map((value, index) =>
+      jsonToTree(value, [...path, index.toString()], nextIndent, {
+        ...options,
+        parentJson: json,
+      }),
+    );
+    return {
+      indent,
+      children,
+      value: json,
+      key,
+      path,
+      pathStr,
+      parentPathStr,
+      type: "array",
+    };
+  } else if (json !== null && typeof json === "object") {
+    const children = Object.entries(json).map(
+      ([key, value]): JsonTreeItem =>
+        jsonToTree(value, [...path, key], nextIndent, {
+          ...options,
+          parentJson: json,
+        }),
+    );
+    return {
+      indent,
+      children,
+      value: json,
+      key,
+      path,
+      pathStr,
+      parentPathStr,
+      type: "object",
+    };
+  } else {
+    return {
+      indent,
+      value: json,
+      key,
+      path,
+      pathStr,
+      parentPathStr,
+      type: jsonType(json),
+      valueRender: () => leafValueRenderer(json, pathStr, options),
+    };
+  }
+};
