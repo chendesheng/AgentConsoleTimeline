@@ -1,14 +1,10 @@
 import { HTMLTemplateResult } from "lit";
 import { jsonSummary } from "./tokenizer";
 import { leafValueRenderer } from "./leafValurRender";
+import { TreeIterator } from "./iterator";
 
 export const ROW_HEIGHT = 18;
 export const ACTION_ROW_HEIGHT = 20;
-
-export type TreeItem = {
-  expanded?: boolean;
-  children?: TreeItem[];
-};
 
 export type JsonType =
   | "array"
@@ -18,7 +14,8 @@ export type JsonType =
   | "boolean"
   | "null";
 
-export type JsonTreeItem = Omit<TreeItem, "children"> & {
+export type JsonTreeItem = {
+  expanded?: boolean;
   path: string[];
   pathStr: string;
   parentPathStr: string;
@@ -33,7 +30,7 @@ export type JsonTreeItem = Omit<TreeItem, "children"> & {
   indent: number;
 };
 
-export function isLeaf(item: TreeItem): boolean {
+export function isLeaf(item: JsonTreeItem): boolean {
   return item.children === undefined;
 }
 
@@ -126,6 +123,14 @@ export function getItemByPathStr(
   return getItemByPath(tree, path);
 }
 
+// export function getItemByIndex(tree: JsonTreeItem, index: number, hasFilter: boolean): JsonTreeItem | undefined {
+//   if (hasFilter) {
+
+//   } else {
+
+//   }
+// }
+
 export function setExpanded(tree: JsonTreeItem, expanded: boolean) {
   for (const item of walkTreeIncludeCollapsed(tree)) {
     item.expanded = expanded;
@@ -164,23 +169,47 @@ function* walkTree(tree: JsonTreeItem): Generator<JsonTreeItem, void, void> {
   }
 }
 
+function createIterator(tree: JsonTreeItem, hasFilter: boolean) {
+  return new TreeIterator(
+    tree,
+    (item) => !!item.hidden,
+    (item) => {
+      if (hasFilter) return false;
+      return !item.expanded;
+    },
+  );
+}
+
+export function getIterator(
+  tree: JsonTreeItem,
+  hasFilter: boolean,
+  startPath?: string,
+) {
+  const iter = createIterator(tree, hasFilter);
+
+  if (startPath) {
+    const path = startPath.split(".");
+    iter.forward((item, indexPath) => {
+      if (item.key!.toString() === path[0]) {
+        path.shift();
+        if (path.length === 0) return "stop";
+        return "child";
+      }
+      return "sibling";
+    });
+  }
+  return iter;
+}
+
 export function getNextItem(
   tree: JsonTreeItem,
   hasFilter: boolean,
   path: string | undefined,
 ) {
   if (!path) return;
-
-  const iter = hasFilter ? walkTreeIncludeCollapsed(tree) : walkTree(tree);
-  while (true) {
-    const { value, done } = iter.next();
-    if (done) break;
-    if (value.pathStr === path) {
-      const { done: nextDone, value: nextValue } = iter.next();
-      if (nextDone) break;
-      return nextValue;
-    }
-  }
+  const iter = getIterator(tree, hasFilter, path);
+  iter.next();
+  return iter.current;
 }
 
 export function getPreviousItem(
@@ -189,47 +218,29 @@ export function getPreviousItem(
   path: string | undefined,
 ) {
   if (!path) return;
-
-  const iter = hasFilter ? walkTreeIncludeCollapsed(tree) : walkTree(tree);
-  let previous: JsonTreeItem | undefined;
-  while (true) {
-    const { value, done } = iter.next();
-
-    if (value) {
-      if (value.pathStr === path) {
-        break;
-      }
-      previous = value;
-    }
-
-    if (done) break;
-  }
-  return previous;
+  const iter = getIterator(tree, hasFilter, path);
+  iter.previous();
+  return iter.current;
 }
 
 export function getLastItem(tree: JsonTreeItem, hasFilter: boolean) {
-  const iter = hasFilter ? walkTreeIncludeCollapsed(tree) : walkTree(tree);
-  let last: JsonTreeItem | undefined;
-  while (true) {
-    const { value, done } = iter.next();
-    if (value) last = value;
-    if (done) break;
-  }
-  return last;
+  const iter = createIterator(tree, hasFilter);
+  iter.last();
+  return iter.current;
 }
 
 export function getFirstItem(tree: JsonTreeItem, hasFilter: boolean) {
-  const iter = hasFilter ? walkTreeIncludeCollapsed(tree) : walkTree(tree);
-  const { value, done } = iter.next();
-  if (!done) return value;
+  const iter = createIterator(tree, hasFilter);
+  iter.first();
+  return iter.current;
 }
 
 export function totalRows(item: JsonTreeItem, hasFilter: boolean): number {
-  const iter = hasFilter ? walkTreeIncludeCollapsed(item) : walkTree(item);
+  const iter = createIterator(item, hasFilter);
   let count = 0;
-  for (const _ of iter) {
+  do {
     count++;
-  }
+  } while (iter.next());
   return count;
 }
 
@@ -246,6 +257,7 @@ export function* visibleItems(
       yield item;
     }
     i++;
+    if (i >= endIndex) break;
   }
 }
 
@@ -255,13 +267,13 @@ export function indexOfPathStr(
   pathStr: string,
 ) {
   let i = 0;
-  const iter = hasFilter ? walkTreeIncludeCollapsed(tree) : walkTree(tree);
-  for (const item of iter) {
-    if (item.pathStr === pathStr) {
+  const iter = createIterator(tree, hasFilter);
+  do {
+    if (iter.current.pathStr === pathStr) {
       return i;
     }
     i++;
-  }
+  } while (iter.next());
   return -1;
 }
 

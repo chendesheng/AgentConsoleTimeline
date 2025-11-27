@@ -31,9 +31,11 @@ import {
   getSummary,
   renderLeafValue,
   jsonToTree,
+  getIterator,
 } from "./jsonTree/model";
 import { tryParseNestedJson } from "./jsonTree/nested";
 import { productionPlatformsPrefixes } from "./domains";
+import { KeymapManager } from "./jsonTree/keymap";
 
 function escapeRegExp(str: string) {
   return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
@@ -458,7 +460,8 @@ export class JsonTree extends LitElement {
     }
   `;
 
-  private toggleExpandByPathStr(pathStr: string, forceExpanded?: boolean) {
+  private toggleExpandByPathStr(pathStr?: string, forceExpanded?: boolean) {
+    if (!pathStr) return;
     const item = getItemByPathStr(this._tree, pathStr);
     if (item && !isLeaf(item)) {
       item.expanded = forceExpanded ?? !item.expanded;
@@ -476,7 +479,7 @@ export class JsonTree extends LitElement {
     }
   }
 
-  private handleCopy() {
+  private copySelectedValue() {
     navigator.clipboard.writeText(this.data);
   }
   private handleExpandAll() {
@@ -554,87 +557,84 @@ export class JsonTree extends LitElement {
     }
   }
 
-  private handleKeydown(e: KeyboardEvent) {
-    e.stopPropagation();
+  private keymapManager = new KeymapManager();
 
-    if (e.key === "ArrowUp" || e.key === "k") {
-      e.preventDefault();
-
-      this.selectPreviousPath();
-    } else if (e.key === "ArrowDown" || e.key === "j") {
-      e.preventDefault();
-
-      this.selectNextPath();
-    } else if (e.key === "ArrowLeft" || e.key === "h") {
-      e.preventDefault();
-
-      if (this._selectedPath) {
-        const item = getItemByPathStr(this._tree, this._selectedPath);
-        if (item) {
-          if (isLeaf(item) || !item.expanded) {
-            this._selectedPath = item.parentPathStr;
-            this.toggleExpandByPathStr(this._selectedPath, false);
-          } else {
-            item.expanded = false;
-            this.requestUpdate();
-          }
+  private handleArrowLeftKey() {
+    if (this._selectedPath) {
+      const item = getItemByPathStr(this._tree, this._selectedPath);
+      if (item) {
+        if (isLeaf(item) || !item.expanded) {
+          this._selectedPath = item.parentPathStr;
+          this.toggleExpandByPathStr(this._selectedPath, false);
+        } else {
+          item.expanded = false;
+          this.requestUpdate();
         }
       }
-    } else if (e.key === "ArrowRight" || e.key === "l") {
-      e.preventDefault();
-      if (this._selectedPath)
-        this.toggleExpandByPathStr(this._selectedPath, true);
-    } else if (e.key === "o" || e.key === "Space") {
-      e.preventDefault();
-
-      if (this._selectedPath) this.toggleExpandByPathStr(this._selectedPath);
-    } else if (e.key === "y") {
-      e.preventDefault();
-
-      if (this._selectedPath) {
-        const toCopy = JSON.stringify(
-          getItemByPathStr(this._tree, this._selectedPath)?.value,
-          null,
-          2,
-        );
-        navigator.clipboard.writeText(toCopy);
-        const row = this.getElementByPathStr(this._selectedPath);
-        if (row) {
-          row.classList.add("copied");
-          row.addEventListener(
-            "transitionend",
-            () => {
-              row.classList.remove("copied");
-            },
-            { once: true },
-          );
-        }
-      }
-    } else if (e.key === "d" && e.ctrlKey) {
-      e.preventDefault();
-      let count = this._visibleRows / 2;
-      let cursor = this._selectedPath;
-      while (count > 0) {
-        const p = getNextItem(this._tree, this._hasFilter, cursor)?.pathStr;
-        if (p) cursor = p;
-        else break;
-        count--;
-      }
-      this._selectedPath = cursor;
-    } else if (e.key === "u" && e.ctrlKey) {
-      e.preventDefault();
-      let count = this._visibleRows / 2;
-      let cursor = this._selectedPath;
-      while (count > 0) {
-        const p = getPreviousItem(this._tree, this._hasFilter, cursor)?.pathStr;
-        if (p) cursor = p;
-        else break;
-        count--;
-      }
-      this._selectedPath = cursor;
-    } else if (e.key === "G") {
-      this._selectedPath = getLastItem(this._tree, this._hasFilter)?.pathStr;
     }
+  }
+
+  private handleCopy() {
+    if (this._selectedPath) {
+      const toCopy = JSON.stringify(
+        getItemByPathStr(this._tree, this._selectedPath)?.value,
+        null,
+        2,
+      );
+      navigator.clipboard.writeText(toCopy);
+      const row = this.getElementByPathStr(this._selectedPath);
+      if (row) {
+        row.classList.add("copied");
+        row.addEventListener(
+          "transitionend",
+          () => {
+            row.classList.remove("copied");
+          },
+          { once: true },
+        );
+      }
+    }
+  }
+
+  private scrollDownHalfPage() {
+    let count = this._visibleRows / 2;
+    let cursor = this._selectedPath;
+    const iter = getIterator(this._tree, this._hasFilter, cursor);
+    while (count > 0) {
+      const value = iter.current;
+      cursor = value.pathStr;
+      count--;
+      if (!iter.next()) break;
+    }
+    this._selectedPath = cursor;
+  }
+
+  private scrollUpHalfPage() {
+    let count = this._visibleRows / 2;
+    let cursor = this._selectedPath;
+    const iter = getIterator(this._tree, this._hasFilter, cursor);
+    while (count > 0) {
+      const value = iter.current;
+      cursor = value.pathStr;
+      count--;
+      if (!iter.previous()) break;
+    }
+    this._selectedPath = cursor;
+  }
+
+  private handleKeydown(e: KeyboardEvent) {
+    if (this.keymapManager.handleKeydown(e)) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }
+
+  private goToFirstItem() {
+    this._selectedPath = getFirstItem(this._tree, this._hasFilter)?.pathStr;
+  }
+
+  private goToLastItem() {
+    this._selectedPath = getLastItem(this._tree, this._hasFilter)?.pathStr;
   }
 
   private handleBlur(e: Event) {
@@ -819,6 +819,69 @@ export class JsonTree extends LitElement {
     observer.observe(host);
 
     host.addEventListener("scroll", this.handleScroll);
+
+    this.keymapManager.register(
+      {
+        keys: ["ArrowUp"],
+        action: () => this.selectPreviousPath(),
+      },
+      {
+        keys: ["k"],
+        action: () => this.selectPreviousPath(),
+      },
+      {
+        keys: ["ArrowDown"],
+        action: () => this.selectNextPath(),
+      },
+      {
+        keys: ["j"],
+        action: () => this.selectNextPath(),
+      },
+      {
+        keys: ["ArrowLeft"],
+        action: () => this.handleArrowLeftKey(),
+      },
+      {
+        keys: ["h"],
+        action: () => this.handleArrowLeftKey(),
+      },
+      {
+        keys: ["ArrowRight"],
+        action: () => this.toggleExpandByPathStr(this._selectedPath, true),
+      },
+      {
+        keys: ["l"],
+        action: () => this.toggleExpandByPathStr(this._selectedPath, true),
+      },
+      {
+        keys: ["o"],
+        action: () => this.toggleExpandByPathStr(this._selectedPath),
+      },
+      {
+        keys: ["Space"],
+        action: () => this.toggleExpandByPathStr(this._selectedPath),
+      },
+      {
+        keys: ["y", "y"],
+        action: () => this.copySelectedValue(),
+      },
+      {
+        keys: ["ctrl+d"],
+        action: () => this.scrollDownHalfPage(),
+      },
+      {
+        keys: ["ctrl+u"],
+        action: () => this.scrollUpHalfPage(),
+      },
+      {
+        keys: ["g", "g"],
+        action: () => this.goToFirstItem(),
+      },
+      {
+        keys: ["G"],
+        action: () => this.goToLastItem(),
+      },
+    );
   }
 
   private handleScroll() {

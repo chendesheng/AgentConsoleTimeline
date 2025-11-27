@@ -14,24 +14,40 @@ export class KeymapManager {
 
   handleKeydown(e: KeyboardEvent) {
     const key = toKey(e);
-    const keymap = this.keymaps.find((action) => action.keys.includes(key));
+    if (!key) return false;
+
+    this.pendingKeys.push(key);
+    const keymap = this.keymaps.find((action) =>
+      arrayStartsWith(action.keys, this.pendingKeys),
+    );
     if (keymap) {
-      this.pendingKeys.push(key);
-      if (arrayEqual(keymap.keys, this.pendingKeys)) {
+      if (keymap.keys.length === this.pendingKeys.length) {
         this.pendingKeys = [];
         keymap.action();
       } else {
-        this.clearPendingKeys();
+        this.delayClearPendingKeys();
       }
+      return true;
+    } else {
+      this.pendingKeys = [];
+      return false;
     }
   }
 
-  private clearPendingKeys() {
+  private delayClearPendingKeys() {
     clearTimeout(this.pendingKeysTimeout);
     this.pendingKeysTimeout = setTimeout(() => {
       this.pendingKeys = [];
     }, 500);
   }
+}
+
+function arrayStartsWith(a: string[], b: string[]): boolean {
+  if (a.length < b.length) return false;
+  for (let i = 0; i < b.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
 }
 
 function arrayEqual(a: string[], b: string[]): boolean {
@@ -42,7 +58,12 @@ function arrayEqual(a: string[], b: string[]): boolean {
   return true;
 }
 
-function toKey(e: KeyboardEvent): string {
+function toKey(e: KeyboardEvent): string | undefined {
+  if (e.key === "Control") return;
+  if (e.key === "Alt") return;
+  if (e.key === "Meta") return;
+  if (e.key === "Shift") return;
+
   // FIXME: handle super/command key
   return (
     (e.ctrlKey ? "ctrl+" : "") +

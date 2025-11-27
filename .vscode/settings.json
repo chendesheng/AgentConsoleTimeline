@@ -2,5 +2,7 @@
   "files.exclude": {
     "**/.elm/0.19.1/**": true
   },
-  "typescript.tsdk": "node_modules/typescript/lib"
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "deno.enablePaths": ["server", "components/jsonTree/iterator_test.ts"],
+  "deno.lint": true
 }
