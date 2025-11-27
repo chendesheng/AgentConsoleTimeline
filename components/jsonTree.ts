@@ -76,13 +76,14 @@ const jsonToTree = (
     parentJson?: object;
   },
 ): JsonTreeItem => {
-  const key = path[path.length - 1];
-  const pathStr = path.join(".");
+  const key = Array.isArray(options.parentJson)
+    ? parseInt(path[path.length - 1])
+    : path[path.length - 1];
   const parentPathStr = path.slice(0, -1).join(".");
+  const pathStr = [parentPathStr, key?.toString()].filter(Boolean).join(".");
   const nextIndent = Array.isArray(options.parentJson)
     ? indent + options.parentJson.length.toString().length + 5
     : indent + 2;
-  const isArrayChild = Array.isArray(options.parentJson);
   if (json !== null && Array.isArray(json)) {
     const children = json.map((value, index) =>
       jsonToTree(value, [...path, index.toString()], nextIndent, {
@@ -99,7 +100,6 @@ const jsonToTree = (
       pathStr,
       parentPathStr,
       type: "array",
-      isArrayChild,
     };
   } else if (json !== null && typeof json === "object") {
     const children = Object.entries(json).map(
@@ -118,7 +118,6 @@ const jsonToTree = (
       pathStr,
       parentPathStr,
       type: "object",
-      isArrayChild,
     };
   } else {
     return {
@@ -129,7 +128,6 @@ const jsonToTree = (
       pathStr,
       parentPathStr,
       type: jsonType(json),
-      isArrayChild,
       valueRender: () => leafValueRenderer(json, pathStr, options),
     };
   }
@@ -723,7 +721,7 @@ export class JsonTree extends LitElement {
     this._renderRowIndex++;
 
     if (isLeaf(item)) {
-      if (item.isArrayChild) {
+      if (typeof item.key === "number") {
         return html`<div
           class="label array-child ${selectedClass}"
           data-path=${item.pathStr}
@@ -758,25 +756,29 @@ export class JsonTree extends LitElement {
         style=${style}
       >
         ${this.renderTrackingButton(item)}
-        ${item.isArrayChild
+        ${typeof item.key === "number"
           ? html`<span class="key index">${item.key}</span>`
           : undefined}
         ${expanded
           ? html`<span class="arrow-right expanded"></span>`
           : html`<span class="arrow-right"></span>`}
-        ${item.isArrayChild
+        ${typeof item.key === "number"
           ? undefined
           : html`<span class="icon ${item.type}"></span>`}
         ${expanded
           ? html`<span class="summary"
-              >${item.isArrayChild ? undefined : JsonTree.keyPrefix(item)}
+              >${typeof item.key === "number"
+                ? undefined
+                : JsonTree.keyPrefix(item)}
               ${Array.isArray(item.value)
                 ? html`Array
                     <span class="value count">(${item.value.length})</span>`
                 : "Object"}</span
             >`
           : html`<span class="summary"
-              >${item.isArrayChild ? undefined : JsonTree.keyPrefix(item)}
+              >${typeof item.key === "number"
+                ? undefined
+                : JsonTree.keyPrefix(item)}
               ${getSummary(item)}</span
             >`}
       </button>

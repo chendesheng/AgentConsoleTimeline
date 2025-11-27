@@ -1,6 +1,5 @@
 import { HTMLTemplateResult } from "lit";
 import { jsonSummary } from "./tokenizer";
-import { leafValueRenderer } from "./leafValurRender";
 
 export const ROW_HEIGHT = 18;
 export const ACTION_ROW_HEIGHT = 20;
@@ -22,12 +21,11 @@ export type JsonTreeItem = Omit<TreeItem, "children"> & {
   path: string[];
   pathStr: string;
   parentPathStr: string;
-  key?: string;
+  key?: string | number;
   value: any;
   type?: JsonType;
   summary?: HTMLTemplateResult;
   children?: JsonTreeItem[];
-  isArrayChild: boolean;
   hidden?: boolean;
   valueRender?: () => HTMLTemplateResult;
   valueRenderCache?: HTMLTemplateResult;
@@ -77,9 +75,9 @@ export function jsonType(json: any): JsonType {
 
 function isMatchTreeItem(item: JsonTreeItem, filter: RegExp) {
   if (item.key) {
-    if (item.isArrayChild && filter.source === item.key) {
+    if (typeof item.key === "number" && filter.source === item.key.toString()) {
       return true;
-    } else if (!item.isArrayChild && filter.test(item.key)) {
+    } else if (typeof item.key === "string" && filter.test(item.key)) {
       return true;
     } else if (typeof item.value === "string") {
       return filter.test(item.value);
@@ -103,7 +101,13 @@ export function getItemByPath(
   for (const key of path) {
     if (!current) break;
     if (current.children) {
-      current = current.children.find((child) => child.key === key);
+      current = current.children.find((child) => {
+        if (typeof child.key === "number") {
+          return child.key === parseInt(key);
+        } else {
+          return child.key === key;
+        }
+      });
     }
   }
   return current;
