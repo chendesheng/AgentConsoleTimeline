@@ -98,6 +98,7 @@ export class JsonTree extends LitElement {
   private _visibleStartRowIndex = 0;
   @state()
   private _visibleRows = 10;
+  private _visibleHeight = 10 * ROW_HEIGHT;
   @state()
   private _selectedPath: string | undefined;
 
@@ -170,9 +171,14 @@ export class JsonTree extends LitElement {
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    :host > div {
+    .rows {
       width: 100%;
       position: relative;
+      outline: none;
+    }
+    .rows:focus,
+    .rows:focus-within {
+      outline: none;
     }
     button {
       all: unset;
@@ -527,10 +533,24 @@ export class JsonTree extends LitElement {
 
     const index = indexOfPathStr(this._tree, this._hasFilter, pathStr);
     if (index === -1) return;
-    if (index <= this._visibleStartRowIndex) {
-      this.shadowRoot.host.scrollTop = index * ROW_HEIGHT;
-    } else if (index >= this._visibleStartRowIndex + this._visibleRows) {
-      this.shadowRoot.host.scrollTop = (index - this._visibleRows) * ROW_HEIGHT;
+
+    const itemRange = { top: indexToTop(index), bottom: indexToTop(index + 1) };
+    const visibleRange = {
+      top: this.shadowRoot.host.scrollTop + ACTION_ROW_HEIGHT,
+      bottom: this.shadowRoot.host.scrollTop + this._visibleHeight,
+    };
+
+    let newScrollTop: number | undefined;
+    if (itemRange.top < visibleRange.top) {
+      newScrollTop = itemRange.top - ACTION_ROW_HEIGHT;
+    } else if (itemRange.bottom >= visibleRange.bottom) {
+      newScrollTop = itemRange.bottom - this._visibleHeight;
+    }
+
+    if (newScrollTop !== undefined) {
+      this.shadowRoot.host.scrollTop = newScrollTop;
+      // need update _visibleStartRowIndex synchronously
+      this.handleScroll();
     }
   }
 
@@ -592,11 +612,28 @@ export class JsonTree extends LitElement {
       }
     } else if (e.key === "d" && e.ctrlKey) {
       e.preventDefault();
-      // scroll down by half page
-      this.shadowRoot?.host.scrollBy({
-        top: (ROW_HEIGHT * this._visibleRows) / 2,
-        behavior: "smooth",
-      });
+      let count = this._visibleRows / 2;
+      let cursor = this._selectedPath;
+      while (count > 0) {
+        const p = getNextItem(this._tree, this._hasFilter, cursor)?.pathStr;
+        if (p) cursor = p;
+        else break;
+        count--;
+      }
+      this._selectedPath = cursor;
+    } else if (e.key === "u" && e.ctrlKey) {
+      e.preventDefault();
+      let count = this._visibleRows / 2;
+      let cursor = this._selectedPath;
+      while (count > 0) {
+        const p = getPreviousItem(this._tree, this._hasFilter, cursor)?.pathStr;
+        if (p) cursor = p;
+        else break;
+        count--;
+      }
+      this._selectedPath = cursor;
+    } else if (e.key === "G") {
+      this._selectedPath = getLastItem(this._tree, this._hasFilter)?.pathStr;
     }
   }
 
@@ -642,9 +679,7 @@ export class JsonTree extends LitElement {
 
   protected renderItem(item: JsonTreeItem): HTMLTemplateResult | undefined {
     const selectedClass = item.pathStr === this._selectedPath ? "selected" : "";
-    const top =
-      ACTION_ROW_HEIGHT +
-      (this._visibleStartRowIndex + this._renderRowIndex) * ROW_HEIGHT;
+    const top = indexToTop(this._visibleStartRowIndex + this._renderRowIndex);
     const style = `padding-left: ${item.indent}ch;top: ${top}px;`;
     this._renderRowIndex++;
 
@@ -740,6 +775,9 @@ export class JsonTree extends LitElement {
     </div>`;
   }
 
+  @query("div.rows")
+  private _rowsElement!: HTMLDivElement;
+
   render() {
     if (!this._tree || !this._tree.children || this._tree.children.length === 0)
       return html``;
@@ -749,6 +787,7 @@ export class JsonTree extends LitElement {
     return html`<div
       class="rows"
       style="height: ${height}px;"
+      tabindex="0"
       @keydown=${this.handleKeydown}
       @click=${this.handleClick}
     >
@@ -775,14 +814,17 @@ export class JsonTree extends LitElement {
     const observer = new ResizeObserver((e) => {
       const height = e[0].contentBoxSize[0].blockSize;
       this._visibleRows = Math.max(10, Math.ceil(height / ROW_HEIGHT));
+      this._visibleHeight = height;
     });
     observer.observe(host);
 
-    host.addEventListener("scroll", (e) => {
-      this._visibleStartRowIndex = Math.floor(
-        (e.currentTarget as HTMLElement).scrollTop / ROW_HEIGHT,
-      );
-    });
+    host.addEventListener("scroll", this.handleScroll);
+  }
+
+  private handleScroll() {
+    this._visibleStartRowIndex = Math.floor(
+      this.shadowRoot!.host.scrollTop / ROW_HEIGHT,
+    );
   }
 
   update(changedProperties: PropertyValues): void {
@@ -790,6 +832,8 @@ export class JsonTree extends LitElement {
       if (!this._showFilter) {
         this._filter = this._input?.value || "";
       }
+    } else if (changedProperties.has("_selectedPath")) {
+      if (this._selectedPath) this.scrollToPath(this._selectedPath);
     }
     super.update(changedProperties);
   }
@@ -801,8 +845,7 @@ export class JsonTree extends LitElement {
     } else if (changedProperties.has("_showNestedJson")) {
       this.generateTree();
     } else if (changedProperties.has("_selectedPath")) {
-      if (this._selectedPath) this.scrollToPath(this._selectedPath);
-      // this.getElementByPathStr(this._selectedPath)?.focus();
+      this._rowsElement.focus();
     } else if (changedProperties.has("_showFilter")) {
       if (this._showFilter) {
         if (this._input) {
@@ -831,4 +874,8 @@ const getRowElement = (ele: Node): HTMLElement | undefined => {
     }
     p = p.parentNode;
   }
+};
+
+const indexToTop = (index: number) => {
+  return ACTION_ROW_HEIGHT + index * ROW_HEIGHT;
 };
