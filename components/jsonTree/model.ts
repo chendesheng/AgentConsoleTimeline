@@ -349,16 +349,6 @@ export function* sliceItems(
   length: number,
 ) {
   const startItem = getItemByIndex(tree, startIndex, hasFilter);
-  console.log(
-    "startItem",
-    startItem?.key,
-    "startIndex",
-    startIndex,
-    "hasFilter",
-    hasFilter,
-    "hidden",
-    startItem?.hidden,
-  );
   if (!startItem) return;
 
   const iter = getIterator(tree, hasFilter, startItem.pathStr);
