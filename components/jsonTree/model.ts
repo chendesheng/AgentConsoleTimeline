@@ -157,11 +157,14 @@ export function filterTree(tree: JsonTreeItem, filter: RegExp) {
 }
 
 export function clearFilter(tree: JsonTreeItem) {
-  const iter = createIterator(tree, false);
-  while (iter.next()) {
-    iter.current.hidden = false;
-    iter.current.resetDecendentsCountCache();
-    iter.current.resetDecendentsCountIncludeCollapsedCache();
+  tree.hidden = false;
+  tree.resetDecendentsCountCache();
+  tree.resetDecendentsCountIncludeCollapsedCache();
+
+  if (tree.children) {
+    for (const child of tree.children) {
+      clearFilter(child);
+    }
   }
 }
 
