@@ -634,6 +634,21 @@ export class JsonTree extends LitElement {
     }
   }
 
+  private centerSelectedItem() {
+    if (!this.shadowRoot) return;
+    if (!this._selectedPath) return;
+
+    const index = indexOfPathStr(
+      this._tree,
+      this._hasFilter,
+      this._selectedPath,
+    );
+    if (index === -1) return;
+    this.shadowRoot.host.scrollTop =
+      indexToTop(index) - this._visibleHeight / 2 + ROW_HEIGHT / 2;
+    this.handleScroll();
+  }
+
   private static keyPrefix(item: JsonTreeItem): string | undefined {
     return item.key ? `${item.key}: ` : undefined;
   }
@@ -872,6 +887,10 @@ export class JsonTree extends LitElement {
       {
         keys: ["G"],
         action: () => this.goToLastItem(),
+      },
+      {
+        keys: ["z", "z"],
+        action: () => this.centerSelectedItem(),
       },
     );
   }
