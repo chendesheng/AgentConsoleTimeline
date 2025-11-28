@@ -171,13 +171,10 @@ export function jsonType(json: any): JsonType {
   }
 }
 
-export function getItemByPath(
-  tree: JsonTreeItem,
-  path: string[],
-): JsonTreeItem | undefined {
+function getItemsOfPath(tree: JsonTreeItem, path: string[]) {
   let current: JsonTreeItem | undefined = tree;
+  const result: JsonTreeItem[] = [tree];
   for (const key of path) {
-    if (!current) break;
     if (current.children) {
       current = current.children.find((child) => {
         if (typeof child.key === "number") {
@@ -187,8 +184,18 @@ export function getItemByPath(
         }
       });
     }
+    if (!current) break;
+    result.push(current);
   }
-  return current;
+  return result;
+}
+
+export function getItemByPath(
+  tree: JsonTreeItem,
+  path: string[],
+): JsonTreeItem | undefined {
+  const items = getItemsOfPath(tree, path);
+  return items[items.length - 1];
 }
 
 export function getItemByPathStr(
@@ -226,18 +233,10 @@ export function setItemExpanded(
   expanded: boolean,
 ) {
   const path = pathStr.split(".");
-  let current: JsonTreeItem | undefined = tree;
-  let parents: JsonTreeItem[] = [tree];
-  for (const key of path) {
-    if (current.children) {
-      current = current.children.find((child) => child.key?.toString() === key);
-    }
-    if (!current) return;
-    parents.push(current);
-  }
+  let parents: JsonTreeItem[] = getItemsOfPath(tree, path);
+  let current: JsonTreeItem | undefined = parents[parents.length - 1];
 
   if (current.expanded === expanded) return;
-
   current.expanded = expanded;
   for (const parent of parents) {
     parent.resetDecendentsCountCache();
