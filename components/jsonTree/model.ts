@@ -14,32 +14,121 @@ export type JsonType =
   | "boolean"
   | "null";
 
-export type JsonTreeItem = {
-  expanded?: boolean;
-  path: string[];
-  pathStr: string;
-  parentPathStr: string;
-  key?: string | number;
-  value: any;
-  type?: JsonType;
+export class JsonTreeItem {
   summary?: HTMLTemplateResult;
   children?: JsonTreeItem[];
-  hidden?: boolean;
   valueRender?: () => HTMLTemplateResult;
-  valueRenderCache?: HTMLTemplateResult;
-  indent: number;
-};
+  private _valueRenderCache?: HTMLTemplateResult;
 
-export function isLeaf(item: JsonTreeItem): boolean {
-  return item.children === undefined;
-}
+  private _decendentsCount?: number;
+  private _decendentsCountIncludeCollapsed?: number;
+  private _hidden?: boolean;
+  private _expanded: boolean = false;
 
-export function isRoot(item: JsonTreeItem): boolean {
-  return item.key === undefined;
+  constructor(
+    public type: JsonType,
+    public key: string | number | undefined,
+    public indent: number,
+    public path: string[],
+    public pathStr: string,
+    public parentPathStr: string,
+    public value: any,
+  ) {}
+
+  get expanded(): boolean {
+    return this._expanded;
+  }
+
+  set expanded(value: boolean) {
+    if (this._expanded === value) return;
+    this._expanded = value;
+    this._decendentsCount = undefined;
+  }
+
+  get hidden(): boolean {
+    return this._hidden ?? false;
+  }
+
+  set hidden(value: boolean) {
+    if (this._hidden === value) return;
+    this._hidden = value;
+    this._decendentsCount = undefined;
+    this._decendentsCountIncludeCollapsed = undefined;
+  }
+
+  renderLeafValue(): HTMLTemplateResult | undefined {
+    if (this._valueRenderCache) return this._valueRenderCache;
+    this._valueRenderCache = this.valueRender?.();
+    return this._valueRenderCache;
+  }
+
+  get isLeaf(): boolean {
+    return this.children === undefined;
+  }
+
+  get isRoot(): boolean {
+    return this.key === undefined;
+  }
+
+  private calcDecendentsCount(includeCollapsed: boolean) {
+    if (this.hidden) {
+      return 0;
+    } else if (this.isLeaf) {
+      return 1;
+    } else if (!this.expanded && !includeCollapsed) {
+      return 1;
+    } else {
+      return (
+        this.children?.reduce((acc, child) => acc + child.decendentsCount, 1) ??
+        1
+      );
+    }
+  }
+
+  get decendentsCount(): number {
+    if (this._decendentsCount === undefined) {
+      this._decendentsCount = this.calcDecendentsCount(false);
+    }
+    return this._decendentsCount;
+  }
+
+  resetDecendentsCountCache() {
+    this._decendentsCount = undefined;
+  }
+
+  get decendentsCountIncludeCollapsed(): number {
+    if (this._decendentsCountIncludeCollapsed === undefined) {
+      this._decendentsCountIncludeCollapsed = this.calcDecendentsCount(true);
+    }
+    return this._decendentsCountIncludeCollapsed;
+  }
+
+  resetDecendentsCountIncludeCollapsedCache() {
+    this._decendentsCountIncludeCollapsed = undefined;
+  }
+
+  isMatchTreeItem(filter: RegExp) {
+    if (this.isRoot) return true;
+
+    if (typeof this.key === "number" && filter.source === this.key.toString()) {
+      return true;
+    } else if (typeof this.key === "string" && filter.test(this.key)) {
+      return true;
+    } else if (typeof this.value === "string") {
+      return filter.test(this.value);
+    } else if (
+      typeof this.value === "number" ||
+      typeof this.value === "boolean"
+    ) {
+      return filter.source === this.value.toString();
+    } else {
+      return false;
+    }
+  }
 }
 
 export function filterTree(tree: JsonTreeItem, filter: RegExp) {
-  tree.hidden = !isMatchTreeItem(tree, filter);
+  tree.hidden = !tree.isMatchTreeItem(filter);
 
   if (tree.children) {
     for (const child of tree.children) {
@@ -53,9 +142,10 @@ export function filterTree(tree: JsonTreeItem, filter: RegExp) {
 }
 
 export function clearFilter(tree: JsonTreeItem) {
-  for (const item of walkTreeAll(tree)) {
-    item.hidden = false;
-  }
+  const iter = createIterator(tree, false);
+  do {
+    iter.current.hidden = false;
+  } while (iter.next());
 }
 
 export function jsonType(json: any): JsonType {
@@ -73,25 +163,6 @@ export function jsonType(json: any): JsonType {
     return "boolean";
   } else {
     throw new Error(`Unknown JSON type: ${typeof json}`);
-  }
-}
-
-function isMatchTreeItem(item: JsonTreeItem, filter: RegExp) {
-  if (isRoot(item)) return true;
-
-  if (typeof item.key === "number" && filter.source === item.key.toString()) {
-    return true;
-  } else if (typeof item.key === "string" && filter.test(item.key)) {
-    return true;
-  } else if (typeof item.value === "string") {
-    return filter.test(item.value);
-  } else if (
-    typeof item.value === "number" ||
-    typeof item.value === "boolean"
-  ) {
-    return filter.source === item.value.toString();
-  } else {
-    return false;
   }
 }
 
@@ -123,48 +194,58 @@ export function getItemByPathStr(
   return getItemByPath(tree, path);
 }
 
-// export function getItemByIndex(tree: JsonTreeItem, index: number, hasFilter: boolean): JsonTreeItem | undefined {
-//   if (hasFilter) {
+function getItemByIndex(
+  tree: JsonTreeItem,
+  index: number,
+  hasFilter: boolean,
+): JsonTreeItem | undefined {
+  if (tree.children) {
+    let i = 0;
+    for (const child of tree.children) {
+      const j = i + child.decendentsCount;
 
-//   } else {
+      if (i === index) {
+        return child;
+      } else if (i < index && index < j) {
+        return getItemByIndex(child, index - i - 1, hasFilter);
+      }
 
-//   }
-// }
+      i += child.decendentsCount;
+    }
+  }
+}
+
+export function setItemExpanded(
+  tree: JsonTreeItem,
+  pathStr: string,
+  expanded: boolean,
+) {
+  const path = pathStr.split(".");
+  let current: JsonTreeItem | undefined = tree;
+  let parents: JsonTreeItem[] = [tree];
+  for (const key of path) {
+    if (current.children) {
+      current = current.children.find((child) => child.key?.toString() === key);
+    }
+    if (!current) return;
+    parents.push(current);
+  }
+
+  if (current.expanded === expanded) return;
+
+  current.expanded = expanded;
+  for (const parent of parents) {
+    parent.resetDecendentsCountCache();
+  }
+}
 
 export function setExpanded(tree: JsonTreeItem, expanded: boolean) {
-  for (const item of walkTreeIncludeCollapsed(tree)) {
-    item.expanded = expanded;
-  }
-}
+  tree.expanded = tree.isRoot ? true : expanded;
+  tree.resetDecendentsCountCache();
 
-function* walkTreeAll(tree: JsonTreeItem): Generator<JsonTreeItem, void, void> {
-  if (!isRoot(tree)) yield tree;
   if (tree.children) {
     for (const child of tree.children) {
-      yield* walkTreeAll(child);
-    }
-  }
-}
-
-function* walkTreeIncludeCollapsed(
-  tree: JsonTreeItem,
-): Generator<JsonTreeItem, void, void> {
-  if (tree.hidden) return;
-  if (!isRoot(tree)) yield tree;
-  if (tree.children) {
-    for (const child of tree.children) {
-      yield* walkTreeIncludeCollapsed(child);
-    }
-  }
-}
-
-function* walkTree(tree: JsonTreeItem): Generator<JsonTreeItem, void, void> {
-  if (tree.hidden) return;
-  if (!isRoot(tree)) yield tree;
-  if (!tree.expanded) return;
-  if (tree.children) {
-    for (const child of tree.children) {
-      yield* walkTree(child);
+      setExpanded(child, expanded);
     }
   }
 }
@@ -208,7 +289,7 @@ export function getNextItem(
 ) {
   if (!path) return;
   const iter = getIterator(tree, hasFilter, path);
-  iter.next();
+  !iter.next() && iter.first();
   return iter.current;
 }
 
@@ -219,7 +300,7 @@ export function getPreviousItem(
 ) {
   if (!path) return;
   const iter = getIterator(tree, hasFilter, path);
-  iter.previous();
+  !iter.previous() && iter.last();
   return iter.current;
 }
 
@@ -236,28 +317,25 @@ export function getFirstItem(tree: JsonTreeItem, hasFilter: boolean) {
 }
 
 export function totalRows(item: JsonTreeItem, hasFilter: boolean): number {
-  const iter = createIterator(item, hasFilter);
-  let count = 0;
-  do {
-    count++;
-  } while (iter.next());
-  return count;
+  const count = hasFilter
+    ? item.decendentsCountIncludeCollapsed
+    : item.decendentsCount;
+  return count - 1;
 }
 
-export function* visibleItems(
+export function* sliceItems(
   tree: JsonTreeItem,
   hasFilter: boolean,
   startIndex: number,
-  endIndex: number,
+  length: number,
 ) {
-  let i = 0;
-  const iter = hasFilter ? walkTreeIncludeCollapsed(tree) : walkTree(tree);
-  for (const item of iter) {
-    if (i >= startIndex && i < endIndex) {
-      yield item;
-    }
-    i++;
-    if (i >= endIndex) break;
+  const startItem = getItemByIndex(tree, startIndex, hasFilter);
+  if (!startItem) return;
+
+  const iter = getIterator(tree, hasFilter, startItem.pathStr);
+  for (let i = 0; i < length; i++) {
+    yield iter.current;
+    if (!iter.next()) break;
   }
 }
 
@@ -283,14 +361,6 @@ export function getSummary(item: JsonTreeItem): HTMLTemplateResult {
   return item.summary;
 }
 
-export function renderLeafValue(
-  item: JsonTreeItem,
-): HTMLTemplateResult | undefined {
-  if (item.valueRenderCache) return item.valueRenderCache;
-  item.valueRenderCache = item.valueRender?.();
-  return item.valueRenderCache;
-}
-
 export const jsonToTree = (
   json: object,
   path: string[],
@@ -313,6 +383,20 @@ export const jsonToTree = (
   const nextIndent = Array.isArray(options.parentJson)
     ? indent + options.parentJson.length.toString().length + 5
     : indent + 2;
+
+  const item = new JsonTreeItem(
+    jsonType(json),
+    key,
+    indent,
+    path,
+    pathStr,
+    parentPathStr,
+    json,
+  );
+  if (item.isRoot) {
+    item.expanded = true;
+  }
+
   if (json !== null && Array.isArray(json)) {
     const children = json.map((value, index) =>
       jsonToTree(value, [...path, index.toString()], nextIndent, {
@@ -320,16 +404,8 @@ export const jsonToTree = (
         parentJson: json,
       }),
     );
-    return {
-      indent,
-      children,
-      value: json,
-      key,
-      path,
-      pathStr,
-      parentPathStr,
-      type: "array",
-    };
+    item.children = children;
+    return item;
   } else if (json !== null && typeof json === "object") {
     const children = Object.entries(json).map(
       ([key, value]): JsonTreeItem =>
@@ -338,26 +414,10 @@ export const jsonToTree = (
           parentJson: json,
         }),
     );
-    return {
-      indent,
-      children,
-      value: json,
-      key,
-      path,
-      pathStr,
-      parentPathStr,
-      type: "object",
-    };
+    item.children = children;
+    return item;
   } else {
-    return {
-      indent,
-      value: json,
-      key,
-      path,
-      pathStr,
-      parentPathStr,
-      type: jsonType(json),
-      valueRender: () => leafValueRenderer(json, pathStr, options),
-    };
+    item.valueRender = () => leafValueRenderer(json, pathStr, options);
+    return item;
   }
 };

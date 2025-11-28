@@ -22,16 +22,15 @@ import {
   getNextItem,
   getPreviousItem,
   indexOfPathStr,
-  isLeaf,
   JsonTreeItem,
   ROW_HEIGHT,
   setExpanded,
   totalRows,
-  visibleItems,
   getSummary,
-  renderLeafValue,
+  sliceItems,
   jsonToTree,
   getIterator,
+  setItemExpanded,
 } from "./jsonTree/model";
 import { tryParseNestedJson } from "./jsonTree/nested";
 import { productionPlatformsPrefixes } from "./domains";
@@ -110,9 +109,6 @@ export class JsonTree extends LitElement {
       this._hasFilter,
       this._selectedPath,
     )?.pathStr;
-    if (!this._selectedPath) {
-      this._selectedPath = getFirstItem(this._tree, this._hasFilter)?.pathStr;
-    }
   }
 
   private selectPreviousPath() {
@@ -121,9 +117,6 @@ export class JsonTree extends LitElement {
       this._hasFilter,
       this._selectedPath,
     )?.pathStr;
-    if (!this._selectedPath) {
-      this._selectedPath = getLastItem(this._tree, this._hasFilter)?.pathStr;
-    }
   }
 
   @state()
@@ -159,7 +152,6 @@ export class JsonTree extends LitElement {
         partnerId,
       },
     );
-    this._tree.expanded = true;
     this._showFilter = false;
   }
 
@@ -463,8 +455,8 @@ export class JsonTree extends LitElement {
   private toggleExpandByPathStr(pathStr?: string, forceExpanded?: boolean) {
     if (!pathStr) return;
     const item = getItemByPathStr(this._tree, pathStr);
-    if (item && !isLeaf(item)) {
-      item.expanded = forceExpanded ?? !item.expanded;
+    if (item && !item.isLeaf) {
+      setItemExpanded(this._tree, pathStr, forceExpanded ?? !item.expanded);
       this.requestUpdate();
     }
   }
@@ -563,7 +555,7 @@ export class JsonTree extends LitElement {
     if (this._selectedPath) {
       const item = getItemByPathStr(this._tree, this._selectedPath);
       if (item) {
-        if (isLeaf(item) || !item.expanded) {
+        if (item.isLeaf || !item.expanded) {
           this._selectedPath = item.parentPathStr;
           this.toggleExpandByPathStr(this._selectedPath, false);
         } else {
@@ -683,7 +675,7 @@ export class JsonTree extends LitElement {
     const style = `padding-left: ${item.indent}ch;top: ${top}px;`;
     this._renderRowIndex++;
 
-    if (isLeaf(item)) {
+    if (item.isLeaf) {
       if (typeof item.key === "number") {
         return html`<div
           class="label array-child ${selectedClass}"
@@ -692,7 +684,7 @@ export class JsonTree extends LitElement {
           tabindex="0"
         >
           <span class="key index">${item.key}</span>
-          ${renderLeafValue(item)}
+          ${item.renderLeafValue()}
         </div>`;
       } else {
         return html`<div
@@ -705,7 +697,7 @@ export class JsonTree extends LitElement {
           <span class="arrow-right invisible"></span>
           <span class="icon ${item.type}"></span>
           <span class="key">${JsonTree.keyPrefix(item)}</span>
-          ${renderLeafValue(item)}
+          ${item.renderLeafValue()}
         </div>`;
       }
     }
@@ -783,6 +775,7 @@ export class JsonTree extends LitElement {
       return html``;
     this._renderRowIndex = 0;
     this._totalRows = totalRows(this._tree, this._hasFilter);
+    console.log("this._totalRows", this._totalRows);
     const height = ACTION_ROW_HEIGHT + this._totalRows * ROW_HEIGHT;
     return html`<div
       class="rows"
@@ -793,11 +786,11 @@ export class JsonTree extends LitElement {
     >
       ${this.renderActions()}
       ${repeat(
-        visibleItems(
+        sliceItems(
           this._tree,
           this._hasFilter,
           this._visibleStartRowIndex,
-          this._visibleStartRowIndex + this._visibleRows,
+          this._visibleRows,
         ),
         (item) => item.pathStr,
         this.renderItem,
