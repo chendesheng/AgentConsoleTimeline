@@ -87,12 +87,46 @@ Deno.test("forward", () => {
     ],
   };
   const iter = new TreeIterator(tree);
-  iter.forward((item) => {
-    if (item.value === 0) return "sibling";
-    if (item.value === -1 || item.value === 4) return "child";
-    return "stop";
-  });
+  assertEquals(
+    iter.forward((item) => {
+      if (item.value === 0) return "sibling";
+      if (item.value === -1 || item.value === 4) return "child";
+      return "stop";
+    }),
+    true,
+  );
   assertEquals(iter.current.value, 5);
+});
+Deno.test("forward to not exist item", () => {
+  const tree: TreeItem = {
+    value: -1,
+    children: [
+      {
+        value: 0,
+        children: [
+          {
+            value: 1,
+            children: [{ value: 2 }, { value: 3 }],
+          },
+        ],
+      },
+      {
+        value: 4,
+        children: [
+          {
+            value: 5,
+            children: [{ value: 6 }, { value: 7 }],
+          },
+        ],
+      },
+    ],
+  };
+  const iter = new TreeIterator(tree);
+  assertEquals(
+    iter.forward(() => "child"),
+    false,
+  );
+  assertEquals(iter.current.value, 2);
 });
 
 Deno.test("iterate small tree", () => {

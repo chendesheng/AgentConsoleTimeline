@@ -16,14 +16,15 @@ export type JsonType =
 
 export class JsonTreeItem {
   children?: JsonTreeItem[];
+  hidden?: boolean;
   valueRender?: () => HTMLTemplateResult;
-  private _valueRenderCache?: HTMLTemplateResult;
 
   private _decendentsCount?: number;
   private _decendentsCountIncludeCollapsed?: number;
-  private _hidden?: boolean;
   private _expanded: boolean = false;
   private _summary?: HTMLTemplateResult[];
+  private _valueRenderCache?: HTMLTemplateResult;
+
   constructor(
     public type: JsonType,
     public key: string | number | undefined,
@@ -42,17 +43,6 @@ export class JsonTreeItem {
     if (this._expanded === value) return;
     this._expanded = value;
     this._decendentsCount = undefined;
-  }
-
-  get hidden(): boolean {
-    return this._hidden ?? false;
-  }
-
-  set hidden(value: boolean) {
-    if (this._hidden === value) return;
-    this._hidden = value;
-    this._decendentsCount = undefined;
-    this._decendentsCountIncludeCollapsed = undefined;
   }
 
   renderLeafValue(): HTMLTemplateResult | undefined {
@@ -94,28 +84,30 @@ export class JsonTreeItem {
       return 1;
     } else {
       return (
-        this.children?.reduce((acc, child) => acc + child.decendentsCount, 1) ??
-        1
+        this.children?.reduce(
+          (acc, child) => acc + child.getDecendentsCount(includeCollapsed),
+          1,
+        ) ?? 1
       );
     }
   }
 
-  get decendentsCount(): number {
-    if (this._decendentsCount === undefined) {
-      this._decendentsCount = this.calcDecendentsCount(false);
+  getDecendentsCount(includeCollapsed: boolean): number {
+    if (includeCollapsed) {
+      if (this._decendentsCountIncludeCollapsed === undefined) {
+        this._decendentsCountIncludeCollapsed = this.calcDecendentsCount(true);
+      }
+      return this._decendentsCountIncludeCollapsed!;
+    } else {
+      if (this._decendentsCount === undefined) {
+        this._decendentsCount = this.calcDecendentsCount(false);
+      }
+      return this._decendentsCount!;
     }
-    return this._decendentsCount;
   }
 
   resetDecendentsCountCache() {
     this._decendentsCount = undefined;
-  }
-
-  get decendentsCountIncludeCollapsed(): number {
-    if (this._decendentsCountIncludeCollapsed === undefined) {
-      this._decendentsCountIncludeCollapsed = this.calcDecendentsCount(true);
-    }
-    return this._decendentsCountIncludeCollapsed;
   }
 
   resetDecendentsCountIncludeCollapsedCache() {
@@ -125,17 +117,23 @@ export class JsonTreeItem {
   isMatchTreeItem(filter: RegExp) {
     if (this.isRoot) return true;
 
-    if (typeof this.key === "number" && filter.source === this.key.toString()) {
+    if (typeof this.key === "number" && this.key === +filter.source) {
       return true;
     } else if (typeof this.key === "string" && filter.test(this.key)) {
       return true;
     } else if (typeof this.value === "string") {
       return filter.test(this.value);
     } else if (
-      typeof this.value === "number" ||
-      typeof this.value === "boolean"
+      typeof this.value === "number" &&
+      this.value === +filter.source
     ) {
-      return filter.source === this.value.toString();
+      return true;
+    } else if (
+      typeof this.value === "boolean" &&
+      ((this.value && filter.source === "true") ||
+        (!this.value && filter.source === "false"))
+    ) {
+      return true;
     } else {
       return false;
     }
@@ -144,6 +142,8 @@ export class JsonTreeItem {
 
 export function filterTree(tree: JsonTreeItem, filter: RegExp) {
   tree.hidden = !tree.isMatchTreeItem(filter);
+  tree.resetDecendentsCountCache();
+  tree.resetDecendentsCountIncludeCollapsedCache();
 
   if (tree.children) {
     for (const child of tree.children) {
@@ -160,6 +160,8 @@ export function clearFilter(tree: JsonTreeItem) {
   const iter = createIterator(tree, false);
   while (iter.next()) {
     iter.current.hidden = false;
+    iter.current.resetDecendentsCountCache();
+    iter.current.resetDecendentsCountIncludeCollapsedCache();
   }
 }
 
@@ -218,15 +220,15 @@ function getItemByIndex(
   if (tree.children) {
     let i = 0;
     for (const child of tree.children) {
-      const j = i + child.decendentsCount;
+      const j = i + child.getDecendentsCount(hasFilter);
 
-      if (i === index) {
+      if (i === index && !child.hidden) {
         return child;
       } else if (i < index && index < j) {
         return getItemByIndex(child, index - i - 1, hasFilter);
       }
 
-      i += child.decendentsCount;
+      i = j;
     }
   }
 }
@@ -278,7 +280,7 @@ export function getIterator(
 
   if (startPath) {
     const path = startPath.split(".");
-    iter.forward((item, indexPath) => {
+    const exist = iter.forward((item, indexPath) => {
       if (item.isRoot) return "child";
       if (item.isKey(path[0])) {
         path.shift();
@@ -286,6 +288,10 @@ export function getIterator(
       }
       return "sibling";
     });
+
+    if (!exist) {
+      iter.first() && iter.next();
+    }
   }
   return iter;
 }
@@ -330,9 +336,7 @@ export function getFirstItem(
 }
 
 export function totalRows(item: JsonTreeItem, hasFilter: boolean): number {
-  const count = hasFilter
-    ? item.decendentsCountIncludeCollapsed
-    : item.decendentsCount;
+  const count = item.getDecendentsCount(hasFilter);
   // root is not rendered, so we need to subtract 1
   return count - 1;
 }
@@ -344,6 +348,16 @@ export function* sliceItems(
   length: number,
 ) {
   const startItem = getItemByIndex(tree, startIndex, hasFilter);
+  console.log(
+    "startItem",
+    startItem?.key,
+    "startIndex",
+    startIndex,
+    "hasFilter",
+    hasFilter,
+    "hidden",
+    startItem?.hidden,
+  );
   if (!startItem) return;
 
   const iter = getIterator(tree, hasFilter, startItem.pathStr);
@@ -364,7 +378,7 @@ export function indexOfPathStr(
   for (let i = 0; i < iter.indexPath.length; i++) {
     const index = iter.indexPath[i];
     for (let j = 0; j < index; j++) {
-      result += current.children![j].decendentsCount;
+      result += current.children![j].getDecendentsCount(hasFilter);
     }
     result += 1;
     current = current.children![index];

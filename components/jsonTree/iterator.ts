@@ -166,13 +166,13 @@ export class TreeIterator<T extends { children?: T[] } = TreeItem> {
       const item = this.current;
       switch (fn(item, this._indexPath)) {
         case "sibling":
-          this.goToRightSibling();
+          if (!this.goToRightSibling()) return false;
           break;
         case "child":
-          this.goToChild();
+          if (!this.goToChild()) return false;
           break;
         case "stop":
-          return item;
+          return true;
       }
     }
   }
