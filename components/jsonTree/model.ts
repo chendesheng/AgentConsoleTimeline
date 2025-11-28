@@ -314,7 +314,8 @@ export function getPreviousItem(
 ) {
   if (!path) return;
   const iter = getIterator(tree, hasFilter, path);
-  !iter.previous() && iter.last();
+  iter.previous();
+  if (iter.current.isRoot) iter.last();
   return iter.current;
 }
 
