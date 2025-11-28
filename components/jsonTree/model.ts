@@ -75,6 +75,16 @@ export class JsonTreeItem {
     return this._summary;
   }
 
+  isKey(key: string) {
+    if (typeof this.key === "number" && this.key === +key) {
+      return true;
+    } else if (typeof this.key === "string" && this.key === key) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
   private calcDecendentsCount(includeCollapsed: boolean) {
     if (this.hidden) {
       return 0;
@@ -148,9 +158,9 @@ export function filterTree(tree: JsonTreeItem, filter: RegExp) {
 
 export function clearFilter(tree: JsonTreeItem) {
   const iter = createIterator(tree, false);
-  do {
+  while (iter.next()) {
     iter.current.hidden = false;
-  } while (iter.next());
+  }
 }
 
 export function jsonType(json: any): JsonType {
@@ -176,13 +186,7 @@ function getItemsOfPath(tree: JsonTreeItem, path: string[]) {
   const result: JsonTreeItem[] = [tree];
   for (const key of path) {
     if (current.children) {
-      current = current.children.find((child) => {
-        if (typeof child.key === "number") {
-          return child.key === parseInt(key);
-        } else {
-          return child.key === key;
-        }
-      });
+      current = current.children.find((child) => child.isKey(key));
     }
     if (!current) break;
     result.push(current);
@@ -275,10 +279,10 @@ export function getIterator(
   if (startPath) {
     const path = startPath.split(".");
     iter.forward((item, indexPath) => {
-      if (item.key!.toString() === path[0]) {
+      if (item.isRoot) return "child";
+      if (item.isKey(path[0])) {
         path.shift();
-        if (path.length === 0) return "stop";
-        return "child";
+        return path.length === 0 ? "stop" : "child";
       }
       return "sibling";
     });
@@ -293,7 +297,7 @@ export function getNextItem(
 ) {
   if (!path) return;
   const iter = getIterator(tree, hasFilter, path);
-  !iter.next() && iter.first();
+  !iter.next() && iter.first() && iter.next();
   return iter.current;
 }
 
@@ -314,16 +318,22 @@ export function getLastItem(tree: JsonTreeItem, hasFilter: boolean) {
   return iter.current;
 }
 
-export function getFirstItem(tree: JsonTreeItem, hasFilter: boolean) {
+export function getFirstItem(
+  tree: JsonTreeItem,
+  hasFilter: boolean,
+): JsonTreeItem | undefined {
   const iter = createIterator(tree, hasFilter);
-  iter.first();
-  return iter.current;
+  // root is not rendered, first item is the first child of root
+  if (iter.next()) {
+    return iter.current;
+  }
 }
 
 export function totalRows(item: JsonTreeItem, hasFilter: boolean): number {
   const count = hasFilter
     ? item.decendentsCountIncludeCollapsed
     : item.decendentsCount;
+  // root is not rendered, so we need to subtract 1
   return count - 1;
 }
 
@@ -359,6 +369,7 @@ export function indexOfPathStr(
     result += 1;
     current = current.children![index];
   }
+  // root is not rendered, so we need to subtract 1
   return result - 1;
 }
 

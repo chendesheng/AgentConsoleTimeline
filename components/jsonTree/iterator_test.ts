@@ -2,25 +2,9 @@ import { assertEquals } from "jsr:@std/assert";
 import { TreeItem, TreeIterator } from "./iterator.ts";
 import * as path from "https://deno.land/std@0.224.0/path/mod.ts";
 
-Deno.test("empty tree", () => {
-  const tree: TreeItem = {
-    children: [],
-  };
-  const iter = new TreeIterator(tree);
-  assertEquals(iter.current, undefined);
-  iter.next();
-  assertEquals(iter.current, undefined);
-  iter.previous();
-  assertEquals(iter.current, undefined);
-});
-
 Deno.test("single node tree", () => {
   const tree: TreeItem = {
-    children: [
-      {
-        value: 0,
-      },
-    ],
+    value: 0,
   };
   const iter = new TreeIterator(tree);
   assertEquals(iter.current.value, 0);
@@ -48,17 +32,10 @@ Deno.test("last", () => {
 
 Deno.test("first", () => {
   const tree: TreeItem = {
-    children: [
-      {
-        value: 0,
-      },
-      {
-        value: 1,
-      },
-    ],
+    value: 0,
+    children: [{ value: 1 }, { value: 2 }],
   };
   const iter = new TreeIterator(tree);
-  iter.first();
   assertEquals(iter.current.value, 0);
   iter.next();
   assertEquals(iter.current.value, 1);
@@ -66,13 +43,14 @@ Deno.test("first", () => {
   assertEquals(iter.current.value, 0);
 });
 
-Deno.test("first with skip", () => {
+Deno.test("first must not be skippped", () => {
   const tree: TreeItem = {
-    children: [{ value: 0 }, { value: 1 }],
+    value: 0,
+    children: [{ value: 1 }, { value: 2 }],
   };
   const iter = new TreeIterator(tree, (item) => item.value === 0);
   iter.first();
-  assertEquals(iter.current.value, 1);
+  assertEquals(iter.current.value, 0);
 });
 
 Deno.test("last with skip", () => {
@@ -86,6 +64,7 @@ Deno.test("last with skip", () => {
 
 Deno.test("forward", () => {
   const tree: TreeItem = {
+    value: -1,
     children: [
       {
         value: 0,
@@ -110,7 +89,7 @@ Deno.test("forward", () => {
   const iter = new TreeIterator(tree);
   iter.forward((item) => {
     if (item.value === 0) return "sibling";
-    if (item.value === 4) return "child";
+    if (item.value === -1 || item.value === 4) return "child";
     return "stop";
   });
   assertEquals(iter.current.value, 5);
@@ -118,13 +97,14 @@ Deno.test("forward", () => {
 
 Deno.test("iterate small tree", () => {
   const tree: TreeItem = {
+    value: 0,
     children: [
       {
-        value: 0,
+        value: 1,
         children: [
           {
-            value: 1,
-            children: [{ value: 2 }, { value: 3 }],
+            value: 2,
+            children: [{ value: 3 }, { value: 4 }],
           },
         ],
       },
@@ -132,22 +112,26 @@ Deno.test("iterate small tree", () => {
   };
   const iter = new TreeIterator(tree);
   assertEquals(iter.current.value, 0);
-  iter.next();
+  assertEquals(iter.next(), true);
   assertEquals(iter.current.value, 1);
-  iter.next();
+  assertEquals(iter.next(), true);
   assertEquals(iter.current.value, 2);
-  iter.next();
+  assertEquals(iter.next(), true);
   assertEquals(iter.current.value, 3);
-  iter.next();
-
+  assertEquals(iter.next(), true);
+  assertEquals(iter.current.value, 4);
+  assertEquals(iter.next(), false);
+  assertEquals(iter.current.value, 4);
+  assertEquals(iter.previous(), true);
   assertEquals(iter.current.value, 3);
-  iter.previous();
+  assertEquals(iter.previous(), true);
   assertEquals(iter.current.value, 2);
-  iter.previous();
+  assertEquals(iter.previous(), true);
   assertEquals(iter.current.value, 1);
-  iter.previous();
+  assertEquals(iter.previous(), true);
   assertEquals(iter.current.value, 0);
-  iter.previous();
+  assertEquals(iter.previous(), false);
+  assertEquals(iter.current.value, 0);
 });
 
 Deno.test("iterate large tree", async () => {
@@ -167,7 +151,7 @@ Deno.test("iterate large tree", async () => {
 });
 
 function* walkTree(tree: TreeItem): Generator<TreeItem, void, void> {
-  if (!isRoot(tree)) yield tree;
+  yield tree;
   if (tree.children) {
     for (const child of tree.children) {
       yield* walkTree(child);
@@ -182,7 +166,7 @@ function* walkTreeReverse(tree: TreeItem): Generator<TreeItem, void, void> {
       yield* walkTreeReverse(child);
     }
   }
-  if (!isRoot(tree)) yield tree;
+  yield tree;
 }
 
 type JsonType =
@@ -193,9 +177,6 @@ type JsonType =
   | boolean
   | null;
 
-const isRoot = (item: TreeItem): boolean => {
-  return item.path.length === 0;
-};
 const jsonToTree = (json: JsonType, path: string[]): TreeItem => {
   if (json != null && Array.isArray(json)) {
     return {
@@ -217,27 +198,31 @@ const jsonToTree = (json: JsonType, path: string[]): TreeItem => {
 };
 Deno.test("iterate with skip leaf", () => {
   const tree: TreeItem = {
+    value: 0,
     children: [
       {
-        value: 0,
+        value: 1,
         children: [
           {
-            value: 1,
-            children: [{ value: 2 }, { value: 3 }],
+            value: 2,
+            children: [{ value: 3 }, { value: 4 }],
           },
         ],
       },
     ],
   };
-  const iter = new TreeIterator(tree, (item) => item.value === 2);
+  const iter = new TreeIterator(tree, (item) => item.value === 3);
   assertEquals(iter.current.value, 0);
   iter.next();
   assertEquals(iter.current.value, 1);
   iter.next();
-  assertEquals(iter.current.value, 3);
+  assertEquals(iter.current.value, 2);
   iter.next();
-
-  assertEquals(iter.current.value, 3);
+  assertEquals(iter.current.value, 4);
+  iter.next();
+  assertEquals(iter.current.value, 4);
+  iter.previous();
+  assertEquals(iter.current.value, 2);
   iter.previous();
   assertEquals(iter.current.value, 1);
   iter.previous();
@@ -247,37 +232,42 @@ Deno.test("iterate with skip leaf", () => {
 
 Deno.test("iterate with skip", () => {
   const tree: TreeItem = {
+    value: 0,
     children: [
       {
-        value: 0,
+        value: 1,
         children: [
           {
-            value: 1,
-            children: [{ value: 2 }, { value: 3 }],
+            value: 2,
+            children: [{ value: 3 }, { value: 4 }],
           },
         ],
       },
       {
-        value: 4,
+        value: 5,
         children: [
           {
-            value: 5,
+            value: 6,
           },
         ],
       },
     ],
   };
-  const iter = new TreeIterator(tree, (item) => item.value === 1);
+  const iter = new TreeIterator(tree, (item) => item.value === 2);
   assertEquals(iter.current.value, 0);
   assertEquals(iter.next(), true);
-  assertEquals(iter.current.value, 4);
+  assertEquals(iter.current.value, 1);
   assertEquals(iter.next(), true);
   assertEquals(iter.current.value, 5);
+  assertEquals(iter.next(), true);
+  assertEquals(iter.current.value, 6);
   assertEquals(iter.next(), false);
 
+  assertEquals(iter.current.value, 6);
+  assertEquals(iter.previous(), true);
   assertEquals(iter.current.value, 5);
   assertEquals(iter.previous(), true);
-  assertEquals(iter.current.value, 4);
+  assertEquals(iter.current.value, 1);
   assertEquals(iter.previous(), true);
   assertEquals(iter.current.value, 0);
   assertEquals(iter.previous(), false);
@@ -285,39 +275,44 @@ Deno.test("iterate with skip", () => {
 
 Deno.test("iterate with skip children", () => {
   const tree: TreeItem = {
+    value: 0,
     children: [
       {
-        value: 0,
+        value: 1,
         children: [
           {
-            value: 1,
-            children: [{ value: 2 }, { value: 3 }],
+            value: 2,
+            children: [{ value: 3 }, { value: 4 }],
           },
         ],
       },
       {
-        value: 4,
+        value: 5,
         children: [
           {
-            value: 5,
+            value: 6,
           },
         ],
       },
     ],
   };
-  const iter = new TreeIterator(tree, undefined, (item) => item.value === 1);
+  const iter = new TreeIterator(tree, undefined, (item) => item.value === 2);
   assertEquals(iter.current.value, 0);
   assertEquals(iter.next(), true);
   assertEquals(iter.current.value, 1);
   assertEquals(iter.next(), true);
-  assertEquals(iter.current.value, 4);
+  assertEquals(iter.current.value, 2);
   assertEquals(iter.next(), true);
   assertEquals(iter.current.value, 5);
+  assertEquals(iter.next(), true);
+  assertEquals(iter.current.value, 6);
   assertEquals(iter.next(), false);
 
+  assertEquals(iter.current.value, 6);
+  assertEquals(iter.previous(), true);
   assertEquals(iter.current.value, 5);
   assertEquals(iter.previous(), true);
-  assertEquals(iter.current.value, 4);
+  assertEquals(iter.current.value, 2);
   assertEquals(iter.previous(), true);
   assertEquals(iter.current.value, 1);
   assertEquals(iter.previous(), true);

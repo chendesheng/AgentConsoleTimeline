@@ -17,7 +17,7 @@ export class TreeIterator<T extends { children?: T[] } = TreeItem> {
     skipChildren?: (item: T) => boolean,
   ) {
     this._tree = tree;
-    this._indexPath = [0];
+    this._indexPath = [];
     this._skip = skip;
     this._skipChildren = skipChildren;
   }
@@ -45,7 +45,7 @@ export class TreeIterator<T extends { children?: T[] } = TreeItem> {
   }
 
   private goToParent() {
-    if (this._indexPath.length === 1) return false;
+    if (this._indexPath.length === 0) return false;
     this._indexPath.pop();
     return true;
   }
@@ -85,6 +85,7 @@ export class TreeIterator<T extends { children?: T[] } = TreeItem> {
   private goToRightMostDescendant() {
     if (!this.goToRightMostChild()) return false;
     while (this.goToRightMostChild());
+    return true;
   }
 
   private skipForward(children: T[] | undefined, i: number) {
@@ -112,6 +113,8 @@ export class TreeIterator<T extends { children?: T[] } = TreeItem> {
   }
 
   private goToRightSibling() {
+    if (this._indexPath.length === 0) return false;
+
     const i = this._indexPath[this._indexPath.length - 1];
     const j = this.skipForward(this.getParentItem()?.children, i + 1);
     if (j === -1) return false;
@@ -120,6 +123,8 @@ export class TreeIterator<T extends { children?: T[] } = TreeItem> {
   }
 
   private goToLeftSibling() {
+    if (this._indexPath.length === 0) return false;
+
     const i = this._indexPath[this._indexPath.length - 1];
     const j = this.skipBackward(this.getParentItem()?.children, i - 1);
     if (j === -1) return false;
@@ -145,18 +150,18 @@ export class TreeIterator<T extends { children?: T[] } = TreeItem> {
       return true;
     }
 
-    if (this.goToParent()) return true;
-    return false;
+    return this.goToParent();
   }
 
   first() {
     this._indexPath = [];
-    this.goToChild();
+    return true;
   }
 
   last() {
     this._indexPath = [];
     this.goToRightMostDescendant();
+    return true;
   }
 
   forward(fn: (item: T, indexPath: number[]) => "sibling" | "child" | "stop") {
