@@ -348,15 +348,18 @@ export function indexOfPathStr(
   hasFilter: boolean,
   pathStr: string,
 ) {
-  let i = 0;
-  const iter = createIterator(tree, hasFilter);
-  do {
-    if (iter.current.pathStr === pathStr) {
-      return i;
+  const iter = getIterator(tree, hasFilter, pathStr);
+  let current = tree;
+  let result = 0;
+  for (let i = 0; i < iter.indexPath.length; i++) {
+    const index = iter.indexPath[i];
+    for (let j = 0; j < index; j++) {
+      result += current.children![j].decendentsCount;
     }
-    i++;
-  } while (iter.next());
-  return -1;
+    result += 1;
+    current = current.children![index];
+  }
+  return result - 1;
 }
 
 export const jsonToTree = (

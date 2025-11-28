@@ -3,7 +3,7 @@ export type TreeItem = {
   [key: string]: any;
 };
 
-// multi-way tree iterator, O(h) for every move operation
+// multi-way tree iterator
 export class TreeIterator<T extends { children?: T[] } = TreeItem> {
   private _tree: T;
   private _indexPath: number[];
@@ -177,5 +177,9 @@ export class TreeIterator<T extends { children?: T[] } = TreeItem> {
 
   get current() {
     return this.getItem()!;
+  }
+
+  get indexPath() {
+    return this._indexPath;
   }
 }
