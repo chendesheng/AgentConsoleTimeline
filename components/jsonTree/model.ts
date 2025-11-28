@@ -15,7 +15,6 @@ export type JsonType =
   | "null";
 
 export class JsonTreeItem {
-  summary?: HTMLTemplateResult;
   children?: JsonTreeItem[];
   valueRender?: () => HTMLTemplateResult;
   private _valueRenderCache?: HTMLTemplateResult;
@@ -24,7 +23,7 @@ export class JsonTreeItem {
   private _decendentsCountIncludeCollapsed?: number;
   private _hidden?: boolean;
   private _expanded: boolean = false;
-
+  private _summary?: HTMLTemplateResult;
   constructor(
     public type: JsonType,
     public key: string | number | undefined,
@@ -68,6 +67,12 @@ export class JsonTreeItem {
 
   get isRoot(): boolean {
     return this.key === undefined;
+  }
+
+  get summary(): HTMLTemplateResult {
+    if (this._summary) return this._summary;
+    this._summary = jsonSummary(this.value);
+    return this._summary;
   }
 
   private calcDecendentsCount(includeCollapsed: boolean) {
@@ -353,12 +358,6 @@ export function indexOfPathStr(
     i++;
   } while (iter.next());
   return -1;
-}
-
-export function getSummary(item: JsonTreeItem): HTMLTemplateResult {
-  if (item.summary) return item.summary;
-  item.summary = jsonSummary(item.value);
-  return item.summary;
 }
 
 export const jsonToTree = (

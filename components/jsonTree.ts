@@ -26,7 +26,6 @@ import {
   ROW_HEIGHT,
   setExpanded,
   totalRows,
-  getSummary,
   sliceItems,
   jsonToTree,
   getIterator,
@@ -472,7 +471,25 @@ export class JsonTree extends LitElement {
   }
 
   private copySelectedValue() {
-    navigator.clipboard.writeText(this.data);
+    if (this._selectedPath) {
+      const toCopy = JSON.stringify(
+        getItemByPathStr(this._tree, this._selectedPath)?.value,
+        null,
+        2,
+      );
+      navigator.clipboard.writeText(toCopy);
+      const row = this.getElementByPathStr(this._selectedPath);
+      if (row) {
+        row.classList.add("copied");
+        row.addEventListener(
+          "transitionend",
+          () => {
+            row.classList.remove("copied");
+          },
+          { once: true },
+        );
+      }
+    }
   }
   private handleExpandAll() {
     setExpanded(this._tree, true);
@@ -558,7 +575,7 @@ export class JsonTree extends LitElement {
         if (item.isLeaf || !item.expanded) {
           this._selectedPath = item.parentPathStr;
           this.toggleExpandByPathStr(this._selectedPath, false);
-        } else {
+        } else if (!item.isRoot) {
           item.expanded = false;
           this.requestUpdate();
         }
@@ -567,25 +584,7 @@ export class JsonTree extends LitElement {
   }
 
   private handleCopy() {
-    if (this._selectedPath) {
-      const toCopy = JSON.stringify(
-        getItemByPathStr(this._tree, this._selectedPath)?.value,
-        null,
-        2,
-      );
-      navigator.clipboard.writeText(toCopy);
-      const row = this.getElementByPathStr(this._selectedPath);
-      if (row) {
-        row.classList.add("copied");
-        row.addEventListener(
-          "transitionend",
-          () => {
-            row.classList.remove("copied");
-          },
-          { once: true },
-        );
-      }
-    }
+    navigator.clipboard.writeText(this.data);
   }
 
   private scrollDownHalfPage() {
@@ -734,7 +733,7 @@ export class JsonTree extends LitElement {
               >${typeof item.key === "number"
                 ? undefined
                 : JsonTree.keyPrefix(item)}
-              ${getSummary(item)}</span
+              ${item.summary}</span
             >`}
       </button>
     `;
