@@ -76,7 +76,7 @@ function tokenizeJson(
   }
 }
 
-export const jsonSummary = (json: any): HTMLTemplateResult => {
+export const jsonSummary = (json: any): HTMLTemplateResult[] => {
   let length = 0;
   let spans: HTMLTemplateResult[] = [];
 
@@ -93,5 +93,5 @@ export const jsonSummary = (json: any): HTMLTemplateResult => {
     return undefined;
   });
 
-  return html`<span>${spans}</span>`;
+  return spans;
 };

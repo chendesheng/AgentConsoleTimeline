@@ -23,7 +23,7 @@ export class JsonTreeItem {
   private _decendentsCountIncludeCollapsed?: number;
   private _hidden?: boolean;
   private _expanded: boolean = false;
-  private _summary?: HTMLTemplateResult;
+  private _summary?: HTMLTemplateResult[];
   constructor(
     public type: JsonType,
     public key: string | number | undefined,
@@ -69,7 +69,7 @@ export class JsonTreeItem {
     return this.key === undefined;
   }
 
-  get summary(): HTMLTemplateResult {
+  get summary(): HTMLTemplateResult[] {
     if (this._summary) return this._summary;
     this._summary = jsonSummary(this.value);
     return this._summary;
