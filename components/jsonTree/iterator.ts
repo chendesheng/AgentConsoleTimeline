@@ -7,6 +7,7 @@ export type TreeItem = {
 export class TreeIterator<T extends { children?: T[] } = TreeItem> {
   private _tree: T;
   private _indexPath: number[];
+  private _path: T[];
 
   private _skip?: (item: T) => boolean;
   private _skipChildren?: (item: T) => boolean;
@@ -18,6 +19,7 @@ export class TreeIterator<T extends { children?: T[] } = TreeItem> {
   ) {
     this._tree = tree;
     this._indexPath = [];
+    this._path = [tree];
     this._skip = skip;
     this._skipChildren = skipChildren;
   }
@@ -26,32 +28,19 @@ export class TreeIterator<T extends { children?: T[] } = TreeItem> {
     return this._skip?.(item) ?? false;
   }
 
-  private getParentItem() {
-    let item: T | undefined = this._tree;
-    for (let i = 0; i < this._indexPath.length - 1; i++) {
-      item = item.children?.[this._indexPath[i]];
-      if (!item) break;
-    }
-    return item;
-  }
-
-  private getItem() {
-    let item: T | undefined = this._tree;
-    for (const i of this._indexPath) {
-      item = item.children?.[i];
-      if (!item) break;
-    }
-    return item;
+  private getParentItem(): T | undefined {
+    return this._path[this._path.length - 2];
   }
 
   private goToParent() {
     if (this._indexPath.length === 0) return false;
     this._indexPath.pop();
+    this._path.pop();
     return true;
   }
 
   private goToChild() {
-    const item = this.getItem();
+    const item = this.current;
     if (!item) return false;
     if (
       !item.children ||
@@ -63,11 +52,12 @@ export class TreeIterator<T extends { children?: T[] } = TreeItem> {
     const i = this.skipForward(item.children, 0);
     if (i === -1) return false;
     this._indexPath.push(i);
+    this._path.push(item.children[i]);
     return true;
   }
 
   private goToRightMostChild() {
-    const item = this.getItem();
+    const item = this.current;
     if (!item) return false;
     if (
       !item.children ||
@@ -79,6 +69,7 @@ export class TreeIterator<T extends { children?: T[] } = TreeItem> {
     const i = this.skipBackward(item.children, item.children.length - 1);
     if (i === -1) return false;
     this._indexPath.push(i);
+    this._path.push(item.children[i]);
     return true;
   }
 
@@ -119,6 +110,7 @@ export class TreeIterator<T extends { children?: T[] } = TreeItem> {
     const j = this.skipForward(this.getParentItem()?.children, i + 1);
     if (j === -1) return false;
     this._indexPath[this._indexPath.length - 1] = j;
+    this._path[this._path.length - 1] = this.getParentItem()!.children![j];
     return true;
   }
 
@@ -129,6 +121,7 @@ export class TreeIterator<T extends { children?: T[] } = TreeItem> {
     const j = this.skipBackward(this.getParentItem()?.children, i - 1);
     if (j === -1) return false;
     this._indexPath[this._indexPath.length - 1] = j;
+    this._path[this._path.length - 1] = this.getParentItem()!.children![j];
     return true;
   }
 
@@ -137,10 +130,12 @@ export class TreeIterator<T extends { children?: T[] } = TreeItem> {
     if (this.goToRightSibling()) return true;
 
     const indexPath = this._indexPath.slice();
+    const path = this._path.slice();
     while (this.goToParent()) {
       if (this.goToRightSibling()) return true;
     }
     this._indexPath = indexPath;
+    this._path = path;
     return false;
   }
 
@@ -155,11 +150,13 @@ export class TreeIterator<T extends { children?: T[] } = TreeItem> {
 
   first() {
     this._indexPath = [];
+    this._path = [this._tree];
     return true;
   }
 
   last() {
     this._indexPath = [];
+    this._path = [this._tree];
     this.goToRightMostDescendant();
     return true;
   }
@@ -181,7 +178,7 @@ export class TreeIterator<T extends { children?: T[] } = TreeItem> {
   }
 
   get current() {
-    return this.getItem()!;
+    return this._path[this._path.length - 1];
   }
 
   get indexPath() {
