@@ -100,7 +100,7 @@ export class JsonTree extends LitElement {
   private _filterButton?: HTMLButtonElement;
 
   private get _expandAll() {
-    return this._showFilter || this._showSearch;
+    return this._showFilter;
   }
 
   @state()
@@ -633,11 +633,14 @@ export class JsonTree extends LitElement {
 
   @state()
   private _pendingSearchResult?: TreeIterator<JsonTreeItem>;
+  private _pendingSearchSavedExpanded?: [JsonTreeItem, boolean][];
+  private _pendingSearchSavedScrollTop?: number;
 
   private acceptPendingSearchResult() {
     this._showSearch = false;
+    this._pendingSearchSavedExpanded = undefined;
     if (this._pendingSearchResult) {
-      for (const item of this._pendingSearchResult.pathItems) {
+      for (const item of this._pendingSearchResult.pathItems.slice(0, -1)) {
         item.expanded = true;
         item.resetDecendentsCountCache();
       }
@@ -646,9 +649,28 @@ export class JsonTree extends LitElement {
     }
   }
 
+  private restorePendingSearchExpanded() {
+    if (this._pendingSearchSavedExpanded) {
+      for (const [item, expanded] of this._pendingSearchSavedExpanded) {
+        item.expanded = expanded;
+        item.resetDecendentsCountCache();
+      }
+
+      this._pendingSearchSavedExpanded = undefined;
+      this.requestUpdate();
+    }
+  }
+
+  private restorePendingSearchScrollTop() {
+    if (this.shadowRoot && this._pendingSearchSavedScrollTop)
+      this.shadowRoot.host.scrollTop = this._pendingSearchSavedScrollTop;
+    this._pendingSearchSavedScrollTop = undefined;
+  }
+
   private runSearch(forward: boolean, accept?: boolean) {
     if (this._search.length === 0) {
-      this._pendingSearchResult = undefined;
+      this.restorePendingSearchExpanded();
+      this.restorePendingSearchScrollTop();
       return;
     }
 
@@ -665,6 +687,20 @@ export class JsonTree extends LitElement {
         this.acceptPendingSearchResult();
       }
     } else if (iter) {
+      this._pendingSearchSavedScrollTop = this.shadowRoot?.host.scrollTop;
+      // restore expanded state
+      this.restorePendingSearchExpanded();
+
+      const items = iter.pathItems.slice(0, -1);
+      this._pendingSearchSavedExpanded = items.map((item) => [
+        item,
+        item.expanded,
+      ]);
+      for (const item of items) {
+        item.expanded = true;
+        item.resetDecendentsCountCache();
+      }
+
       this._pendingSearchResult = iter;
       this.scrollToPath(iter.current.pathStr);
     }
@@ -680,9 +716,9 @@ export class JsonTree extends LitElement {
   private handleSearchInputKeydown(e: KeyboardEvent) {
     e.stopPropagation();
     if (e.key === "Escape") {
-      if (this._selectedPath) this.scrollToPath(this._selectedPath, "top");
-      else this.scrollToTop();
-
+      this.restorePendingSearchExpanded();
+      this.restorePendingSearchScrollTop();
+      this._pendingSearchResult = undefined;
       this._showSearch = false;
     } else if (e.key === "Enter") {
       this.acceptPendingSearchResult();
