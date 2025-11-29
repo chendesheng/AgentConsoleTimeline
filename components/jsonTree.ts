@@ -30,7 +30,6 @@ import {
   jsonToTree,
   getIterator,
   setItemExpanded,
-  getIteratorByIndex,
   sliceItems,
   searchTree,
 } from "./jsonTree/model";
@@ -198,8 +197,9 @@ export class JsonTree extends LitElement {
       user-select: none;
     }
     a.avatar {
-      font-size: 0;
+      width: ${ROW_HEIGHT}px;
       height: ${ROW_HEIGHT}px;
+      display: block;
     }
     a.avatar img {
       border-radius: 100%;
@@ -217,6 +217,11 @@ export class JsonTree extends LitElement {
       position: absolute;
       width: 100%;
       box-sizing: border-box;
+    }
+    .label img {
+      display: block;
+      width: ${ROW_HEIGHT - 2}px;
+      height: ${ROW_HEIGHT - 2}px;
     }
     div[role="treeitem"] {
       line-height: 1.5;
@@ -552,14 +557,7 @@ export class JsonTree extends LitElement {
       this._rowsElement.focus();
       const pathStr = rowElement.getAttribute("data-path")!;
       if (pathStr === "") this.scrollToTop(); // root item
-      else {
-        this.scrollToPath(pathStr);
-        const index = indexOfPathStr(this._tree, this._expandAll, pathStr);
-        if (index === -1) return;
-        this.shadowRoot.host.scrollTop =
-          this.indexToTop(index) - this.getStickyHeight();
-        this.handleScroll();
-      }
+      else this.scrollToPath(pathStr, "top");
       return;
     }
 
@@ -622,8 +620,8 @@ export class JsonTree extends LitElement {
 
   private handleShowSearch(forward: boolean = true) {
     if (this._showFilter) return;
-    this._showSearch = true;
     this._searchForward = forward;
+    this._showSearch = true;
   }
 
   private handleFilterInputKeydown(e: KeyboardEvent) {
@@ -682,7 +680,7 @@ export class JsonTree extends LitElement {
   private handleSearchInputKeydown(e: KeyboardEvent) {
     e.stopPropagation();
     if (e.key === "Escape") {
-      if (this._selectedPath) this.scrollToPath(this._selectedPath);
+      if (this._selectedPath) this.scrollToPath(this._selectedPath, "top");
       else this.scrollToTop();
 
       this._showSearch = false;
@@ -700,7 +698,10 @@ export class JsonTree extends LitElement {
     ) as HTMLElement;
   }
 
-  private scrollToPath(pathStr: string) {
+  private scrollToPath(
+    pathStr: string,
+    position?: "top" | "center" | "bottom",
+  ) {
     if (!this.shadowRoot) return;
 
     const index = indexOfPathStr(this._tree, this._expandAll, pathStr);
@@ -719,10 +720,19 @@ export class JsonTree extends LitElement {
     };
 
     let newScrollTop: number | undefined;
-    if (itemRange.top < visibleRange.top) {
+
+    if (position === "top") {
       newScrollTop = itemRange.top - this.getStickyHeight();
-    } else if (itemRange.bottom >= visibleRange.bottom) {
+    } else if (position === "center") {
+      newScrollTop = itemRange.top - this._visibleHeight / 2 + ROW_HEIGHT / 2;
+    } else if (position === "bottom") {
       newScrollTop = itemRange.bottom - this._visibleHeight;
+    } else {
+      if (itemRange.top < visibleRange.top) {
+        newScrollTop = itemRange.top - this.getStickyHeight();
+      } else if (itemRange.bottom >= visibleRange.bottom) {
+        newScrollTop = itemRange.bottom - this._visibleHeight;
+      }
     }
 
     if (newScrollTop !== undefined) {
@@ -755,28 +765,25 @@ export class JsonTree extends LitElement {
 
   private scrollDownHalfPage() {
     let count = this._visibleRows / 2;
-    let cursor = this._selectedPath;
-    const iter = getIterator(this._tree, this._expandAll, cursor);
+    const iter = getIterator(this._tree, this._expandAll, this._selectedPath);
     while (count > 0) {
-      const value = iter.current;
-      cursor = value.pathStr;
       count--;
       if (!iter.next()) break;
     }
-    this._selectedPath = cursor;
+    this._selectedPath = iter.current.pathStr;
   }
 
   private scrollUpHalfPage() {
     let count = this._visibleRows / 2;
-    let cursor = this._selectedPath;
-    const iter = getIterator(this._tree, this._expandAll, cursor);
+    const iter = getIterator(this._tree, this._expandAll, this._selectedPath);
     while (count > 0) {
-      const value = iter.current;
-      cursor = value.pathStr;
       count--;
       if (!iter.previous()) break;
     }
-    this._selectedPath = cursor;
+    if (iter.current.isRoot) {
+      iter.next();
+    }
+    this._selectedPath = iter.current.pathStr;
   }
 
   private handleKeydown(e: KeyboardEvent) {
@@ -809,16 +816,7 @@ export class JsonTree extends LitElement {
   private centerSelectedItem() {
     if (!this.shadowRoot) return;
     if (!this._selectedPath) return;
-
-    const index = indexOfPathStr(
-      this._tree,
-      this._expandAll,
-      this._selectedPath,
-    );
-    if (index === -1) return;
-    this.shadowRoot.host.scrollTop =
-      this.indexToTop(index) - this._visibleHeight / 2 + ROW_HEIGHT / 2;
-    this.handleScroll();
+    this.scrollToPath(this._selectedPath, "center");
   }
 
   private static keyPrefix(item: JsonTreeItem): string | undefined {
@@ -1251,6 +1249,7 @@ export class JsonTree extends LitElement {
             this._searchInput.select();
           }
         }
+        if (this._selectedPath) this.scrollToPath(this._selectedPath, "center");
       } else {
         this._searchButton?.focus();
         this.requestUpdate();

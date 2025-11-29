@@ -29,7 +29,7 @@ export function leafValueRenderer(
           class="${value.includes("/avatar") ? "avatar" : ""}"
           href="${value}"
           target="_blank"
-          ><img src="${value}" height="${ROW_HEIGHT}" /></a
+          ><img src="${value}" /></a
         >${renderStringLink(value, value)}</span>`;
     } else if (URL.canParse(value)) {
       return renderStringLink(value, value);
@@ -63,7 +63,6 @@ export function leafValueRenderer(
       return html`<img
           class="image-preview"
           src="${`data:image/png;base64,${value}`}"
-          height="${ROW_HEIGHT}"
         /><span class="value string">${JSON.stringify(value)}</span>`;
     } else if (
       /^#[0-9a-fA-F]{6}$/.test(value) ||
