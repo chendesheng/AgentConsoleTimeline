@@ -82,6 +82,11 @@ export class JsonTree extends LitElement {
   @property({ type: Boolean })
   disableTrackingPath = false;
 
+  @property({ type: Boolean })
+  showBreadcrumb = true;
+  @property({ type: Boolean })
+  showActions = true;
+
   @state()
   private _tree!: JsonTreeItem;
   @state()
@@ -609,7 +614,10 @@ export class JsonTree extends LitElement {
     const index = indexOfPathStr(this._tree, this._hasFilter, pathStr);
     if (index === -1) return;
 
-    const itemRange = { top: indexToTop(index), bottom: indexToTop(index + 1) };
+    const itemRange = {
+      top: this.indexToTop(index),
+      bottom: this.indexToTop(index + 1),
+    };
     const visibleRange = {
       top:
         this.shadowRoot.host.scrollTop +
@@ -620,7 +628,7 @@ export class JsonTree extends LitElement {
 
     let newScrollTop: number | undefined;
     if (itemRange.top < visibleRange.top) {
-      newScrollTop = itemRange.top - ACTION_ROW_HEIGHT - BREADCRUMB_ROW_HEIGHT;
+      newScrollTop = itemRange.top - this.getStickyHeight();
     } else if (itemRange.bottom >= visibleRange.bottom) {
       newScrollTop = itemRange.bottom - this._visibleHeight;
     }
@@ -711,7 +719,7 @@ export class JsonTree extends LitElement {
     );
     if (index === -1) return;
     this.shadowRoot.host.scrollTop =
-      indexToTop(index) - this._visibleHeight / 2 + ROW_HEIGHT / 2;
+      this.indexToTop(index) - this._visibleHeight / 2 + ROW_HEIGHT / 2;
     this.handleScroll();
   }
 
@@ -754,7 +762,7 @@ export class JsonTree extends LitElement {
     index: number,
   ): HTMLTemplateResult | undefined {
     const selectedClass = item.pathStr === this._selectedPath ? "selected" : "";
-    const top = indexToTop(this._visibleStartRowIndex + index);
+    const top = this.indexToTop(this._visibleStartRowIndex + index);
     const style = `padding-left: ${item.indent}ch;top: ${top}px;`;
 
     if (item.isLeaf) {
@@ -880,12 +888,18 @@ export class JsonTree extends LitElement {
   @query("div.rows")
   private _rowsElement!: HTMLDivElement;
 
+  private getStickyHeight(): number {
+    return (
+      (this.showActions ? ACTION_ROW_HEIGHT : 0) +
+      (this.showBreadcrumb ? BREADCRUMB_ROW_HEIGHT : 0)
+    );
+  }
+
   render() {
     if (!this._tree || !this._tree.children || this._tree.children.length === 0)
       return html``;
     this._totalRows = totalRows(this._tree, this._hasFilter);
-    const height =
-      ACTION_ROW_HEIGHT + BREADCRUMB_ROW_HEIGHT + this._totalRows * ROW_HEIGHT;
+    const height = this.getStickyHeight() + this._totalRows * ROW_HEIGHT;
     return html`<div
       class="rows"
       style="height: ${height}px;"
@@ -893,7 +907,8 @@ export class JsonTree extends LitElement {
       @keydown=${this.handleKeydown}
       @click=${this.handleClick}
     >
-      ${this.renderActions()} ${this.renderBreadcrumb()}
+      ${this.showActions ? this.renderActions() : undefined}
+      ${this.showBreadcrumb ? this.renderBreadcrumb() : undefined}
       ${repeat(
         sliceItems(
           this._tree,
@@ -1033,6 +1048,9 @@ export class JsonTree extends LitElement {
       }
     }
   }
+  private indexToTop(index: number): number {
+    return this.getStickyHeight() + index * ROW_HEIGHT;
+  }
 }
 
 const getRowElement = (ele: Node): HTMLElement | undefined => {
@@ -1043,10 +1061,6 @@ const getRowElement = (ele: Node): HTMLElement | undefined => {
     }
     p = p.parentNode;
   }
-};
-
-const indexToTop = (index: number) => {
-  return ACTION_ROW_HEIGHT + BREADCRUMB_ROW_HEIGHT + index * ROW_HEIGHT;
 };
 
 const hasParent = (ele: Node, parentClass: string) => {

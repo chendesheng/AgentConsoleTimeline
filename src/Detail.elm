@@ -122,8 +122,8 @@ detailTabs selected entry =
             detailTabsByEntryKind (Har.getEntryKind entry)
 
 
-jsonViewer : Bool -> Int -> String -> Bool -> List String -> String -> Html DetailMsg
-jsonViewer initialExpanded initialIndent className disableTrackingPath trackedPaths json =
+jsonViewer : Bool -> Int -> String -> Bool -> Bool -> Bool -> List String -> String -> Html DetailMsg
+jsonViewer initialExpanded initialIndent className showBreadcrumb showActions disableTrackingPath trackedPaths json =
     Html.node "json-tree"
         [ class className
         , property "data" <| Encode.string json
@@ -131,6 +131,8 @@ jsonViewer initialExpanded initialIndent className disableTrackingPath trackedPa
         , property "initialExpanded" <| Encode.bool initialExpanded
         , property "trackedPaths" <| Encode.list Encode.string trackedPaths
         , property "disableTrackingPath" <| Encode.bool disableTrackingPath
+        , property "showBreadcrumb" <| Encode.bool showBreadcrumb
+        , property "showActions" <| Encode.bool showActions
         , on "togglePath" <| Decode.map ClickStatePath (Decode.field "detail" Decode.string)
         ]
         []
@@ -287,14 +289,14 @@ svgViewer svg =
         []
 
 
-jsonDataViewer : DetailViewTool -> Bool -> Int -> Bool -> String -> Bool -> List String -> String -> Html DetailMsg
-jsonDataViewer tool initialExpanded initialIndent format className disableTrackingPath trackedPaths json =
+jsonDataViewer : DetailViewTool -> Bool -> Int -> Bool -> String -> Bool -> Bool -> Bool -> List String -> String -> Html DetailMsg
+jsonDataViewer tool initialExpanded initialIndent format className showBreadcrumb showActions disableTrackingPath trackedPaths json =
     case tool of
         Raw ->
             codeEditor "json" format json
 
         _ ->
-            jsonViewer initialExpanded initialIndent className disableTrackingPath trackedPaths json
+            jsonViewer initialExpanded initialIndent className showBreadcrumb showActions disableTrackingPath trackedPaths json
 
 
 agentConsoleSnapshotPlayer : Bool -> List Har.Entry -> String -> Maybe String -> List String -> Html DetailMsg
@@ -434,7 +436,7 @@ requestHeaderKeyValue { name, value } =
                     [ text value
                     , case parseToken value of
                         Ok v ->
-                            jsonViewer False 0 "" True [] <| "{\"payload\":" ++ v ++ "}"
+                            jsonViewer False 0 "" False False True [] <| "{\"payload\":" ++ v ++ "}"
 
                         _ ->
                             text ""
@@ -443,7 +445,7 @@ requestHeaderKeyValue { name, value } =
             else if String.toLower name == "cookie" then
                 div []
                     [ text value
-                    , jsonViewer False 0 "" True [] <| "{\"payload\":" ++ parseCookies value ++ "}"
+                    , jsonViewer False 0 "" False False True [] <| "{\"payload\":" ++ parseCookies value ++ "}"
                     ]
 
             else
@@ -655,6 +657,8 @@ responseView tool entry trackedPaths =
                         2
                         (entryKind /= NetworkHttp)
                         "detail-body"
+                        True
+                        True
                         (entryKind /= ReduxState)
                         trackedPaths
                         t
@@ -789,7 +793,7 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
                     LogMessage ->
                         entry
                             |> Har.getLogMessage
-                            |> Maybe.map (jsonViewer True 2 "detail-body" True [])
+                            |> Maybe.map (jsonViewer True 2 "detail-body" True True True [])
                             |> Maybe.withDefault noContent
 
                     _ ->
@@ -806,7 +810,7 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
                     _ ->
                         entry
                             |> Har.getRequestBody
-                            |> Maybe.map (jsonDataViewer tool True 2 True "detail-body" True trackedPaths)
+                            |> Maybe.map (jsonDataViewer tool True 2 True "detail-body" True True True trackedPaths)
                             |> Maybe.withDefault noContent
 
             Response ->
