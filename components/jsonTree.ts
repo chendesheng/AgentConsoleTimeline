@@ -549,6 +549,7 @@ export class JsonTree extends LitElement {
 
     if (hasParent(rowElement, "breadcrumb")) {
       if (!this.shadowRoot) return;
+      this._rowsElement.focus();
       const pathStr = rowElement.getAttribute("data-path")!;
       if (pathStr === "") this.scrollToTop(); // root item
       else this.scrollToPath(pathStr);
