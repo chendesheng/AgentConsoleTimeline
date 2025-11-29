@@ -524,12 +524,12 @@ export class JsonTree extends LitElement {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      pointer-events: none;
+      user-select: none;
     }
     .search-result-highlight {
       background: var(--search-highlight-background-color-active);
       color: var(--search-highlight-text-color-active);
-      pointer-events: none;
-      user-select: none;
     }
   `;
 
