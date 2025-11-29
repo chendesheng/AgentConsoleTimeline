@@ -32,10 +32,12 @@ import {
   setItemExpanded,
   getIteratorByIndex,
   sliceItems,
+  searchTree,
 } from "./jsonTree/model";
 import { tryParseNestedJson } from "./jsonTree/nested";
 import { productionPlatformsPrefixes } from "./domains";
 import { KeymapManager } from "./jsonTree/keymap";
+import { TreeIterator } from "./jsonTree/iterator";
 
 function escapeRegExp(str: string) {
   return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
@@ -91,16 +93,26 @@ export class JsonTree extends LitElement {
   private _tree!: JsonTreeItem;
   @state()
   private _showFilter = false;
-  @query("div.actions input")
-  private _input?: HTMLInputElement;
-  private get _hasFilter() {
-    return !!this._input?.value?.length;
-  }
+  @query("div.actions input.filter")
+  private _filterInput?: HTMLInputElement;
   @state()
   private _filter = "";
   @query("div.actions button.filter")
   private _filterButton?: HTMLButtonElement;
 
+  private get _expandAll() {
+    return this._showFilter || this._showSearch;
+  }
+
+  @state()
+  private _showSearch = false;
+  @state()
+  private _search = "";
+  private _searchForward = true;
+  @query("div.actions input.search")
+  private _searchInput?: HTMLInputElement;
+  @query("div.actions button.search")
+  private _searchButton?: HTMLButtonElement;
   @state()
   private _visibleStartRowIndex = 0;
   @state()
@@ -112,7 +124,7 @@ export class JsonTree extends LitElement {
   private selectNextPath() {
     this._selectedPath = getNextItem(
       this._tree,
-      this._hasFilter,
+      this._expandAll,
       this._selectedPath,
     )?.pathStr;
   }
@@ -120,7 +132,7 @@ export class JsonTree extends LitElement {
   private selectPreviousPath() {
     this._selectedPath = getPreviousItem(
       this._tree,
-      this._hasFilter,
+      this._expandAll,
       this._selectedPath,
     )?.pathStr;
   }
@@ -158,6 +170,7 @@ export class JsonTree extends LitElement {
       },
     );
     this._showFilter = false;
+    this._showSearch = false;
   }
 
   static styles = css`
@@ -502,6 +515,22 @@ export class JsonTree extends LitElement {
     .breadcrumb .label.selected {
       background-color: unset !important;
     }
+    .search-result {
+      position: absolute;
+      height: ${ROW_HEIGHT}px;
+      line-height: ${ROW_HEIGHT}px;
+      display: flex;
+      align-items: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .search-result-highlight {
+      background: var(--search-highlight-background-color-active);
+      color: var(--search-highlight-text-color-active);
+      pointer-events: none;
+      user-select: none;
+    }
   `;
 
   private toggleExpandByPathStr(pathStr?: string, forceExpanded?: boolean) {
@@ -569,33 +598,92 @@ export class JsonTree extends LitElement {
     this._tree.expanded = true;
     this.requestUpdate();
   }
-  private handleInput(e: Event) {
+  private handleFilterInput(e: Event) {
     e.stopPropagation();
     if (!this._showFilter) return;
-    if (this._input?.value?.length === 0) {
+    if (this._filterInput?.value?.length === 0) {
       clearFilter(this._tree);
       this.requestUpdate();
       return;
     }
 
     const input = e.target as HTMLInputElement;
-    const hasCapitalLetter = input.value.match(/[A-Z]/);
-    const filter = new RegExp(
-      escapeRegExp(input.value),
-      hasCapitalLetter ? "" : "i",
-    );
-    filterTree(this._tree, filter);
+    filterTree(this._tree, createRegex(input.value));
     this.requestUpdate();
   }
 
   private handleShowFilter() {
+    if (this._showSearch) return;
     this._showFilter = true;
+  }
+
+  private handleShowSearch(forward: boolean = true) {
+    if (this._showFilter) return;
+    this._showSearch = true;
+    this._searchForward = forward;
   }
 
   private handleFilterInputKeydown(e: KeyboardEvent) {
     e.stopPropagation();
     if (e.key === "Escape") {
       this._showFilter = false;
+    }
+  }
+
+  @state()
+  private _pendingSearchResult?: TreeIterator<JsonTreeItem>;
+
+  private acceptPendingSearchResult() {
+    this._showSearch = false;
+    if (this._pendingSearchResult) {
+      for (const item of this._pendingSearchResult.pathItems) {
+        item.expanded = true;
+        item.resetDecendentsCountCache();
+      }
+      this.requestUpdate();
+      this._selectedPath = this._pendingSearchResult.current.pathStr;
+    }
+  }
+
+  private runSearch(forward: boolean, accept?: boolean) {
+    if (this._search.length === 0) {
+      this._pendingSearchResult = undefined;
+      return;
+    }
+
+    const iter = searchTree(
+      this._tree,
+      createRegex(this._search),
+      forward,
+      this._selectedPath,
+    );
+
+    if (accept) {
+      if (iter) {
+        this.acceptPendingSearchResult();
+      }
+    } else if (iter) {
+      this._pendingSearchResult = iter;
+      this.scrollToPath(iter.current.pathStr);
+    }
+  }
+
+  private handleSearchInput(e: Event) {
+    e.stopPropagation();
+    if (!this._showSearch) return;
+    const input = e.target as HTMLInputElement;
+    this._search = input.value;
+  }
+
+  private handleSearchInputKeydown(e: KeyboardEvent) {
+    e.stopPropagation();
+    if (e.key === "Escape") {
+      if (this._selectedPath) this.scrollToPath(this._selectedPath);
+      else this.scrollToTop();
+
+      this._showSearch = false;
+    } else if (e.key === "Enter") {
+      this.acceptPendingSearchResult();
     }
   }
 
@@ -611,7 +699,7 @@ export class JsonTree extends LitElement {
   private scrollToPath(pathStr: string, offset: number = 0) {
     if (!this.shadowRoot) return;
 
-    const index = indexOfPathStr(this._tree, this._hasFilter, pathStr);
+    const index = indexOfPathStr(this._tree, this._expandAll, pathStr);
     if (index === -1) return;
 
     const itemRange = {
@@ -664,7 +752,7 @@ export class JsonTree extends LitElement {
   private scrollDownHalfPage() {
     let count = this._visibleRows / 2;
     let cursor = this._selectedPath;
-    const iter = getIterator(this._tree, this._hasFilter, cursor);
+    const iter = getIterator(this._tree, this._expandAll, cursor);
     while (count > 0) {
       const value = iter.current;
       cursor = value.pathStr;
@@ -677,7 +765,7 @@ export class JsonTree extends LitElement {
   private scrollUpHalfPage() {
     let count = this._visibleRows / 2;
     let cursor = this._selectedPath;
-    const iter = getIterator(this._tree, this._hasFilter, cursor);
+    const iter = getIterator(this._tree, this._expandAll, cursor);
     while (count > 0) {
       const value = iter.current;
       cursor = value.pathStr;
@@ -695,16 +783,22 @@ export class JsonTree extends LitElement {
   }
 
   private goToFirstItem() {
-    this._selectedPath = getFirstItem(this._tree, this._hasFilter)?.pathStr;
+    this._selectedPath = getFirstItem(this._tree, this._expandAll)?.pathStr;
   }
 
   private goToLastItem() {
-    this._selectedPath = getLastItem(this._tree, this._hasFilter)?.pathStr;
+    this._selectedPath = getLastItem(this._tree, this._expandAll)?.pathStr;
   }
 
-  private handleBlur(e: Event) {
-    if (this._input?.value?.length === 0) {
+  private handleFilterInputBlur(e: Event) {
+    if (this._filterInput?.value?.length === 0) {
       this._showFilter = false;
+    }
+  }
+
+  private handleSearchInputBlur(e: Event) {
+    if (this._searchInput?.value?.length === 0) {
+      this._showSearch = false;
     }
   }
 
@@ -714,7 +808,7 @@ export class JsonTree extends LitElement {
 
     const index = indexOfPathStr(
       this._tree,
-      this._hasFilter,
+      this._expandAll,
       this._selectedPath,
     );
     if (index === -1) return;
@@ -794,7 +888,7 @@ export class JsonTree extends LitElement {
       }
     }
 
-    const expanded = item.expanded || this._hasFilter;
+    const expanded = item.expanded || this._expandAll;
 
     return html`
       <button
@@ -834,6 +928,50 @@ export class JsonTree extends LitElement {
     `;
   }
 
+  renderPendingSearchResult() {
+    if (!this._pendingSearchResult) return;
+
+    const item = this._pendingSearchResult.current;
+    const index = indexOfPathStr(this._tree, this._expandAll, item.pathStr);
+    console.log("index", index, "pathStr", item.pathStr);
+    const top = this.indexToTop(index);
+    const style = `padding-left: calc(${item.indent}ch + 1.2em + 16px);top: ${top}px;`;
+    const re = createRegex(this._search);
+
+    const keyPrefix = JsonTree.keyPrefix(item)!;
+    const keyIndex = keyPrefix?.match(re)?.index;
+    if (keyIndex !== undefined) {
+      return html`
+        <div class="search-result" style=${style}>
+          <span style="visibility: hidden;"
+            >${keyPrefix.slice(0, keyIndex)}</span
+          ><span class="search-result-highlight"
+            >${keyPrefix.slice(keyIndex, keyIndex + this._search.length)}</span
+          >
+        </div>
+      `;
+    }
+
+    if (item.isLeaf) {
+      const valueIndex = (item.value.toString() as string).match(re)?.index;
+      if (valueIndex !== undefined) {
+        return html`
+          <div class="search-result" style=${style}>
+            <span style="visibility: hidden;"
+              >${JsonTree.keyPrefix(item)}${item.value
+                .toString()
+                .slice(0, index)}</span
+            ><span class="search-result-highlight"
+              >${item.value
+                .toString()
+                .slice(index, index + this._search.length)}</span
+            >
+          </div>
+        `;
+      }
+    }
+  }
+
   renderActions() {
     return html`<div
       class="actions"
@@ -841,11 +979,21 @@ export class JsonTree extends LitElement {
     >
       ${this._showFilter
         ? html`<input
+            class="filter"
             type="search"
-            @input="${this.handleInput}"
+            @input="${this.handleFilterInput}"
             @keydown="${this.handleFilterInputKeydown}"
-            @blur="${this.handleBlur}"
+            @blur="${this.handleFilterInputBlur}"
             placeholder="Filter"
+          />`
+        : this._showSearch
+        ? html`<input
+            class="search"
+            type="search"
+            @input="${this.handleSearchInput}"
+            @keydown="${this.handleSearchInputKeydown}"
+            @blur="${this.handleSearchInputBlur}"
+            placeholder="Search"
           />`
         : html`
             <button tabindex="0" @click=${this.handleCopy}>Copy</button>
@@ -855,6 +1003,9 @@ export class JsonTree extends LitElement {
             <button tabindex="0" @click=${this.handleExpandAll}>Expand</button>
             <button tabindex="0" class="filter" @click=${this.handleShowFilter}>
               Filter
+            </button>
+            <button tabindex="0" class="search" @click=${this.handleShowSearch}>
+              Search
             </button>
             <button tabindex="0" @click=${this.handleParseNestedJson}>
               ${this._showNestedJson ? "⊟Nested" : "⊞Nested"}
@@ -868,13 +1019,13 @@ export class JsonTree extends LitElement {
     const iter = getIteratorByIndex(
       this._tree,
       Math.max(0, this._visibleStartRowIndex - 1),
-      this._hasFilter,
+      this._expandAll,
     );
     if (!iter) return;
 
     const items =
       this._visibleStartRowIndex <= 1 ||
-      iter.current.isNoOrHideChildren(this._hasFilter)
+      iter.current.isNoOrHideChildren(this._expandAll)
         ? iter.pathItems.slice(0, -1)
         : iter.pathItems;
     if (items.length === 0) return;
@@ -898,7 +1049,7 @@ export class JsonTree extends LitElement {
   render() {
     if (!this._tree || !this._tree.children || this._tree.children.length === 0)
       return html``;
-    this._totalRows = totalRows(this._tree, this._hasFilter);
+    this._totalRows = totalRows(this._tree, this._expandAll);
     const height = this.getStickyHeight() + this._totalRows * ROW_HEIGHT;
     return html`<div
       class="rows"
@@ -912,13 +1063,14 @@ export class JsonTree extends LitElement {
       ${repeat(
         sliceItems(
           this._tree,
-          this._hasFilter,
+          this._expandAll,
           this._visibleStartRowIndex,
           this._visibleRows,
         ),
         (item) => item.pathStr,
         this.renderItem,
       )}
+      ${this.renderPendingSearchResult()}
     </div>`;
   }
 
@@ -1002,6 +1154,34 @@ export class JsonTree extends LitElement {
         keys: ["z", "z"],
         action: () => this.centerSelectedItem(),
       },
+      {
+        keys: ["/"],
+        action: () => this.handleShowSearch(true),
+      },
+      {
+        keys: ["?"],
+        action: () => this.handleShowSearch(false),
+      },
+      {
+        keys: ["n"],
+        action: () => {
+          this.runSearch(this._searchForward, true);
+        },
+      },
+      {
+        keys: ["N"],
+        action: () => {
+          this.runSearch(!this._searchForward, true);
+        },
+      },
+      {
+        keys: ["Escape"],
+        action: () => {
+          if (this._pendingSearchResult) {
+            this._pendingSearchResult = undefined;
+          }
+        },
+      },
     );
   }
 
@@ -1014,10 +1194,14 @@ export class JsonTree extends LitElement {
   update(changedProperties: PropertyValues): void {
     if (changedProperties.has("_showFilter")) {
       if (!this._showFilter) {
-        this._filter = this._input?.value || "";
+        this._filter = this._filterInput?.value || "";
       }
-    } else if (changedProperties.has("_selectedPath")) {
-      if (this._selectedPath) this.scrollToPath(this._selectedPath);
+    } else if (changedProperties.has("_showSearch")) {
+      if (!this._showSearch) {
+        this._search = this._searchInput?.value || "";
+      }
+    } else if (changedProperties.has("_search")) {
+      this.runSearch(this._searchForward);
     }
     super.update(changedProperties);
   }
@@ -1030,20 +1214,39 @@ export class JsonTree extends LitElement {
       this.generateTree();
     } else if (changedProperties.has("_selectedPath")) {
       this._rowsElement.focus();
+      if (this._selectedPath) this.scrollToPath(this._selectedPath);
     } else if (changedProperties.has("_showFilter")) {
       if (this._showFilter) {
-        if (this._input) {
-          this._input.focus();
+        if (this._filterInput) {
+          this._filterInput.focus();
           if (this._filter.length > 0) {
-            this._input.value = this._filter;
+            this._filterInput.value = this._filter;
             // apply filter by triggering input event
-            this._input.dispatchEvent(new Event("input", { bubbles: true }));
-            this._input.select();
+            this._filterInput.dispatchEvent(
+              new Event("input", { bubbles: true }),
+            );
+            this._filterInput.select();
           }
         }
       } else {
         this._filterButton?.focus();
         clearFilter(this._tree);
+        this.requestUpdate();
+      }
+    } else if (changedProperties.has("_showSearch")) {
+      if (this._showSearch) {
+        if (this._searchInput) {
+          this._searchInput.focus();
+          if (this._search.length > 0) {
+            this._searchInput.value = this._search;
+            this._searchInput.dispatchEvent(
+              new Event("input", { bubbles: true }),
+            );
+            this._searchInput.select();
+          }
+        }
+      } else {
+        this._searchButton?.focus();
         this.requestUpdate();
       }
     }
@@ -1072,4 +1275,9 @@ const hasParent = (ele: Node, parentClass: string) => {
     p = p.parentNode;
   }
   return false;
+};
+
+const createRegex = (value: string) => {
+  const hasCapitalLetter = value.match(/[A-Z]/);
+  return new RegExp(escapeRegExp(value), hasCapitalLetter ? "" : "i");
 };

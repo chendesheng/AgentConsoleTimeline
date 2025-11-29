@@ -116,25 +116,32 @@ export class JsonTreeItem {
     this._decendentsCountIncludeCollapsed = undefined;
   }
 
-  isMatchTreeItem(filter: RegExp) {
+  isMatchTreeItem(re: RegExp) {
     if (this.isRoot) return true;
 
-    if (typeof this.key === "number" && this.key === +filter.source) {
+    if (typeof this.key === "number" && this.key === +re.source) {
       return true;
-    } else if (typeof this.key === "string" && filter.test(this.key)) {
+    } else if (typeof this.key === "string" && re.test(this.key)) {
       return true;
     } else if (typeof this.value === "string") {
-      return filter.test(this.value);
-    } else if (
-      typeof this.value === "number" &&
-      this.value === +filter.source
-    ) {
+      return re.test(this.value);
+    } else if (typeof this.value === "number" && this.value === +re.source) {
       return true;
     } else if (
       typeof this.value === "boolean" &&
-      ((this.value && filter.source === "true") ||
-        (!this.value && filter.source === "false"))
+      ((this.value && re.source === "true") ||
+        (!this.value && re.source === "false"))
     ) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  isMatchKey(re: RegExp) {
+    if (typeof this.key === "number" && this.key === +re.source) {
+      return true;
+    } else if (typeof this.key === "string" && re.test(this.key)) {
       return true;
     } else {
       return false;
@@ -173,6 +180,21 @@ export function clearFilter(tree: JsonTreeItem) {
   if (tree.children) {
     for (const child of tree.children) {
       clearFilter(child);
+    }
+  }
+}
+
+export function searchTree(
+  tree: JsonTreeItem,
+  re: RegExp,
+  forward: boolean,
+  startPathStr?: string,
+) {
+  const iter = new TreeIterator(tree);
+  if (startPathStr) forwardToPath(iter, startPathStr);
+  while (forward ? iter.next() : iter.previous()) {
+    if (iter.current.isMatchKey(re)) {
+      return iter;
     }
   }
 }
@@ -316,28 +338,29 @@ function createIterator(tree: JsonTreeItem, hasFilter: boolean) {
   );
 }
 
+function forwardToPath(iter: TreeIterator<JsonTreeItem>, pathStr: string) {
+  const path = pathStr.split(".");
+  const exist = iter.forward((item, indexPath) => {
+    if (item.isRoot) return "child";
+    if (item.isKey(path[0])) {
+      path.shift();
+      return path.length === 0 ? "stop" : "child";
+    }
+    return "sibling";
+  });
+
+  if (!exist) {
+    iter.first() && iter.next();
+  }
+}
+
 export function getIterator(
   tree: JsonTreeItem,
   hasFilter: boolean,
   startPath?: string,
 ) {
   const iter = createIterator(tree, hasFilter);
-
-  if (startPath) {
-    const path = startPath.split(".");
-    const exist = iter.forward((item, indexPath) => {
-      if (item.isRoot) return "child";
-      if (item.isKey(path[0])) {
-        path.shift();
-        return path.length === 0 ? "stop" : "child";
-      }
-      return "sibling";
-    });
-
-    if (!exist) {
-      iter.first() && iter.next();
-    }
-  }
+  if (startPath) forwardToPath(iter, startPath);
   return iter;
 }
 
