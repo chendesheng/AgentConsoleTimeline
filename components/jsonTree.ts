@@ -1222,12 +1222,37 @@ export class JsonTree extends LitElement {
           }
         },
       },
+      {
+        keys: ["ctrl+y"],
+        action: () => {
+          if (this.shadowRoot) {
+            const index = Math.floor(
+              this.shadowRoot.host.scrollTop / ROW_HEIGHT,
+            );
+            this.shadowRoot.host.scrollTop =
+              Math.max(index - 1, 0) * ROW_HEIGHT;
+          }
+        },
+      },
+      {
+        keys: ["ctrl+e"],
+        action: () => {
+          if (this.shadowRoot) {
+            const index = Math.floor(
+              this.shadowRoot.host.scrollTop / ROW_HEIGHT,
+            );
+            this.shadowRoot.host.scrollTop = (index + 1) * ROW_HEIGHT;
+          }
+        },
+      },
     );
   }
 
   private handleScroll() {
+    if (!this.shadowRoot) return;
+
     this._visibleStartRowIndex = Math.floor(
-      this.shadowRoot!.host.scrollTop / ROW_HEIGHT,
+      this.shadowRoot.host.scrollTop / ROW_HEIGHT,
     );
   }
 
