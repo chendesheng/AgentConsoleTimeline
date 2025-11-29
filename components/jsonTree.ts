@@ -124,7 +124,6 @@ export class JsonTree extends LitElement {
     this._showNestedJson = !this._showNestedJson;
   }
 
-  private _renderRowIndex = 0;
   private _totalRows = 0;
 
   private generateTree() {
@@ -683,11 +682,13 @@ export class JsonTree extends LitElement {
     ></button>`;
   }
 
-  protected renderItem(item: JsonTreeItem): HTMLTemplateResult | undefined {
+  protected renderItem(
+    item: JsonTreeItem,
+    index: number,
+  ): HTMLTemplateResult | undefined {
     const selectedClass = item.pathStr === this._selectedPath ? "selected" : "";
-    const top = indexToTop(this._visibleStartRowIndex + this._renderRowIndex);
+    const top = indexToTop(this._visibleStartRowIndex + index);
     const style = `padding-left: ${item.indent}ch;top: ${top}px;`;
-    this._renderRowIndex++;
 
     if (item.isLeaf) {
       if (typeof item.key === "number") {
@@ -789,7 +790,6 @@ export class JsonTree extends LitElement {
   render() {
     if (!this._tree || !this._tree.children || this._tree.children.length === 0)
       return html``;
-    this._renderRowIndex = 0;
     this._totalRows = totalRows(this._tree, this._hasFilter);
     // console.log("this._totalRows", this._totalRows);
     const height = ACTION_ROW_HEIGHT + this._totalRows * ROW_HEIGHT;
