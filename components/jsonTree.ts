@@ -655,6 +655,7 @@ export class JsonTree extends LitElement {
 
     if (accept) {
       if (iter) {
+        this._pendingSearchResult = iter;
         this.acceptPendingSearchResult();
       }
     } else if (iter) {
@@ -923,10 +924,11 @@ export class JsonTree extends LitElement {
     `;
   }
 
-  renderPendingSearchResult() {
+  renderPendingSearchResult(visibleItems: JsonTreeItem[]) {
     if (!this._pendingSearchResult) return;
-
     const item = this._pendingSearchResult.current;
+    if (!visibleItems.includes(item)) return;
+
     const index = indexOfPathStr(this._tree, this._expandAll, item.pathStr);
     console.log("index", index, "pathStr", item.pathStr);
     const top = this.indexToTop(index);
@@ -1046,6 +1048,14 @@ export class JsonTree extends LitElement {
       return html``;
     this._totalRows = totalRows(this._tree, this._expandAll);
     const height = this.getStickyHeight() + this._totalRows * ROW_HEIGHT;
+    const visibleItems = Array.from(
+      sliceItems(
+        this._tree,
+        this._expandAll,
+        this._visibleStartRowIndex,
+        this._visibleRows,
+      ),
+    );
     return html`<div
       class="rows"
       style="height: ${height}px;"
@@ -1055,17 +1065,8 @@ export class JsonTree extends LitElement {
     >
       ${this.showActions ? this.renderActions() : undefined}
       ${this.showBreadcrumb ? this.renderBreadcrumb() : undefined}
-      ${repeat(
-        sliceItems(
-          this._tree,
-          this._expandAll,
-          this._visibleStartRowIndex,
-          this._visibleRows,
-        ),
-        (item) => item.pathStr,
-        this.renderItem,
-      )}
-      ${this.renderPendingSearchResult()}
+      ${repeat(visibleItems, (item) => item.pathStr, this.renderItem)}
+      ${this.renderPendingSearchResult(visibleItems)}
     </div>`;
   }
 
