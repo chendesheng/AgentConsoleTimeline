@@ -91,7 +91,7 @@ export class JsonTree extends LitElement {
   }
   @state()
   private _filter = "";
-  @query("div.actions button:last-child")
+  @query("div.actions button.filter")
   private _filterButton?: HTMLButtonElement;
 
   @state()
@@ -773,7 +773,9 @@ export class JsonTree extends LitElement {
               Collapse
             </button>
             <button tabindex="0" @click=${this.handleExpandAll}>Expand</button>
-            <button tabindex="0" @click=${this.handleShowFilter}>Filter</button>
+            <button tabindex="0" class="filter" @click=${this.handleShowFilter}>
+              Filter
+            </button>
             <button tabindex="0" @click=${this.handleParseNestedJson}>
               ${this._showNestedJson ? "⊟Nested" : "⊞Nested"}
             </button>
