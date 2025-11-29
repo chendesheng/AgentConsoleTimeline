@@ -5,6 +5,7 @@ import { TreeIterator } from "./iterator";
 
 export const ROW_HEIGHT = 18;
 export const ACTION_ROW_HEIGHT = 20;
+export const BREADCRUMB_ROW_HEIGHT = 24;
 
 export type JsonType =
   | "array"
@@ -28,6 +29,7 @@ export class JsonTreeItem {
   constructor(
     public type: JsonType,
     public key: string | number | undefined,
+    public numberKeyWidth: number | undefined,
     public indent: number,
     public path: string[],
     public pathStr: string,
@@ -138,6 +140,13 @@ export class JsonTreeItem {
       return false;
     }
   }
+
+  isNoOrHideChildren(hasFilter: boolean): boolean {
+    if (this.children === undefined || this.children.length === 0) return true;
+    if (hasFilter) return false;
+    if (this.expanded) return false;
+    return true;
+  }
 }
 
 export function filterTree(tree: JsonTreeItem, filter: RegExp) {
@@ -199,6 +208,11 @@ function getItemsOfPath(tree: JsonTreeItem, path: string[]) {
   return result;
 }
 
+export function getItemsOfPathStr(tree: JsonTreeItem, pathStr: string) {
+  const path = pathStr.split(".");
+  return getItemsOfPath(tree, path);
+}
+
 export function getItemByPath(
   tree: JsonTreeItem,
   path: string[],
@@ -219,20 +233,48 @@ function getItemByIndex(
   tree: JsonTreeItem,
   index: number,
   hasFilter: boolean,
+  itemsPath: JsonTreeItem[],
+  indexPath: number[],
 ): JsonTreeItem | undefined {
+  if (itemsPath) itemsPath.push(tree);
+
   if (tree.children) {
     let i = 0;
-    for (const child of tree.children) {
+    for (let k = 0; k < tree.children.length; k++) {
+      const child = tree.children[k];
       const j = i + child.getDecendentsCount(hasFilter);
 
       if (i === index && !child.hidden) {
+        indexPath.push(k);
+        itemsPath.push(child);
         return child;
       } else if (i < index && index < j) {
-        return getItemByIndex(child, index - i - 1, hasFilter);
+        indexPath.push(k);
+        return getItemByIndex(
+          child,
+          index - i - 1,
+          hasFilter,
+          itemsPath,
+          indexPath,
+        );
       }
 
       i = j;
     }
+  }
+}
+
+export function getIteratorByIndex(
+  tree: JsonTreeItem,
+  index: number,
+  hasFilter: boolean,
+) {
+  const itemsPath: JsonTreeItem[] = [];
+  const indexPath: number[] = [];
+  if (getItemByIndex(tree, index, hasFilter, itemsPath, indexPath)) {
+    const iter = createIterator(tree, hasFilter);
+    iter.reset(itemsPath, indexPath);
+    return iter;
   }
 }
 
@@ -351,10 +393,8 @@ export function* sliceItems(
   startIndex: number,
   length: number,
 ) {
-  const startItem = getItemByIndex(tree, startIndex, hasFilter);
-  if (!startItem) return;
-
-  const iter = getIterator(tree, hasFilter, startItem.pathStr);
+  const iter = getIteratorByIndex(tree, startIndex, hasFilter);
+  if (!iter) return;
   for (let i = 0; i < length; i++) {
     yield iter.current;
     if (!iter.next()) break;
@@ -403,10 +443,13 @@ export const jsonToTree = (
   const nextIndent = Array.isArray(options.parentJson)
     ? indent + options.parentJson.length.toString().length + 5
     : indent + 2;
-
+  const numberKeyWidth = Array.isArray(options.parentJson)
+    ? options.parentJson.length.toString().length + 1
+    : undefined;
   const item = new JsonTreeItem(
     jsonType(json),
     key,
+    numberKeyWidth,
     indent,
     path,
     pathStr,

@@ -184,4 +184,25 @@ export class TreeIterator<T extends { children?: T[] } = TreeItem> {
   get indexPath() {
     return this._indexPath;
   }
+
+  reset(itemsPath: T[], indexPath: number[]) {
+    this._path = itemsPath;
+    this._indexPath = indexPath;
+  }
+
+  get pathItems() {
+    return this._path;
+  }
+
+  nextN(length: number) {
+    for (let i = 0; i < length; i++) {
+      if (!this.next()) break;
+    }
+  }
+
+  previousN(length: number) {
+    for (let i = 0; i < length; i++) {
+      if (!this.previous()) break;
+    }
+  }
 }

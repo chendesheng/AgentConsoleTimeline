@@ -14,6 +14,7 @@ import circleIcon from "../assets/images/Circle.svg";
 import { sort as sortKeys } from "json-keys-sort";
 import {
   ACTION_ROW_HEIGHT,
+  BREADCRUMB_ROW_HEIGHT,
   clearFilter,
   filterTree,
   getFirstItem,
@@ -26,10 +27,11 @@ import {
   ROW_HEIGHT,
   setExpanded,
   totalRows,
-  sliceItems,
   jsonToTree,
   getIterator,
   setItemExpanded,
+  getIteratorByIndex,
+  sliceItems,
 } from "./jsonTree/model";
 import { tryParseNestedJson } from "./jsonTree/nested";
 import { productionPlatformsPrefixes } from "./domains";
@@ -242,7 +244,9 @@ export class JsonTree extends LitElement {
       background: url("${unsafeCSS(typeIcons)}#TypeObject-dark");
     }
     .icon.array {
-      background: url("${unsafeCSS(typeIcons)}#TypeObject-dark");
+      background: url("${unsafeCSS(
+        typeIcons,
+      )}#TimelineRecordCSSAnimation-dark");
     }
     .icon.string {
       background: url("${unsafeCSS(typeIcons)}#TypeString-dark");
@@ -268,7 +272,6 @@ export class JsonTree extends LitElement {
     .key.index {
       color: var(--text-color-secondary);
       text-align: right;
-      width: 3ch;
       flex: none;
       margin-right: 1ch;
     }
@@ -448,6 +451,52 @@ export class JsonTree extends LitElement {
       display: block;
       opacity: 1;
     }
+
+    .breadcrumb {
+      position: sticky;
+      top: ${ACTION_ROW_HEIGHT}px;
+      z-index: 1;
+      display: flex;
+      flex-direction: row;
+      border-bottom: 1px solid var(--border-color);
+      background-color: var(--background-color);
+      align-items: center;
+      height: ${BREADCRUMB_ROW_HEIGHT - 1}px;
+    }
+    .breadcrumb .label {
+      opacity: 0.7;
+    }
+    .breadcrumb .label:focus,
+    .breadcrumb .label:hover {
+      opacity: 1;
+    }
+    .breadcrumb .label {
+      top: unset !important;
+      position: unset !important;
+      width: unset !important;
+      background-color: unset !important;
+      padding-left: 0 !important;
+      padding-right: 0.5ch;
+    }
+    .breadcrumb .label:after {
+      content: "/";
+      display: inline-block;
+    }
+
+    .breadcrumb .label .key.index {
+      width: unset !important;
+    }
+
+    .breadcrumb .label:first-child {
+      padding-left: 0;
+    }
+    .breadcrumb .label .arrow-right,
+    .breadcrumb .label button.tracking {
+      display: none;
+    }
+    .breadcrumb .label.selected {
+      background-color: unset !important;
+    }
   `;
 
   private toggleExpandByPathStr(pathStr?: string, forceExpanded?: boolean) {
@@ -459,10 +508,25 @@ export class JsonTree extends LitElement {
     }
   }
 
+  private scrollToTop() {
+    if (!this.shadowRoot) return;
+    this.shadowRoot.host.scrollTop = 0;
+    this.handleScroll();
+  }
+
   private handleClick(event: MouseEvent) {
-    const pathStr = getRowElement(event.target as HTMLElement)?.getAttribute(
-      "data-path",
-    );
+    const rowElement = getRowElement(event.target as HTMLElement);
+    if (!rowElement) return;
+
+    if (hasParent(rowElement, "breadcrumb")) {
+      if (!this.shadowRoot) return;
+      const pathStr = rowElement.getAttribute("data-path")!;
+      if (pathStr === "") this.scrollToTop(); // root item
+      else this.scrollToPath(pathStr);
+      return;
+    }
+
+    const pathStr = rowElement.getAttribute("data-path");
     if (pathStr) {
       this.toggleExpandByPathStr(pathStr);
       this._selectedPath = pathStr;
@@ -539,7 +603,7 @@ export class JsonTree extends LitElement {
     ) as HTMLElement;
   }
 
-  private scrollToPath(pathStr: string) {
+  private scrollToPath(pathStr: string, offset: number = 0) {
     if (!this.shadowRoot) return;
 
     const index = indexOfPathStr(this._tree, this._hasFilter, pathStr);
@@ -547,19 +611,22 @@ export class JsonTree extends LitElement {
 
     const itemRange = { top: indexToTop(index), bottom: indexToTop(index + 1) };
     const visibleRange = {
-      top: this.shadowRoot.host.scrollTop + ACTION_ROW_HEIGHT,
+      top:
+        this.shadowRoot.host.scrollTop +
+        ACTION_ROW_HEIGHT +
+        BREADCRUMB_ROW_HEIGHT,
       bottom: this.shadowRoot.host.scrollTop + this._visibleHeight,
     };
 
     let newScrollTop: number | undefined;
     if (itemRange.top < visibleRange.top) {
-      newScrollTop = itemRange.top - ACTION_ROW_HEIGHT;
+      newScrollTop = itemRange.top - ACTION_ROW_HEIGHT - BREADCRUMB_ROW_HEIGHT;
     } else if (itemRange.bottom >= visibleRange.bottom) {
       newScrollTop = itemRange.bottom - this._visibleHeight;
     }
 
     if (newScrollTop !== undefined) {
-      this.shadowRoot.host.scrollTop = newScrollTop;
+      this.shadowRoot.host.scrollTop = newScrollTop + offset;
       // need update _visibleStartRowIndex synchronously
       this.handleScroll();
     }
@@ -698,7 +765,9 @@ export class JsonTree extends LitElement {
           style=${style}
           tabindex="0"
         >
-          <span class="key index">${item.key}</span>
+          <span class="key index" style="width: ${item.numberKeyWidth}ch;"
+            >${item.key}</span
+          >
           ${item.renderLeafValue()}
         </div>`;
       } else {
@@ -727,14 +796,16 @@ export class JsonTree extends LitElement {
       >
         ${this.renderTrackingButton(item)}
         ${typeof item.key === "number"
-          ? html`<span class="key index">${item.key}</span>`
+          ? html`<span
+              class="key index"
+              style="width: ${item.numberKeyWidth}ch;"
+              >${item.key}</span
+            >`
           : undefined}
         ${expanded
           ? html`<span class="arrow-right expanded"></span>`
           : html`<span class="arrow-right"></span>`}
-        ${typeof item.key === "number"
-          ? undefined
-          : html`<span class="icon ${item.type}"></span>`}
+        <span class="icon ${item.type}"></span>
         ${expanded
           ? html`<span class="summary"
               >${typeof item.key === "number"
@@ -784,6 +855,28 @@ export class JsonTree extends LitElement {
     </div>`;
   }
 
+  renderBreadcrumb() {
+    if (!this.shadowRoot) return;
+    const iter = getIteratorByIndex(
+      this._tree,
+      Math.max(0, this._visibleStartRowIndex - 1),
+      this._hasFilter,
+    );
+    if (!iter) return;
+
+    const items =
+      this._visibleStartRowIndex <= 1 ||
+      iter.current.isNoOrHideChildren(this._hasFilter)
+        ? iter.pathItems.slice(0, -1)
+        : iter.pathItems;
+    if (items.length === 0) return;
+    return html`
+      <div class="breadcrumb" style="padding-left: ${this.initialIndent}ch;">
+        ${repeat(items, (item) => item.pathStr, this.renderItem)}
+      </div>
+    `;
+  }
+
   @query("div.rows")
   private _rowsElement!: HTMLDivElement;
 
@@ -791,8 +884,8 @@ export class JsonTree extends LitElement {
     if (!this._tree || !this._tree.children || this._tree.children.length === 0)
       return html``;
     this._totalRows = totalRows(this._tree, this._hasFilter);
-    // console.log("this._totalRows", this._totalRows);
-    const height = ACTION_ROW_HEIGHT + this._totalRows * ROW_HEIGHT;
+    const height =
+      ACTION_ROW_HEIGHT + BREADCRUMB_ROW_HEIGHT + this._totalRows * ROW_HEIGHT;
     return html`<div
       class="rows"
       style="height: ${height}px;"
@@ -800,7 +893,7 @@ export class JsonTree extends LitElement {
       @keydown=${this.handleKeydown}
       @click=${this.handleClick}
     >
-      ${this.renderActions()}
+      ${this.renderActions()} ${this.renderBreadcrumb()}
       ${repeat(
         sliceItems(
           this._tree,
@@ -953,5 +1046,16 @@ const getRowElement = (ele: Node): HTMLElement | undefined => {
 };
 
 const indexToTop = (index: number) => {
-  return ACTION_ROW_HEIGHT + index * ROW_HEIGHT;
+  return ACTION_ROW_HEIGHT + BREADCRUMB_ROW_HEIGHT + index * ROW_HEIGHT;
+};
+
+const hasParent = (ele: Node, parentClass: string) => {
+  let p: Node | null = ele;
+  while (p) {
+    if (p instanceof HTMLElement && p.classList.contains(parentClass)) {
+      return true;
+    }
+    p = p.parentNode;
+  }
+  return false;
 };
