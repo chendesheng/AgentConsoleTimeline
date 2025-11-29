@@ -552,7 +552,14 @@ export class JsonTree extends LitElement {
       this._rowsElement.focus();
       const pathStr = rowElement.getAttribute("data-path")!;
       if (pathStr === "") this.scrollToTop(); // root item
-      else this.scrollToPath(pathStr);
+      else {
+        this.scrollToPath(pathStr);
+        const index = indexOfPathStr(this._tree, this._expandAll, pathStr);
+        if (index === -1) return;
+        this.shadowRoot.host.scrollTop =
+          this.indexToTop(index) - this.getStickyHeight();
+        this.handleScroll();
+      }
       return;
     }
 
@@ -693,7 +700,7 @@ export class JsonTree extends LitElement {
     ) as HTMLElement;
   }
 
-  private scrollToPath(pathStr: string, offset: number = 0) {
+  private scrollToPath(pathStr: string) {
     if (!this.shadowRoot) return;
 
     const index = indexOfPathStr(this._tree, this._expandAll, pathStr);
@@ -719,7 +726,7 @@ export class JsonTree extends LitElement {
     }
 
     if (newScrollTop !== undefined) {
-      this.shadowRoot.host.scrollTop = newScrollTop + offset;
+      this.shadowRoot.host.scrollTop = newScrollTop;
       // need update _visibleStartRowIndex synchronously
       this.handleScroll();
     }
@@ -1014,18 +1021,20 @@ export class JsonTree extends LitElement {
 
   renderBreadcrumb() {
     if (!this.shadowRoot) return;
-    const iter = getIteratorByIndex(
-      this._tree,
-      Math.max(0, this._visibleStartRowIndex - 1),
-      this._expandAll,
-    );
+
+    let pathStr = this._selectedPath;
+    if (this._showSearch && this._pendingSearchResult) {
+      pathStr = this._pendingSearchResult.current.pathStr;
+    }
+
+    if (!pathStr) return;
+
+    const iter = getIterator(this._tree, this._expandAll, pathStr);
     if (!iter) return;
 
-    const items =
-      this._visibleStartRowIndex <= 1 ||
-      iter.current.isNoOrHideChildren(this._expandAll)
-        ? iter.pathItems.slice(0, -1)
-        : iter.pathItems;
+    const items = iter.current.isNoOrHideChildren(this._expandAll)
+      ? iter.pathItems.slice(0, -1)
+      : iter.pathItems;
     if (items.length === 0) return;
     return html`
       <div class="breadcrumb" style="padding-left: ${this.initialIndent}ch;">
@@ -1040,7 +1049,7 @@ export class JsonTree extends LitElement {
   private getStickyHeight(): number {
     return (
       (this.showActions ? ACTION_ROW_HEIGHT : 0) +
-      (this.showBreadcrumb ? BREADCRUMB_ROW_HEIGHT : 0)
+      (this.showBreadcrumb && !!this._selectedPath ? BREADCRUMB_ROW_HEIGHT : 0)
     );
   }
 
