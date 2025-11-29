@@ -480,6 +480,7 @@ export class JsonTree extends LitElement {
       background-color: var(--background-color);
       align-items: center;
       height: ${BREADCRUMB_ROW_HEIGHT - 1}px;
+      gap: 1ch;
     }
     .breadcrumb .label {
       opacity: 0.7;
@@ -494,11 +495,6 @@ export class JsonTree extends LitElement {
       width: unset !important;
       background-color: unset !important;
       padding-left: 0 !important;
-      padding-right: 0.5ch;
-    }
-    .breadcrumb .label:after {
-      content: "/";
-      display: inline-block;
     }
 
     .breadcrumb .label .key.index {
@@ -508,7 +504,6 @@ export class JsonTree extends LitElement {
     .breadcrumb .label:first-child {
       padding-left: 0;
     }
-    .breadcrumb .label .arrow-right,
     .breadcrumb .label button.tracking {
       display: none;
     }
