@@ -217,7 +217,7 @@ export function jsonType(json: any): JsonType {
   }
 }
 
-function getItemsOfPath(tree: JsonTreeItem, path: string[]) {
+export function getItemsOfPath(tree: JsonTreeItem, path: string[]) {
   let current: JsonTreeItem | undefined = tree;
   const result: JsonTreeItem[] = [tree];
   for (const key of path) {

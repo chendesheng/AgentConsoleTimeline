@@ -32,6 +32,7 @@ import {
   setItemExpanded,
   sliceItems,
   searchTree,
+  getItemsOfPath,
 } from "./jsonTree/model";
 import { tryParseNestedJson } from "./jsonTree/nested";
 import { productionPlatformsPrefixes } from "./domains";
@@ -530,6 +531,18 @@ export class JsonTree extends LitElement {
     .search-result-highlight {
       background: var(--search-highlight-background-color-active);
       color: var(--search-highlight-text-color-active);
+    }
+    .sticky-path-items {
+      position: sticky;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      background-color: var(--background-color);
+    }
+    .sticky-path-items .label {
+      top: unset !important;
+      position: unset !important;
+      background-color: unset !important;
     }
   `;
 
@@ -1077,6 +1090,49 @@ export class JsonTree extends LitElement {
     `;
   }
 
+  private getStickyPathItemsBaseItem(
+    scrollTop: number,
+    tree: JsonTreeItem,
+    startIndex: number,
+  ): JsonTreeItem | undefined {
+    let index = 0;
+    for (const child of tree.children!) {
+      if (child.isNoOrHideChildren(this._expandAll)) {
+        index += child.getDecendentsCount(this._expandAll);
+        continue;
+      }
+
+      const [x, y] = getScrollTopRangeForStickyItem(child, startIndex + index);
+      if (scrollTop >= y) break;
+      else if (scrollTop >= x) {
+        return this.getStickyPathItemsBaseItem(
+          scrollTop,
+          child,
+          startIndex + index,
+        );
+      } else {
+        index += child.getDecendentsCount(this._expandAll);
+      }
+    }
+    return tree;
+  }
+
+  renderStickyPathItems() {
+    if (!this.shadowRoot) return;
+
+    const scrollTop = this.shadowRoot.host.scrollTop;
+    const item = this.getStickyPathItemsBaseItem(scrollTop, this._tree, 0);
+    if (!item) return;
+    const pathItems = getItemsOfPath(this._tree, item.path);
+    pathItems.shift();
+    return html`<div
+      class="sticky-path-items"
+      style="top: ${this.getStickyHeight()}px;"
+    >
+      ${repeat(pathItems, (item) => item.pathStr, this.renderItem)}
+    </div>`;
+  }
+
   @query("div.rows")
   private _rowsElement!: HTMLDivElement;
 
@@ -1109,6 +1165,7 @@ export class JsonTree extends LitElement {
     >
       ${this.showActions ? this.renderActions() : undefined}
       ${this.showBreadcrumb ? this.renderBreadcrumb() : undefined}
+      ${this.renderStickyPathItems()}
       ${repeat(visibleItems, (item) => item.pathStr, this.renderItem)}
       ${this.renderPendingSearchResult(visibleItems)}
     </div>`;
@@ -1346,4 +1403,15 @@ const hasParent = (ele: Node, parentClass: string) => {
 const createRegex = (value: string) => {
   const hasCapitalLetter = value.match(/[A-Z]/);
   return new RegExp(escapeRegExp(value), hasCapitalLetter ? "" : "i");
+};
+
+const getScrollTopRangeForStickyItem = (
+  item: JsonTreeItem,
+  index: number,
+): [number, number] => {
+  const height = Math.max(item.path.length - 1, 0) * ROW_HEIGHT;
+  const start = index * ROW_HEIGHT - height;
+  const end = start + item.getDecendentsCount(false) * ROW_HEIGHT;
+  console.log(item.pathStr, index, start, end);
+  return [start, end];
 };
