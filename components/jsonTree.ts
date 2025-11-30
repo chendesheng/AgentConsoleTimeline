@@ -1226,7 +1226,13 @@ export class JsonTree extends LitElement {
   }
 
   protected firstUpdated(_changedProperties: PropertyValues): void {
-    this._rowsElement.focus();
+    if (
+      this.shadowRoot?.host?.ownerDocument?.activeElement?.classList.contains(
+        "detail-header-tab",
+      )
+    ) {
+      this._rowsElement.focus();
+    }
   }
 
   disconnectedCallback(): void {
