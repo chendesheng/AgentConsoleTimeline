@@ -972,7 +972,6 @@ export class JsonTree extends LitElement {
     if (!visibleItems.includes(item)) return;
 
     const index = indexOfPathStr(this._tree, this._expandAll, item.pathStr);
-    console.log("index", index, "pathStr", item.pathStr);
     const top = this.indexToTop(index);
     const style = `padding-left: calc(${item.indent}ch + 1.2em + 16px);top: ${top}px;`;
     const re = createRegex(this._search);
@@ -1251,8 +1250,9 @@ export class JsonTree extends LitElement {
   private handleScroll() {
     if (!this.shadowRoot) return;
 
-    this._visibleStartRowIndex = Math.floor(
-      this.shadowRoot.host.scrollTop / ROW_HEIGHT,
+    this._visibleStartRowIndex = Math.max(
+      0,
+      Math.floor(this.shadowRoot.host.scrollTop / ROW_HEIGHT),
     );
   }
 
