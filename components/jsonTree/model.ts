@@ -117,7 +117,7 @@ export class JsonTreeItem {
   }
 
   isMatchTreeItem(re: RegExp) {
-    if (this.isRoot) return true;
+    if (this.isRoot) return false;
 
     if (typeof this.key === "number" && this.key === +re.source) {
       return true;
@@ -193,7 +193,7 @@ export function searchTree(
   const iter = new TreeIterator(tree);
   if (startPathStr) forwardToPath(iter, startPathStr);
   while (forward ? iter.next() : iter.previous()) {
-    if (iter.current.isMatchKey(re)) {
+    if (iter.current.isMatchTreeItem(re)) {
       return iter;
     }
   }
