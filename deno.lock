@@ -3,9 +3,9 @@
   "specifiers": {
     "jsr:@std/assert@*": "1.0.16",
     "jsr:@std/internal@^1.0.12": "1.0.12",
-    "npm:@tauri-apps/api@^2.5.0": "2.9.0",
-    "npm:@tauri-apps/cli@^2.5.0": "2.9.4",
-    "npm:@tauri-apps/plugin-window-state@^2.2.2": "2.4.1",
+    "npm:@tauri-apps/api@^2.9.0": "2.9.0",
+    "npm:@tauri-apps/cli@^2.9.4": "2.9.4",
+    "npm:@tauri-apps/plugin-window-state@^2.4.1": "2.4.1",
     "npm:@types/js-beautify@^1.14.3": "1.14.3",
     "npm:@types/json-diff@^1.0.3": "1.0.3",
     "npm:assert@^2.1.0": "2.1.0",
@@ -1689,9 +1689,9 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
-        "npm:@tauri-apps/api@^2.5.0",
-        "npm:@tauri-apps/cli@^2.5.0",
-        "npm:@tauri-apps/plugin-window-state@^2.2.2",
+        "npm:@tauri-apps/api@^2.9.0",
+        "npm:@tauri-apps/cli@^2.9.4",
+        "npm:@tauri-apps/plugin-window-state@^2.4.1",
         "npm:@types/js-beautify@^1.14.3",
         "npm:@types/json-diff@^1.0.3",
         "npm:assert@^2.1.0",
