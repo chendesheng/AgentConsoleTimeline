@@ -1274,7 +1274,11 @@ export class JsonTree extends LitElement {
       this.generateTree();
     }
 
-    if (changedProperties.has("_scrollTop") && this.shadowRoot) {
+    if (
+      changedProperties.has("_scrollTop") &&
+      this.shadowRoot &&
+      this._scrollTop !== undefined
+    ) {
       this.shadowRoot.host.scrollTop = this._scrollTop;
     }
 
@@ -1296,9 +1300,11 @@ export class JsonTree extends LitElement {
           }
         }
       } else {
-        this._filterButton?.focus();
-        clearFilter(this._tree);
-        this.requestUpdate();
+        if (changedProperties.get("_showFilter")) {
+          this._filterButton?.focus();
+          clearFilter(this._tree);
+          this.requestUpdate();
+        }
       }
     }
 
@@ -1316,7 +1322,9 @@ export class JsonTree extends LitElement {
         }
         if (this._selectedPath) this.scrollToPath(this._selectedPath);
       } else {
-        this._searchButton?.focus();
+        if (changedProperties.get("_showSearch")) {
+          this._searchButton?.focus();
+        }
       }
     }
 
