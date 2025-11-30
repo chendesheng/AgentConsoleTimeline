@@ -170,6 +170,7 @@ export class JsonTree extends LitElement {
     );
     this._showFilter = false;
     this._showSearch = false;
+    this._selectedPath = undefined;
   }
 
   static styles = css`
@@ -391,6 +392,7 @@ export class JsonTree extends LitElement {
       width: 1em;
       padding: 0;
       vertical-align: middle;
+      border: none;
     }
     input[type="color" i]::-webkit-color-swatch-wrapper {
       padding: 0;
@@ -730,7 +732,7 @@ export class JsonTree extends LitElement {
   ): HTMLElement | undefined {
     if (!pathStr) return undefined;
     return this.shadowRoot?.querySelector(
-      `.label[data-path="${pathStr}"]`,
+      `.rows > .label[data-path="${pathStr}"]`,
     ) as HTMLElement;
   }
 
@@ -1245,6 +1247,16 @@ export class JsonTree extends LitElement {
         },
       },
     );
+  }
+
+  protected firstUpdated(_changedProperties: PropertyValues): void {
+    this._rowsElement.focus();
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    if (!this.shadowRoot) return;
+    this.shadowRoot.host.removeEventListener("scroll", this.handleScroll);
   }
 
   private handleScroll() {
