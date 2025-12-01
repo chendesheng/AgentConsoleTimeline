@@ -220,3 +220,7 @@ iframe.preview-svg {
   height: 100%;
   width: 100%;
 }
+
+.inline-json-tree {
+  display: block;
+}

@@ -38,7 +38,7 @@ export function leafValueRenderer(
       pathStr.endsWith(".controlPanelLogoCodeSnippet") ||
       (pathStr.endsWith(".htmlMessage") && value.length > 0)
     ) {
-      const anchorName = `--preview-${pathStr}`;
+      const anchorName = `--preview-${pathStr.replace(/\./g, "-")}`;
       const id = `html-preview-${pathStr}`;
       return html`<span class="value string"
         ><button

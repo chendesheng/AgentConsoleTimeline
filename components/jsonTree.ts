@@ -74,6 +74,9 @@ export class JsonTree extends LitElement {
   @property({ type: String })
   data: string = "";
 
+  @property({ type: Boolean })
+  autoExpand = false;
+
   @property({ type: Number })
   initialIndent: number = 2;
 
@@ -174,7 +177,7 @@ export class JsonTree extends LitElement {
     this._showSearch = false;
     this._selectedPath = undefined;
 
-    if (this._tree.getDecendentsCount(true) < 200) {
+    if (this.autoExpand && this._tree.getDecendentsCount(true) < 200) {
       setExpanded(this._tree, true);
     }
   }
@@ -385,6 +388,7 @@ export class JsonTree extends LitElement {
       border-radius: 8px;
       box-shadow: 0px 0px 4px 0px var(--border-color);
       background-color: var(--background-color);
+      max-width: 800px;
     }
     .html-preview.controlPanelLogoCodeSnippet a[role="button"] {
       margin-top: unset !important;
@@ -826,7 +830,7 @@ export class JsonTree extends LitElement {
       bottom: this.indexToTop(index + 1),
     };
     const visibleRange = {
-      top: this._scrollTop + ACTION_ROW_HEIGHT + BREADCRUMB_ROW_HEIGHT,
+      top: this._scrollTop + this.getStickyHeight(),
       bottom: this._scrollTop + this._visibleHeight,
     };
 
@@ -1155,7 +1159,7 @@ export class JsonTree extends LitElement {
     // monitor shadowRoot size change
     const observer = new ResizeObserver((e) => {
       const height = e[0].contentBoxSize[0].blockSize;
-      this._visibleRows = Math.max(10, Math.ceil(height / ROW_HEIGHT));
+      this._visibleRows = Math.ceil(height / ROW_HEIGHT);
       this._visibleHeight = height;
     });
     observer.observe(host);
