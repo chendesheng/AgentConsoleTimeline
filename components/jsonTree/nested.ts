@@ -35,7 +35,7 @@ export function tryParseNestedJson(
         "eyJhbGciOiJodHRwOi8vd3d3LnczLm9yZy8yMDAxLzA0L3htbGRzaWctbW9yZSNyc2Etc2hhMjU2IiwidHlwIjoiSldUIn0",
       )
     ) {
-      return parseToken(o);
+      return tryParseNestedJson(parseToken(o), path);
     }
     if (/^\/Date\((\d+)\)\/$/.test(o)) {
       return new Date(parseInt(o.match(/\/Date\((\d+)\)\//)![1])).toString();

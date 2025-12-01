@@ -36,7 +36,8 @@ export function leafValueRenderer(
     } else if (
       pathStr.endsWith(".agentConsoleLogoCodeSnippet") ||
       pathStr.endsWith(".controlPanelLogoCodeSnippet") ||
-      (pathStr.endsWith(".htmlMessage") && value.length > 0)
+      (pathStr.endsWith(".htmlMessage") && value.length > 0) ||
+      /popupMessages\.\d+\.content$/.test(pathStr)
     ) {
       const anchorName = `--preview-${pathStr.replace(/\./g, "-")}`;
       const id = `html-preview-${pathStr}`;
@@ -255,7 +256,10 @@ export function leafValueRenderer(
 }
 
 function renderStringLink(url: string, text: string) {
-  if (url.includes("00000000-0000-0000-0000-000000000000")) {
+  if (
+    !URL.canParse(url) ||
+    url.includes("00000000-0000-0000-0000-000000000000")
+  ) {
     return html`<span class="value string">"${text}"</span>`;
   }
 
