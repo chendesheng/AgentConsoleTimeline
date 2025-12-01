@@ -173,6 +173,10 @@ export class JsonTree extends LitElement {
     this._showFilter = false;
     this._showSearch = false;
     this._selectedPath = undefined;
+
+    if (this._tree.getDecendentsCount(true) < 200) {
+      setExpanded(this._tree, true);
+    }
   }
 
   static styles = css`
