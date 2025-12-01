@@ -1054,8 +1054,6 @@ export class JsonTree extends LitElement {
       pathStr = this._pendingSearchResult.current.pathStr;
     }
 
-    if (!pathStr) return;
-
     const iter = getIterator(this._tree, this._expandAll, pathStr);
     if (!iter) return;
 
@@ -1076,7 +1074,7 @@ export class JsonTree extends LitElement {
   private getStickyHeight(): number {
     return (
       (this.showActions ? ACTION_ROW_HEIGHT : 0) +
-      (this.showBreadcrumb && !!this._selectedPath ? BREADCRUMB_ROW_HEIGHT : 0)
+      (this.showBreadcrumb ? BREADCRUMB_ROW_HEIGHT : 0)
     );
   }
 
