@@ -142,7 +142,9 @@ export class JsonTree extends LitElement {
     this._showNestedJson = !this._showNestedJson;
   }
 
-  private _totalRows = 0;
+  private get _totalRows(): number {
+    return totalRows(this._tree, this._expandAll);
+  }
 
   private generateTree() {
     const reduxState: any = sortKeys(JSON.parse(this.data));
@@ -1074,11 +1076,14 @@ export class JsonTree extends LitElement {
     );
   }
 
+  private getTotalHeight(): number {
+    return this.getStickyHeight() + this._totalRows * ROW_HEIGHT;
+  }
+
   render() {
     if (!this._tree || !this._tree.children || this._tree.children.length === 0)
       return html``;
-    this._totalRows = totalRows(this._tree, this._expandAll);
-    const height = this.getStickyHeight() + this._totalRows * ROW_HEIGHT;
+    const height = this.getTotalHeight();
     const startRowIndex = scrollTopToRowIndex(this._scrollTop);
     const visibleItems = Array.from(
       sliceItems(this._tree, this._expandAll, startRowIndex, this._visibleRows),
@@ -1209,7 +1214,9 @@ export class JsonTree extends LitElement {
         action: () => {
           if (this.shadowRoot) {
             const index = scrollTopToRowIndex(this._scrollTop);
-            this._scrollTop = Math.max(index - 1, 0) * ROW_HEIGHT;
+            if (index > 0) {
+              this._scrollTop = (index - 1) * ROW_HEIGHT;
+            }
           }
         },
       },
@@ -1218,7 +1225,9 @@ export class JsonTree extends LitElement {
         action: () => {
           if (this.shadowRoot) {
             const index = scrollTopToRowIndex(this._scrollTop);
-            this._scrollTop = (index + 1) * ROW_HEIGHT;
+            if (index < this._totalRows - this._visibleRows) {
+              this._scrollTop = (index + 1) * ROW_HEIGHT;
+            }
           }
         },
       },
