@@ -34,8 +34,8 @@ export function leafValueRenderer(
     } else if (URL.canParse(value)) {
       return renderStringLink(value, value);
     } else if (
-      pathStr.endsWith(".agentConsoleLogoCodeSnippet") ||
-      pathStr.endsWith(".controlPanelLogoCodeSnippet") ||
+      pathStr.endsWith("agentConsoleLogoCodeSnippet") ||
+      pathStr.endsWith("controlPanelLogoCodeSnippet") ||
       (pathStr.endsWith(".htmlMessage") && value.length > 0) ||
       /popupMessages\.\d+\.content$/.test(pathStr)
     ) {
@@ -57,9 +57,9 @@ export function leafValueRenderer(
         ${JSON.stringify(value)}</span
       >`;
     } else if (
-      pathStr.endsWith(".notificationIcon") ||
+      pathStr.endsWith("notificationIcon") ||
       pathStr.endsWith(".ico") ||
-      pathStr.endsWith(".faviconImage")
+      pathStr.endsWith("faviconImage")
     ) {
       return html`<img
           class="image-preview"
@@ -269,6 +269,10 @@ function renderStringLink(url: string, text: string) {
 }
 
 function renderNumberLink(url: string, text: number) {
+  if (!URL.canParse(url)) {
+    return html`<span class="value number">${text}</span>`;
+  }
+
   return html`<span class="value number"
     ><a href="${url}" target="_blank">${text}</a></span
   >`;
