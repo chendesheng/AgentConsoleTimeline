@@ -544,12 +544,13 @@ export class JsonTree extends LitElement {
   }
 
   private handleClick(event: MouseEvent) {
+    (event.currentTarget as HTMLElement).focus();
+
     const rowElement = getRowElement(event.target as HTMLElement);
     if (!rowElement) return;
 
     if (hasParent(rowElement, "breadcrumb")) {
       if (!this.shadowRoot) return;
-      this._rowsElement.focus();
       const pathStr = rowElement.getAttribute("data-path")!;
       if (pathStr === "") this.scrollToTop(); // root item
       else this.scrollToPath(pathStr, "top");
@@ -935,6 +936,8 @@ export class JsonTree extends LitElement {
 
   private handleClickTrackingButton(e: MouseEvent) {
     e.stopPropagation();
+    this._rowsElement.focus();
+
     const button = e.currentTarget as HTMLButtonElement;
     button.classList.toggle("enable-tracking");
 
@@ -1338,10 +1341,6 @@ export class JsonTree extends LitElement {
       this._scrollTop !== undefined
     ) {
       this.shadowRoot.host.scrollTop = this._scrollTop;
-    }
-
-    if (changedProperties.has("_selectedPath")) {
-      this._rowsElement.focus();
     }
 
     if (changedProperties.has("_showFilter")) {
