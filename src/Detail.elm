@@ -33,8 +33,7 @@ type DetailTabName
 
 
 type DetailViewTool
-    = Auto
-    | JsonTree
+    = JsonTree
     | Raw
 
 
@@ -55,7 +54,7 @@ type alias DetailModel =
 defaultDetailModel : DetailModel
 defaultDetailModel =
     { tab = Preview
-    , tool = Auto
+    , tool = JsonTree
     , show = False
     , currentId = ""
     , quickPreview = Nothing
@@ -123,12 +122,12 @@ detailTabs selected entry =
 
 
 jsonViewer : Bool -> Int -> String -> Bool -> Bool -> Bool -> List String -> String -> Html DetailMsg
-jsonViewer initialExpanded initialIndent className showBreadcrumb showActions disableTrackingPath trackedPaths json =
+jsonViewer autoExpand initialIndent className showBreadcrumb showActions disableTrackingPath trackedPaths json =
     Html.node "json-tree"
         [ class className
         , property "data" <| Encode.string json
         , property "initialIndent" <| Encode.int initialIndent
-        , property "initialExpanded" <| Encode.bool initialExpanded
+        , property "autoExpand" <| Encode.bool autoExpand
         , property "trackedPaths" <| Encode.list Encode.string trackedPaths
         , property "disableTrackingPath" <| Encode.bool disableTrackingPath
         , property "showBreadcrumb" <| Encode.bool showBreadcrumb
@@ -290,13 +289,13 @@ svgViewer svg =
 
 
 jsonDataViewer : DetailViewTool -> Bool -> Int -> Bool -> String -> Bool -> Bool -> Bool -> List String -> String -> Html DetailMsg
-jsonDataViewer tool initialExpanded initialIndent format className showBreadcrumb showActions disableTrackingPath trackedPaths json =
+jsonDataViewer tool autoExpand initialIndent format className showBreadcrumb showActions disableTrackingPath trackedPaths json =
     case tool of
         Raw ->
             codeEditor "json" format json
 
         _ ->
-            jsonViewer initialExpanded initialIndent className showBreadcrumb showActions disableTrackingPath trackedPaths json
+            jsonViewer autoExpand initialIndent className showBreadcrumb showActions disableTrackingPath trackedPaths json
 
 
 agentConsoleSnapshotPlayer : Bool -> List Har.Entry -> String -> Maybe String -> List String -> Html DetailMsg
@@ -436,7 +435,7 @@ requestHeaderKeyValue { name, value } =
                     [ text value
                     , case parseToken value of
                         Ok v ->
-                            jsonViewer False 0 "" False False True [] <| "{\"payload\":" ++ v ++ "}"
+                            jsonViewer False 0 "inline-json-tree" False False True [] <| "{\"payload\":" ++ v ++ "}"
 
                         _ ->
                             text ""
@@ -445,7 +444,7 @@ requestHeaderKeyValue { name, value } =
             else if String.toLower name == "cookie" then
                 div []
                     [ text value
-                    , jsonViewer False 0 "" False False True [] <| "{\"payload\":" ++ parseCookies value ++ "}"
+                    , jsonViewer False 0 "inline-json-tree" False False True [] <| "{\"payload\":" ++ parseCookies value ++ "}"
                     ]
 
             else
@@ -501,7 +500,7 @@ resolveSelectedTool tabName entryKind tool =
         |> Maybe.withDefault
             (case entryKind of
                 ReduxState ->
-                    Auto
+                    JsonTree
 
                 _ ->
                     Raw
@@ -511,9 +510,6 @@ resolveSelectedTool tabName entryKind tool =
 viewToolToString : DetailViewTool -> String
 viewToolToString tool =
     case tool of
-        Auto ->
-            "auto"
-
         JsonTree ->
             "jsonTree"
 
@@ -524,9 +520,6 @@ viewToolToString tool =
 stringToViewTool : String -> DetailViewTool
 stringToViewTool tool =
     case tool of
-        "auto" ->
-            Auto
-
         "jsonTree" ->
             JsonTree
 
@@ -534,7 +527,7 @@ stringToViewTool tool =
             Raw
 
         _ ->
-            Auto
+            JsonTree
 
 
 detailViewToolsOptions : List DetailViewTool -> List { value : String, label : String }
@@ -544,9 +537,6 @@ detailViewToolsOptions =
             { value = viewToolToString tool
             , label =
                 case tool of
-                    Auto ->
-                        "Auto"
-
                     JsonTree ->
                         "JSON Tree"
 
@@ -653,7 +643,7 @@ responseView tool entry trackedPaths =
                     in
                     jsonDataViewer
                         tool
-                        (entryKind /= ReduxState)
+                        True
                         2
                         (entryKind /= NetworkHttp)
                         "detail-body"
@@ -671,6 +661,12 @@ getTools : DetailTabName -> EntryKind -> List DetailViewTool
 getTools tabName entryKind =
     case ( tabName, entryKind ) of
         ( Request, ReduxAction ) ->
+            [ JsonTree, Raw ]
+
+        ( Request, NetworkHttp ) ->
+            [ JsonTree, Raw ]
+
+        ( Response, NetworkHttp ) ->
             [ JsonTree, Raw ]
 
         ( Response, ReduxAction ) ->
@@ -797,7 +793,7 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
                             |> Maybe.withDefault noContent
 
                     _ ->
-                        responseView Auto entry trackedPaths
+                        responseView JsonTree entry trackedPaths
 
             Headers ->
                 lazy headersView entry
