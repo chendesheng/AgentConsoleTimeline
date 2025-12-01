@@ -705,6 +705,49 @@ export class JsonTree extends LitElement {
     }
   }
 
+  private createHighlightRange(node: Text, re: RegExp) {
+    const m = node.textContent?.match(re);
+    if (!m || m.index === undefined) return;
+
+    const rg = document.createRange();
+    rg.setStart(node, m.index);
+    rg.setEnd(node, m.index + m[0].length);
+    return rg;
+  }
+
+  private highlightAllSearchResult() {
+    CSS.highlights.delete("search-result-highlight");
+    if (!this._pendingSearchResult) return;
+
+    const document = this._rowsElement.ownerDocument;
+    const domWalker = document.createTreeWalker(
+      this._rowsElement,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: (node) => {
+          if (node instanceof Text) {
+            if (hasParent(node, "summary")) {
+              return NodeFilter.FILTER_SKIP;
+            }
+            return NodeFilter.FILTER_ACCEPT;
+          }
+
+          return NodeFilter.FILTER_SKIP;
+        },
+      },
+    );
+
+    const re = createRegex(this._search);
+    const rgs = [];
+    while (domWalker.nextNode()) {
+      const rg = this.createHighlightRange(domWalker.currentNode as Text, re);
+      if (rg) rgs.push(rg);
+    }
+
+    const highlight = new Highlight(...rgs);
+    CSS.highlights.set("search-result-highlight", highlight);
+  }
+
   private highlightPendingSearchResult() {
     CSS.highlights.delete("search-result-highlight");
 
@@ -723,17 +766,15 @@ export class JsonTree extends LitElement {
       },
     });
 
-    const rg = document.createRange();
     const re = createRegex(this._search);
     while (domWalker.nextNode()) {
-      const m = domWalker.currentNode?.textContent?.match(re);
-      if (!m || m.index === undefined) continue;
-      rg.setStart(domWalker.currentNode, m.index);
-      rg.setEnd(domWalker.currentNode, m.index + m[0].length);
-      break;
+      const rg = this.createHighlightRange(domWalker.currentNode as Text, re);
+      if (rg) {
+        const highlight = new Highlight(rg);
+        CSS.highlights.set("search-result-highlight", highlight);
+        break;
+      }
     }
-    const highlight = new Highlight(rg);
-    CSS.highlights.set("search-result-highlight", highlight);
   }
 
   private handleSearchInput(e: Event) {
@@ -1345,10 +1386,13 @@ export class JsonTree extends LitElement {
       }
     }
 
-    if (changedProperties.has("_pendingSearchResult")) {
+    if (this._showSearch) {
       this.highlightPendingSearchResult();
+    } else {
+      this.highlightAllSearchResult();
     }
   }
+
   private indexToTop(index: number): number {
     return this.getStickyHeight() + index * ROW_HEIGHT;
   }
