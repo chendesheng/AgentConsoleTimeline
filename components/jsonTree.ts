@@ -188,6 +188,7 @@ export class JsonTree extends LitElement {
       flex-direction: column;
       width: 100%;
       height: 100%;
+      position: relative;
     }
     .container:focus,
     .container:focus-within {
@@ -349,6 +350,7 @@ export class JsonTree extends LitElement {
     }
 
     .actions {
+      --background-color: rgb(35, 35, 35);
       background-color: var(--background-color);
       flex: none;
       font-size: 10px;
@@ -492,8 +494,9 @@ export class JsonTree extends LitElement {
 
     .breadcrumb {
       align-items: center;
+      --background-color: rgb(35, 35, 35);
       background-color: var(--background-color);
-      border-bottom: 1px solid var(--border-color);
+      border-bottom: 0.5px solid var(--border-color);
       box-sizing: border-box;
       display: flex;
       flex-direction: row;
@@ -516,6 +519,14 @@ export class JsonTree extends LitElement {
       padding-left: 0 !important;
     }
 
+    .breadcrumb .label .arrow-right {
+      display: none !important;
+    }
+
+    .breadcrumb .label::after {
+      content: "/";
+    }
+
     .breadcrumb .label .key.index {
       width: unset !important;
     }
@@ -532,6 +543,53 @@ export class JsonTree extends LitElement {
     ::highlight(search-result-highlight) {
       background-color: var(--search-highlight-background-color-active);
       color: var(--search-highlight-text-color-active);
+    }
+
+    .sticky-path-items-container {
+      position: sticky;
+      top: 0;
+      height: 0;
+      z-index: 1;
+      overflow: visible;
+    }
+    .sticky-path-items {
+      position: absolute;
+      top: 0;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      --background-color: rgb(35, 35, 35);
+      background-color: var(--background-color);
+      box-sizing: border-box;
+      border-bottom: 0.5px solid var(--border-color);
+    }
+    .sticky-path-items .label {
+      top: unset !important;
+      position: unset !important;
+      background-color: var(--background-color) !important;
+      opacity: 0.7;
+    }
+    .sticky-path-items > div {
+      position: relative;
+      flex-shrink: 0;
+      overflow: hidden;
+      height: ${ROW_HEIGHT}px;
+      box-sizing: border-box;
+    }
+    .sticky-path-items > div:last-child {
+      flex-shrink: 1;
+      border-bottom: none;
+    }
+    .sticky-path-items > div:last-child .label {
+      position: absolute !important;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+    }
+
+    .sticky-path-items .label:focus,
+    .sticky-path-items .label:hover {
+      opacity: 1;
     }
   `;
 
@@ -554,15 +612,17 @@ export class JsonTree extends LitElement {
     const rowElement = getRowElement(event.target as HTMLElement);
     if (!rowElement) return;
 
+    const pathStr = rowElement.getAttribute("data-path")!;
+
     if (hasParent(rowElement, "breadcrumb")) {
-      const pathStr = rowElement.getAttribute("data-path")!;
       if (pathStr === "") this.scrollToTop(); // root item
       else this.scrollToPath(pathStr, "top");
       return;
-    }
-
-    const pathStr = rowElement.getAttribute("data-path");
-    if (pathStr) {
+    } else if (hasParent(rowElement, "sticky-path-items")) {
+      this.scrollToPath(pathStr, "top");
+      this._scrollTop -= ROW_HEIGHT;
+      return;
+    } else {
       this.toggleExpandByPathStr(pathStr);
       this._selectedPath = pathStr;
     }
@@ -835,22 +895,25 @@ export class JsonTree extends LitElement {
       top: indexToTop(index),
       bottom: indexToTop(index + 1),
     };
-    const visibleRange = {
-      top: this._scrollTop,
-      bottom: this._scrollTop + this._visibleHeight,
-    };
 
     let newScrollTop: number | undefined;
 
     if (position === "top") {
-      newScrollTop = itemRange.top;
+      newScrollTop =
+        itemRange.top - (pathStr.split(".").length - 1) * ROW_HEIGHT;
     } else if (position === "center") {
       newScrollTop = itemRange.top - this._visibleHeight / 2 + ROW_HEIGHT / 2;
     } else if (position === "bottom") {
       newScrollTop = itemRange.bottom - this._visibleHeight;
     } else {
+      const visibleRange = {
+        top: this._scrollTop + (pathStr.split(".").length - 1) * ROW_HEIGHT,
+        bottom: this._scrollTop + this._visibleHeight,
+      };
+
       if (itemRange.top < visibleRange.top) {
-        newScrollTop = itemRange.top;
+        newScrollTop =
+          itemRange.top - (pathStr.split(".").length - 1) * ROW_HEIGHT;
       } else if (itemRange.bottom >= visibleRange.bottom) {
         newScrollTop = itemRange.bottom - this._visibleHeight;
       }
@@ -1119,6 +1182,71 @@ export class JsonTree extends LitElement {
     `;
   }
 
+  private getStickyPathItems(
+    scrollTop: number,
+    tree: JsonTreeItem,
+    index: number,
+    result: { item: JsonTreeItem; distanceToEnd: number }[],
+  ) {
+    const [start, end] = getScrollTopRangeForStickyItem(
+      tree,
+      index,
+      this._expandAll,
+    );
+
+    // console.log("scrollTop", scrollTop, index, start, end, tree.pathStr);
+
+    if (scrollTop < start) return true;
+
+    if (start < scrollTop && scrollTop < end) {
+      if (tree.isNoOrHideChildren(this._expandAll)) {
+        return true;
+      }
+
+      // root item is not rendered, so we need to skip it
+      if (!tree.isRoot) {
+        index++;
+        result.push({ item: tree, distanceToEnd: end - scrollTop });
+        scrollTop += ROW_HEIGHT;
+        if (scrollTop > end) return false;
+      }
+
+      for (const child of tree.children!) {
+        if (this.getStickyPathItems(scrollTop, child, index, result)) {
+          return true;
+        }
+        index += child.getDecendentsCount(this._expandAll);
+      }
+    }
+
+    return false;
+  }
+
+  renderStickyPathItems() {
+    if (!this.shadowRoot) return;
+
+    const pathItems: { item: JsonTreeItem; distanceToEnd: number }[] = [];
+    this.getStickyPathItems(this._scrollTop, this._tree, 0, pathItems);
+    const len = pathItems.length;
+    if (len === 0) return;
+
+    const lastItem = pathItems[pathItems.length - 1];
+    const height =
+      pathItems.length * ROW_HEIGHT -
+      (lastItem.distanceToEnd < ROW_HEIGHT
+        ? ROW_HEIGHT - lastItem.distanceToEnd
+        : 0);
+    return html`<div class="sticky-path-items-container">
+      <div class="sticky-path-items" style="height: ${height}px;">
+        ${repeat(
+          pathItems,
+          ({ item }) => item.pathStr,
+          ({ item }, index) => html`<div>${this.renderItem(item, index)}</div>`,
+        )}
+      </div>
+    </div>`;
+  }
+
   @query("div.rows")
   private _rowsElement!: HTMLDivElement;
   @query(".scroll-container")
@@ -1147,6 +1275,7 @@ export class JsonTree extends LitElement {
       ${this.showActions ? this.renderActions() : undefined}
       ${this.showBreadcrumb ? this.renderBreadcrumb() : undefined}
       <div class="scroll-container">
+        ${this.renderStickyPathItems()}
         <div class="rows" style="height: ${height}px;" tabindex="0">
           ${repeat(visibleItems, (item) => item.pathStr, this.renderItem)}
         </div>
@@ -1439,4 +1568,14 @@ const createRegex = (value: string) => {
 
 const topToIndex = (scrollTop: number) => {
   return Math.max(0, Math.floor(scrollTop / ROW_HEIGHT));
+};
+
+const getScrollTopRangeForStickyItem = (
+  item: JsonTreeItem,
+  index: number,
+  expandAll: boolean,
+): [number, number] => {
+  const start = index * ROW_HEIGHT;
+  const end = start + item.getDecendentsCount(expandAll) * ROW_HEIGHT;
+  return [start, end];
 };
