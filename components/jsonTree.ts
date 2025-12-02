@@ -794,7 +794,7 @@ export class JsonTree extends LitElement {
 
     const document = this._rowsElement.ownerDocument;
     const domWalker = document.createTreeWalker(
-      this._rowsElement,
+      this._scrollContainerElement,
       NodeFilter.SHOW_TEXT,
       {
         acceptNode: (node) => {
@@ -1097,21 +1097,21 @@ export class JsonTree extends LitElement {
           : html`<span class="arrow-right"></span>`}
         <span class="icon ${item.type}"></span>
         ${expanded
-          ? html`<span class="summary"
-              >${typeof item.key === "number"
-                ? undefined
-                : JsonTree.keyPrefix(item)}
+          ? html`<span class="key">
+                ${typeof item.key === "number"
+                  ? undefined
+                  : JsonTree.keyPrefix(item)}
+              </span>
               ${Array.isArray(item.value)
                 ? html`Array
                     <span class="value count">(${item.value.length})</span>`
-                : "Object"}</span
-            >`
-          : html`<span class="summary"
-              >${typeof item.key === "number"
-                ? undefined
-                : JsonTree.keyPrefix(item)}
-              ${item.summary}</span
-            >`}
+                : "Object"} `
+          : html`<span class="key">
+                ${typeof item.key === "number"
+                  ? undefined
+                  : JsonTree.keyPrefix(item)}
+              </span>
+              <span class="summary">${item.summary}</span>`}
       </button>
     `;
   }
