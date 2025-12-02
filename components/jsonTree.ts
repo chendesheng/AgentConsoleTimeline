@@ -183,10 +183,19 @@ export class JsonTree extends LitElement {
   }
 
   static styles = css`
-    :host {
+    .container {
+      display: flex;
       flex-direction: column;
-      gap: 0.3em;
+      width: 100%;
+      height: 100%;
+    }
+    .container:focus,
+    .container:focus-within {
+      outline: none;
+    }
+    .scroll-container {
       position: relative;
+      flex: 1;
       overflow-y: auto;
       overflow-x: hidden;
       text-overflow: ellipsis;
@@ -195,10 +204,6 @@ export class JsonTree extends LitElement {
     .rows {
       width: 100%;
       position: relative;
-      outline: none;
-    }
-    .rows:focus,
-    .rows:focus-within {
       outline: none;
     }
     button {
@@ -344,13 +349,11 @@ export class JsonTree extends LitElement {
     }
 
     .actions {
+      background-color: var(--background-color);
+      flex: none;
       font-size: 10px;
       height: ${ACTION_ROW_HEIGHT}px;
       line-height: ${ACTION_ROW_HEIGHT}px;
-      position: sticky;
-      z-index: 1;
-      top: 0;
-      background-color: var(--background-color);
     }
     .actions button {
       appearance: none;
@@ -468,7 +471,7 @@ export class JsonTree extends LitElement {
       background-color: var(--selected-background-color-unfocused);
     }
 
-    .rows:focus-within .label.selected {
+    .container:focus-within .label.selected {
       background-color: var(--selected-background-color);
     }
 
@@ -488,16 +491,15 @@ export class JsonTree extends LitElement {
     }
 
     .breadcrumb {
-      position: sticky;
-      top: ${ACTION_ROW_HEIGHT}px;
-      z-index: 1;
+      align-items: center;
+      background-color: var(--background-color);
+      border-bottom: 1px solid var(--border-color);
+      box-sizing: border-box;
       display: flex;
       flex-direction: row;
-      border-bottom: 1px solid var(--border-color);
-      background-color: var(--background-color);
-      align-items: center;
-      height: ${BREADCRUMB_ROW_HEIGHT - 1}px;
+      flex: none;
       gap: 1ch;
+      height: ${BREADCRUMB_ROW_HEIGHT}px;
     }
     .breadcrumb .label {
       opacity: 0.7;
@@ -543,7 +545,6 @@ export class JsonTree extends LitElement {
   }
 
   private scrollToTop() {
-    if (!this.shadowRoot) return;
     this._scrollTop = 0;
   }
 
@@ -554,7 +555,6 @@ export class JsonTree extends LitElement {
     if (!rowElement) return;
 
     if (hasParent(rowElement, "breadcrumb")) {
-      if (!this.shadowRoot) return;
       const pathStr = rowElement.getAttribute("data-path")!;
       if (pathStr === "") this.scrollToTop(); // root item
       else this.scrollToPath(pathStr, "top");
@@ -613,16 +613,24 @@ export class JsonTree extends LitElement {
     this.requestUpdate();
   }
 
-  private handleShowFilter() {
+  private handleShowFilter(e: Event) {
+    e.stopPropagation();
     if (this._showSearch) return;
     this._showFilter = true;
   }
 
-  private handleShowSearchInput(forward: boolean = true) {
+  private showSearchInput(forward: boolean) {
+    if (this._showSearch) return;
     if (this._showFilter) return;
+
     this._searchForward = forward;
     this._showSearch = true;
     this._pendingSearchSavedScrollTop = this._scrollTop;
+  }
+
+  private handleShowSearchInput(e: Event) {
+    e.stopPropagation();
+    this.showSearchInput(true);
   }
 
   private handleFilterInputKeydown(e: KeyboardEvent) {
@@ -820,31 +828,29 @@ export class JsonTree extends LitElement {
     pathStr: string,
     position?: "top" | "center" | "bottom",
   ) {
-    if (!this.shadowRoot) return;
-
     const index = indexOfPathStr(this._tree, this._expandAll, pathStr);
     if (index === -1) return;
 
     const itemRange = {
-      top: this.indexToTop(index),
-      bottom: this.indexToTop(index + 1),
+      top: indexToTop(index),
+      bottom: indexToTop(index + 1),
     };
     const visibleRange = {
-      top: this._scrollTop + this.getStickyHeight(),
+      top: this._scrollTop,
       bottom: this._scrollTop + this._visibleHeight,
     };
 
     let newScrollTop: number | undefined;
 
     if (position === "top") {
-      newScrollTop = itemRange.top - this.getStickyHeight();
+      newScrollTop = itemRange.top;
     } else if (position === "center") {
       newScrollTop = itemRange.top - this._visibleHeight / 2 + ROW_HEIGHT / 2;
     } else if (position === "bottom") {
       newScrollTop = itemRange.bottom - this._visibleHeight;
     } else {
       if (itemRange.top < visibleRange.top) {
-        newScrollTop = itemRange.top - this.getStickyHeight();
+        newScrollTop = itemRange.top;
       } else if (itemRange.bottom >= visibleRange.bottom) {
         newScrollTop = itemRange.bottom - this._visibleHeight;
       }
@@ -929,7 +935,6 @@ export class JsonTree extends LitElement {
   }
 
   private centerSelectedItem() {
-    if (!this.shadowRoot) return;
     if (!this._selectedPath) return;
     this.scrollToPath(this._selectedPath, "center");
   }
@@ -940,7 +945,7 @@ export class JsonTree extends LitElement {
 
   private handleClickTrackingButton(e: MouseEvent) {
     e.stopPropagation();
-    this._rowsElement.focus();
+    this._containerElement.focus();
 
     const button = e.currentTarget as HTMLButtonElement;
     button.classList.toggle("enable-tracking");
@@ -974,9 +979,9 @@ export class JsonTree extends LitElement {
     item: JsonTreeItem,
     index: number,
   ): HTMLTemplateResult | undefined {
-    const startRowIndex = scrollTopToRowIndex(this._scrollTop);
+    const startRowIndex = topToIndex(this._scrollTop);
     const selectedClass = item.pathStr === this._selectedPath ? "selected" : "";
-    const top = this.indexToTop(startRowIndex + index);
+    const top = indexToTop(startRowIndex + index);
     const style = `padding-left: ${item.indent}ch;top: ${top}px;`;
 
     if (item.isLeaf) {
@@ -1095,8 +1100,6 @@ export class JsonTree extends LitElement {
   }
 
   renderBreadcrumb() {
-    if (!this.shadowRoot) return;
-
     let pathStr = this._selectedPath;
     if (this._showSearch && this._pendingSearchResult) {
       pathStr = this._pendingSearchResult.current.pathStr;
@@ -1118,53 +1121,52 @@ export class JsonTree extends LitElement {
 
   @query("div.rows")
   private _rowsElement!: HTMLDivElement;
-
-  private getStickyHeight(): number {
-    return (
-      (this.showActions ? ACTION_ROW_HEIGHT : 0) +
-      (this.showBreadcrumb ? BREADCRUMB_ROW_HEIGHT : 0)
-    );
-  }
+  @query(".scroll-container")
+  private _scrollContainerElement!: HTMLDivElement;
+  @query(".container")
+  private _containerElement!: HTMLDivElement;
 
   private getTotalHeight(): number {
-    return this.getStickyHeight() + this._totalRows * ROW_HEIGHT;
+    return this._totalRows * ROW_HEIGHT;
   }
 
   render() {
     if (!this._tree || !this._tree.children || this._tree.children.length === 0)
       return html``;
     const height = this.getTotalHeight();
-    const startRowIndex = scrollTopToRowIndex(this._scrollTop);
+    const startRowIndex = topToIndex(this._scrollTop);
     const visibleItems = Array.from(
       sliceItems(this._tree, this._expandAll, startRowIndex, this._visibleRows),
     );
     return html`<div
-      class="rows"
-      style="height: ${height}px;"
-      tabindex="0"
-      @keydown=${this.handleKeydown}
       @click=${this.handleClick}
+      tabindex="0"
+      class="container"
+      @keydown=${this.handleKeydown}
     >
       ${this.showActions ? this.renderActions() : undefined}
       ${this.showBreadcrumb ? this.renderBreadcrumb() : undefined}
-      ${repeat(visibleItems, (item) => item.pathStr, this.renderItem)}
+      <div class="scroll-container">
+        <div class="rows" style="height: ${height}px;" tabindex="0">
+          ${repeat(visibleItems, (item) => item.pathStr, this.renderItem)}
+        </div>
+      </div>
     </div>`;
+  }
+
+  private autoFocus() {
+    if (
+      this.shadowRoot!.host.ownerDocument.activeElement?.classList.contains(
+        "detail-header-tab",
+      )
+    ) {
+      (this.shadowRoot!.host.firstElementChild as HTMLElement)?.focus();
+    }
   }
 
   connectedCallback(): void {
     super.connectedCallback();
-    this.generateTree();
-
-    const host = this.shadowRoot!.host;
-    // monitor shadowRoot size change
-    const observer = new ResizeObserver((e) => {
-      const height = e[0].contentBoxSize[0].blockSize;
-      this._visibleRows = Math.ceil(height / ROW_HEIGHT);
-      this._visibleHeight = height;
-    });
-    observer.observe(host);
-
-    host.addEventListener("scroll", this.handleScroll);
+    this.autoFocus();
 
     this.keymapManager.register(
       {
@@ -1233,11 +1235,11 @@ export class JsonTree extends LitElement {
       },
       {
         keys: ["/"],
-        action: () => this.handleShowSearchInput(true),
+        action: () => this.showSearchInput(true),
       },
       {
         keys: ["?"],
-        action: () => this.handleShowSearchInput(false),
+        action: () => this.showSearchInput(false),
       },
       {
         keys: ["n"],
@@ -1262,51 +1264,59 @@ export class JsonTree extends LitElement {
       {
         keys: ["ctrl+y"],
         action: () => {
-          if (this.shadowRoot) {
-            const index = scrollTopToRowIndex(this._scrollTop);
-            if (index > 0) {
-              this._scrollTop = (index - 1) * ROW_HEIGHT;
-            }
-          }
+          const index = topToIndex(this._scrollTop);
+          this._scrollTop = (index - 1) * ROW_HEIGHT;
         },
       },
       {
         keys: ["ctrl+e"],
         action: () => {
-          if (this.shadowRoot) {
-            const index = scrollTopToRowIndex(this._scrollTop);
-            if (index < this._totalRows - this._visibleRows) {
-              this._scrollTop = (index + 1) * ROW_HEIGHT;
-            }
-          }
+          const index = topToIndex(this._scrollTop);
+          this._scrollTop = (index + 1) * ROW_HEIGHT;
         },
       },
     );
   }
 
+  private _scrollContainerResizeObserver?: ResizeObserver;
+
   protected firstUpdated(_changedProperties: PropertyValues): void {
-    if (
-      this.shadowRoot?.host?.ownerDocument?.activeElement?.classList.contains(
-        "detail-header-tab",
-      )
-    ) {
-      this._rowsElement.focus();
-    }
+    super.firstUpdated(_changedProperties);
+    // listen to the scroll container size change
+    this._scrollContainerResizeObserver = new ResizeObserver((e) => {
+      const height = e[0].contentBoxSize[0].blockSize;
+      this._visibleRows = Math.ceil(height / ROW_HEIGHT);
+      this._visibleHeight = height;
+    });
+    this._scrollContainerResizeObserver.observe(this._scrollContainerElement);
+
+    // listen to the scroll container scroll event
+    this.handleScroll = this.handleScroll.bind(this);
+    this._scrollContainerElement.addEventListener("scroll", this.handleScroll);
   }
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
-    if (!this.shadowRoot) return;
-    this.shadowRoot.host.removeEventListener("scroll", this.handleScroll);
+    this._scrollContainerResizeObserver?.disconnect();
+    this._scrollContainerResizeObserver = undefined;
+    this._scrollContainerElement.removeEventListener(
+      "scroll",
+      this.handleScroll,
+    );
   }
 
-  private handleScroll() {
-    if (!this.shadowRoot) return;
-
-    this._scrollTop = this.shadowRoot.host.scrollTop;
+  private handleScroll(e: Event) {
+    this._scrollTop = (e.currentTarget as HTMLDivElement).scrollTop;
   }
 
   update(changedProperties: PropertyValues): void {
+    if (
+      changedProperties.has("data") ||
+      changedProperties.has("_showNestedJson")
+    ) {
+      this.generateTree();
+    }
+
     if (changedProperties.has("_showFilter")) {
       if (!this._showFilter) {
         this._filter = this._filterInput?.value || "";
@@ -1327,24 +1337,24 @@ export class JsonTree extends LitElement {
       if (this._selectedPath) this.scrollToPath(this._selectedPath);
     }
 
+    if (changedProperties.has("_scrollTop")) {
+      this._scrollTop = Math.max(
+        0,
+        Math.min(
+          this._scrollTop,
+          this._totalRows * ROW_HEIGHT - this._visibleHeight,
+        ),
+      );
+    }
+
     super.update(changedProperties);
   }
 
   updated(changedProperties: PropertyValues): void {
     super.updated(changedProperties);
-    if (
-      changedProperties.has("data") ||
-      changedProperties.has("_showNestedJson")
-    ) {
-      this.generateTree();
-    }
 
-    if (
-      changedProperties.has("_scrollTop") &&
-      this.shadowRoot &&
-      this._scrollTop !== undefined
-    ) {
-      this.shadowRoot.host.scrollTop = this._scrollTop;
+    if (changedProperties.has("_scrollTop")) {
+      this._scrollContainerElement.scrollTop = this._scrollTop;
     }
 
     if (changedProperties.has("_showFilter")) {
@@ -1395,11 +1405,11 @@ export class JsonTree extends LitElement {
       this.highlightAllSearchResult();
     }
   }
-
-  private indexToTop(index: number): number {
-    return this.getStickyHeight() + index * ROW_HEIGHT;
-  }
 }
+
+const indexToTop = (index: number): number => {
+  return index * ROW_HEIGHT;
+};
 
 const getRowElement = (ele: Node): HTMLElement | undefined => {
   let p: Node | null = ele;
@@ -1427,6 +1437,6 @@ const createRegex = (value: string) => {
   return new RegExp(escapeRegExp(value), hasCapitalLetter ? "" : "i");
 };
 
-const scrollTopToRowIndex = (scrollTop: number) => {
+const topToIndex = (scrollTop: number) => {
   return Math.max(0, Math.floor(scrollTop / ROW_HEIGHT));
 };
