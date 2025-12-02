@@ -1160,13 +1160,12 @@ export class JsonTree extends LitElement {
         "detail-header-tab",
       )
     ) {
-      (this.shadowRoot!.host.firstElementChild as HTMLElement)?.focus();
+      this._containerElement.focus();
     }
   }
 
   connectedCallback(): void {
     super.connectedCallback();
-    this.autoFocus();
 
     this.keymapManager.register(
       {
@@ -1282,6 +1281,7 @@ export class JsonTree extends LitElement {
 
   protected firstUpdated(_changedProperties: PropertyValues): void {
     super.firstUpdated(_changedProperties);
+    this.autoFocus();
     // listen to the scroll container size change
     this._scrollContainerResizeObserver = new ResizeObserver((e) => {
       const height = e[0].contentBoxSize[0].blockSize;
