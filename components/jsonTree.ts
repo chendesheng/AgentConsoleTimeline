@@ -614,8 +614,7 @@ export class JsonTree extends LitElement {
       else this.scrollToPath(pathStr, "top");
       return;
     } else if (hasParent(rowElement, "sticky-path-items")) {
-      this.scrollToPath(pathStr, "top");
-      this._scrollTop -= ROW_HEIGHT;
+      this.scrollToPath(pathStr, "top", -ROW_HEIGHT);
       return;
     } else {
       this.toggleExpandByPathStr(pathStr);
@@ -882,6 +881,7 @@ export class JsonTree extends LitElement {
   private scrollToPath(
     pathStr: string,
     position?: "top" | "center" | "bottom",
+    offset?: number,
   ) {
     const index = indexOfPathStr(this._tree, this._expandAll, pathStr);
     if (index === -1) return;
@@ -916,7 +916,7 @@ export class JsonTree extends LitElement {
 
     if (newScrollTop !== undefined) {
       // this._scrollTop = newScrollTop;
-      this.smoothScrollTo(newScrollTop);
+      this.smoothScrollTo(newScrollTop + (offset ?? 0));
     }
   }
 
