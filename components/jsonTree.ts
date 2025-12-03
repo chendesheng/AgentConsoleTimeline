@@ -1576,6 +1576,7 @@ const getScrollTopRangeForStickyItem = (
   expandAll: boolean,
 ): [number, number] => {
   const start = index * ROW_HEIGHT;
-  const end = start + item.getDecendentsCount(expandAll) * ROW_HEIGHT;
+  const end =
+    start + item.getDecendentsCount(expandAll) * ROW_HEIGHT - ROW_HEIGHT;
   return [start, end];
 };
