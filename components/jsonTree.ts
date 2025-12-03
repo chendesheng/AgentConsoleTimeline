@@ -233,6 +233,7 @@ export class JsonTree extends LitElement {
       position: absolute;
       width: 100%;
       box-sizing: border-box;
+      flex: none;
     }
     .label img {
       display: block;
@@ -558,38 +559,32 @@ export class JsonTree extends LitElement {
       display: flex;
       flex-direction: column;
       width: 100%;
-      --background-color: rgb(35, 35, 35);
-      background-color: var(--background-color);
       box-sizing: border-box;
-      border-bottom: 0.5px solid var(--border-color);
+      overflow: hidden;
     }
     .sticky-path-items .label {
       top: unset !important;
       position: unset !important;
       background-color: var(--background-color) !important;
-      opacity: 0.7;
+      flex: none;
+    }
+    .sticky-path-items .label button.tracking {
+      display: none !important;
+    }
+    .sticky-path-items .label:hover {
+      background-color: var(--selected-background-color-unfocused) !important;
     }
     .sticky-path-items > div {
-      position: relative;
-      flex-shrink: 0;
-      overflow: hidden;
       height: ${ROW_HEIGHT}px;
-      box-sizing: border-box;
+      background-color: var(--background-color);
+      z-index: 1;
     }
     .sticky-path-items > div:last-child {
-      flex-shrink: 1;
-      border-bottom: none;
-    }
-    .sticky-path-items > div:last-child .label {
-      position: absolute !important;
+      position: absolute;
       left: 0;
       bottom: 0;
       width: 100%;
-    }
-
-    .sticky-path-items .label:focus,
-    .sticky-path-items .label:hover {
-      opacity: 1;
+      z-index: 0;
     }
   `;
 
@@ -920,8 +915,32 @@ export class JsonTree extends LitElement {
     }
 
     if (newScrollTop !== undefined) {
-      this._scrollTop = newScrollTop;
+      // this._scrollTop = newScrollTop;
+      this.smoothScrollTo(newScrollTop);
     }
+  }
+
+  private _smoothScrollTimer: number = 0;
+  private smoothScrollTo(scrollTop: number) {
+    if (this._smoothScrollTimer) {
+      cancelAnimationFrame(this._smoothScrollTimer);
+    }
+
+    const duration = 100;
+    const start = performance.now();
+    const startScrollTop = this._scrollTop;
+    const animate = () => {
+      const time = performance.now() - start;
+      const progress = easeOutInQuad(time / duration);
+      this._scrollTop =
+        startScrollTop + Math.round((scrollTop - startScrollTop) * progress);
+      if (time < duration) {
+        this._smoothScrollTimer = requestAnimationFrame(animate);
+      } else {
+        this._scrollTop = scrollTop;
+      }
+    };
+    this._smoothScrollTimer = requestAnimationFrame(animate);
   }
 
   private keymapManager = new KeymapManager();
@@ -1393,14 +1412,14 @@ export class JsonTree extends LitElement {
         keys: ["ctrl+y"],
         action: () => {
           const index = topToIndex(this._scrollTop);
-          this._scrollTop = (index - 1) * ROW_HEIGHT;
+          this.smoothScrollTo((index - 1) * ROW_HEIGHT);
         },
       },
       {
         keys: ["ctrl+e"],
         action: () => {
           const index = topToIndex(this._scrollTop);
-          this._scrollTop = (index + 1) * ROW_HEIGHT;
+          this.smoothScrollTo((index + 1) * ROW_HEIGHT);
         },
       },
     );
@@ -1579,4 +1598,8 @@ const getScrollTopRangeForStickyItem = (
   const end =
     start + item.getDecendentsCount(expandAll) * ROW_HEIGHT - ROW_HEIGHT;
   return [start, end];
+};
+
+const easeOutInQuad = (x: number) => {
+  return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
 };
