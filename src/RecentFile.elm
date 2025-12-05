@@ -13,6 +13,9 @@ port getFileContent : String -> Cmd msg
 -- port getRecentFiles : () -> Cmd msg
 
 
+port setWaitOpeningFile : (String -> msg) -> Sub msg
+
+
 port gotFileContent : (JsonFile -> msg) -> Sub msg
 
 

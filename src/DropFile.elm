@@ -41,6 +41,7 @@ type DropFileMsg
     = NoOp
     | GotJsonFile JsonFile
     | ReadFileError String
+    | SetOpeningFile String
     | DownloadFile
 
 
@@ -102,6 +103,9 @@ dropFileUpdate timezone msg model =
                 s ->
                     ( model, Download.string model.fileName "text/plain" s )
 
+        SetOpeningFile _ ->
+            ( model, Cmd.none )
+
 
 
 -- VIEW
@@ -114,5 +118,6 @@ dropFileView className fn children =
         , class className
         , on "change" <| D.map (fn << GotJsonFile) <| D.field "detail" jsonFileDecoder
         , on "error" <| D.map (fn << ReadFileError) <| D.field "detail" D.string
+        , on "setOpeningFile" <| D.map (fn << SetOpeningFile) <| D.field "detail" D.string
         ]
         children

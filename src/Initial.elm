@@ -24,6 +24,7 @@ type alias InitialModel =
     { dropFile : DropFileModel
     , recentFiles : List RecentFile
     , remoteSessionIds : List String
+    , waitingOpeningFile : Maybe String
     , waitingRemoteSession : Maybe String
     , remoteAddress : String
     , timezone : Time.Zone
@@ -35,6 +36,7 @@ defaultInitialModel remoteAddress =
     { dropFile = DropFile.defaultDropFileModel
     , recentFiles = []
     , remoteSessionIds = []
+    , waitingOpeningFile = Nothing
     , waitingRemoteSession = Nothing
     , remoteAddress = remoteAddress
     , timezone = Time.utc
@@ -100,6 +102,9 @@ openButton =
         , on "error" <|
             D.map (DropFile << DropFile.ReadFileError) <|
                 D.field "detail" D.string
+        , on "setOpeningFile" <|
+            D.map (DropFile << DropFile.SetOpeningFile) <|
+                D.field "detail" D.string
         ]
         []
 
@@ -120,22 +125,31 @@ initialView model =
                     ]
 
                 _ ->
-                    [ span [ class "error" ] [ text <| Maybe.withDefault "" model.dropFile.error ]
-                    , div [ class "initial-dialog" ]
-                        [ span [ class "actions" ]
-                            [ openButton
-                            , button [ onClick ClickClearRecentFiles ] [ text "Clear Recent Files" ]
-                            , span [ class "version" ] [ text "v1.0" ]
+                    case model.waitingOpeningFile of
+                        Just fileName ->
+                            [ div [ class "initial-dialog", class "waiting" ]
+                                [ Icons.spinning
+                                , text <| "Waiting for " ++ fileName ++ " to open…"
+                                ]
                             ]
-                        , div [ class "bar" ] []
-                        , if List.isEmpty model.remoteSessionIds then
-                            text ""
 
-                          else
-                            liveSessionList model.remoteAddress model.remoteSessionIds
-                        , recentFilesList model.recentFiles
-                        ]
-                    ]
+                        Nothing ->
+                            [ span [ class "error" ] [ text <| Maybe.withDefault "" model.dropFile.error ]
+                            , div [ class "initial-dialog" ]
+                                [ span [ class "actions" ]
+                                    [ openButton
+                                    , button [ onClick ClickClearRecentFiles ] [ text "Clear Recent Files" ]
+                                    , span [ class "version" ] [ text "v1.0" ]
+                                    ]
+                                , div [ class "bar" ] []
+                                , if List.isEmpty model.remoteSessionIds then
+                                    text ""
+
+                                  else
+                                    liveSessionList model.remoteAddress model.remoteSessionIds
+                                , recentFilesList model.recentFiles
+                                ]
+                            ]
         ]
 
 
@@ -153,6 +167,7 @@ type InitialMsg
     | ClickRemoteSession String
     | CloseRemote
     | GotTimezone Time.Zone
+    | SetWaitOpeningFile String
 
 
 updateInitial : InitialMsg -> InitialModel -> ( InitialModel, Cmd InitialMsg )
@@ -169,6 +184,9 @@ updateInitial msg model =
 
         CloseRemote ->
             ( { model | waitingRemoteSession = Nothing }, Cmd.none )
+
+        DropFile (DropFile.SetOpeningFile fileName) ->
+            ( { model | waitingOpeningFile = Just fileName }, Cmd.none )
 
         DropFile dropMsg ->
             let
@@ -196,3 +214,6 @@ updateInitial msg model =
 
         GotTimezone zone ->
             ( { model | timezone = zone }, Cmd.none )
+
+        SetWaitOpeningFile waitingOpeningFile ->
+            ( { model | waitingOpeningFile = Just waitingOpeningFile }, Cmd.none )

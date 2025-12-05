@@ -135,6 +135,8 @@ async function main() {
   window.onmessage = async (event: MessageEvent) => {
     if (event.data.type === "open") {
       if (event.data.filename && event.data.content) {
+        app.ports.setWaitOpeningFile.send(event.data.filename);
+
         let content: string;
         if (event.data.content instanceof ArrayBuffer) {
           const file = await unzipFiles(

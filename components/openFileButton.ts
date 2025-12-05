@@ -21,6 +21,10 @@ export class OpenFileButton extends LitElement {
     const files = (e.target as HTMLInputElement).files;
     if (!files) return;
 
+    this.dispatchEvent(
+      new CustomEvent("setOpeningFile", { detail: files[0].name }),
+    );
+
     const event = await unzipFilesAndCreateCustomEvent(files);
     this.dispatchEvent(event);
   }

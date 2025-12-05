@@ -15,7 +15,7 @@ import Initial exposing (InitialModel, InitialMsg(..), defaultInitialModel, init
 import Json.Decode as D
 import Json.Encode as Encode
 import List
-import RecentFile exposing (RecentFile, gotFileContent, saveRecentFile)
+import RecentFile exposing (RecentFile, gotFileContent, saveRecentFile, setWaitOpeningFile)
 import Remote
 import Snapshot exposing (snapshotQuickPreview)
 import Table
@@ -512,6 +512,7 @@ subscriptions model =
             Sub.batch
                 [ gotFileContent
                     (\jsonFile -> InitialMsg <| Initial.DropFile <| GotJsonFile jsonFile)
+                , setWaitOpeningFile (InitialMsg << Initial.SetWaitOpeningFile)
                 , case waitingRemoteSession of
                     Just _ ->
                         Remote.gotRemoteHarLog

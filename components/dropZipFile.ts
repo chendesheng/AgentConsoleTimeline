@@ -46,6 +46,12 @@ export class DropZipFile extends HTMLElement {
         const files = e.dataTransfer?.files;
         if (!files) return;
 
+        this.dispatchEvent(
+          new CustomEvent("setOpeningFile", {
+            detail: files[0].name,
+          }),
+        );
+
         const event = await unzipFilesAndCreateCustomEvent(files);
         this.dispatchEvent(event);
       },
