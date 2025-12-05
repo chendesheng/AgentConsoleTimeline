@@ -85,8 +85,8 @@ dropFileUpdate timezone msg model =
                         Ok _ ->
                             Nothing
 
-                        Err _ ->
-                            Just <| "Decode file " ++ name ++ " failed"
+                        Err err ->
+                            Just <| "Decode file " ++ name ++ " failed: " ++ D.errorToString err
               }
             , Cmd.none
             )
