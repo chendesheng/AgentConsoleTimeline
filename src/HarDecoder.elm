@@ -184,7 +184,9 @@ headerDecoder : Decoder Header
 headerDecoder =
     Decode.map3 Header
         (field "name" string)
-        (field "value" string)
+        -- this is a workaround to handle the case where the value is not present,
+        -- According to the spec, this should not happen, but I checked other tools (chrome devtools, proxyman) and they can parse the file without error
+        (field "value" string |> maybe |> Decode.map (Maybe.withDefault "null"))
         (maybe <| field "comment" string)
 
 
