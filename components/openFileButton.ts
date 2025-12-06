@@ -18,7 +18,9 @@ export class OpenFileButton extends LitElement {
     e.preventDefault();
     e.stopPropagation();
 
-    const files = (e.target as HTMLInputElement).files;
+    const input = e.currentTarget as HTMLInputElement;
+
+    const files = input.files;
     if (!files) return;
 
     this.dispatchEvent(
@@ -27,70 +29,28 @@ export class OpenFileButton extends LitElement {
 
     const event = await unzipFilesAndCreateCustomEvent(files);
     this.dispatchEvent(event);
+
+    input.onchange = null;
   }
 
-  @query("input")
-  private input?: HTMLInputElement;
+  createRenderRoot(): HTMLElement | DocumentFragment {
+    return this;
+  }
 
-  static styles = css`
-    input[type="file"] {
-      display: none;
-    }
-
-    button {
-      display: flex;
-      align-items: center;
-    }
-
-    button .icon {
-      margin-right: 2px;
-    }
-
-    button.text {
-      font-size: 12px;
-      background: none;
-      border: none;
-      cursor: pointer;
-      padding: 0;
-      color: inherit;
-    }
-
-    button.text:hover {
-      color: var(--text-color);
-    }
-
-    button.error {
-      color: var(--error-text-color);
-    }
-
-    button.error:hover {
-      color: var(--error-text-color);
-    }
-
-    .icon {
-      display: inline-block;
-      width: 1em;
-      height: 1em;
-      fill: currentColor;
-      vertical-align: middle;
-      overflow: hidden;
-      flex: none;
-      color: currentColor;
-    }
-
-    .icon.import {
-      background-color: currentColor;
-      mask: url("${unsafeCSS(importUrl)}") no-repeat 100% 100%;
-    }
-  `;
+  connectedCallback(): void {
+    super.connectedCallback();
+    this.handleChange = this.handleChange.bind(this);
+  }
 
   handleClick() {
-    this.input?.click();
+    const input = document.createElement("input");
+    input.type = "file";
+    input.onchange = this.handleChange;
+    input.click();
   }
 
   render() {
     return html`<div title=${this.error}>
-      <input type="file" @change=${this.handleChange} />
       <button
         class="text ${this.error ? "error" : ""}"
         @click=${this.handleClick}
