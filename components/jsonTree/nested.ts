@@ -12,10 +12,9 @@ const isTimestamp = (o: any, path: (string | number)[] = []) => {
     ["config", "preference", "loginTime"],
     ["visitor", "lastGetSegmentChangedTime"],
     ["visitor", "lastGetNewVisitorTime"],
-    ["latestInChattingTime"],
   ];
   for (const p of timestampPath) {
-    if (equals(path.slice(0, -p.length), p)) {
+    if (equals(path, p)) {
       return typeof o === "number";
     }
   }
