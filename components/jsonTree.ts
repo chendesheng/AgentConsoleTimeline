@@ -598,7 +598,7 @@ export class JsonTree extends LitElement {
   }
 
   private scrollToTop() {
-    this._scrollTop = 0;
+    this.smoothScrollTo(0);
   }
 
   private handleClick(event: MouseEvent) {
