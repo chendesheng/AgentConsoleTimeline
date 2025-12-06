@@ -19,7 +19,9 @@ export class CodeEditor extends LitElement {
     return this;
   }
 
-  protected async firstUpdated(_changedProperties: PropertyValues) {
+  connectedCallback() {
+    super.connectedCallback();
+
     this.editor = monaco.editor.create(this, {
       language: this.language,
       automaticLayout: true,
@@ -75,7 +77,9 @@ export class MonacoDiffEditor extends LitElement {
     return this;
   }
 
-  protected async firstUpdated(_changedProperties: PropertyValues) {
+  connectedCallback() {
+    super.connectedCallback();
+
     this.editor = monaco.editor.createDiffEditor(this, {
       originalEditable: false,
       automaticLayout: true,
@@ -85,10 +89,9 @@ export class MonacoDiffEditor extends LitElement {
       diffWordWrap: "on",
       hideUnchangedRegions: {
         enabled: true,
+        contextLineCount: 10,
       },
     });
-
-    this.setModels();
   }
 
   private setModels() {
@@ -108,9 +111,8 @@ export class MonacoDiffEditor extends LitElement {
 
   protected updated(changedProperties: PropertyValues): void {
     if (
-      (changedProperties.has("original") ||
-        changedProperties.has("modified")) &&
-      this.editor
+      changedProperties.has("original") ||
+      changedProperties.has("modified")
     ) {
       this.setModels();
     }
