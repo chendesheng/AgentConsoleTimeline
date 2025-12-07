@@ -148,9 +148,9 @@ export class JsonTreeItem {
     }
   }
 
-  isNoOrHideChildren(hasFilter: boolean): boolean {
+  isNoOrHideChildren(expandAll: boolean): boolean {
     if (this.children === undefined || this.children.length === 0) return true;
-    if (hasFilter) return false;
+    if (expandAll) return false;
     if (this.expanded) return false;
     return true;
   }
@@ -254,7 +254,7 @@ export function getItemByPathStr(
 function getItemByIndex(
   tree: JsonTreeItem,
   index: number,
-  hasFilter: boolean,
+  expandAll: boolean,
   itemsPath: JsonTreeItem[],
   indexPath: number[],
 ): JsonTreeItem | undefined {
@@ -264,7 +264,7 @@ function getItemByIndex(
     let i = 0;
     for (let k = 0; k < tree.children.length; k++) {
       const child = tree.children[k];
-      const j = i + child.getDecendentsCount(hasFilter);
+      const j = i + child.getDecendentsCount(expandAll);
 
       if (i === index && !child.hidden) {
         indexPath.push(k);
@@ -275,7 +275,7 @@ function getItemByIndex(
         return getItemByIndex(
           child,
           index - i - 1,
-          hasFilter,
+          expandAll,
           itemsPath,
           indexPath,
         );
@@ -289,12 +289,12 @@ function getItemByIndex(
 export function getIteratorByIndex(
   tree: JsonTreeItem,
   index: number,
-  hasFilter: boolean,
+  expandAll: boolean,
 ) {
   const itemsPath: JsonTreeItem[] = [];
   const indexPath: number[] = [];
-  if (getItemByIndex(tree, index, hasFilter, itemsPath, indexPath)) {
-    const iter = createIterator(tree, hasFilter);
+  if (getItemByIndex(tree, index, expandAll, itemsPath, indexPath)) {
+    const iter = createIterator(tree, expandAll);
     iter.reset(itemsPath, indexPath);
     return iter;
   }
@@ -327,12 +327,12 @@ export function setExpanded(tree: JsonTreeItem, expanded: boolean) {
   }
 }
 
-function createIterator(tree: JsonTreeItem, hasFilter: boolean) {
+function createIterator(tree: JsonTreeItem, expandAll: boolean) {
   return new TreeIterator(
     tree,
     (item) => !!item.hidden,
     (item) => {
-      if (hasFilter) return false;
+      if (expandAll) return false;
       return !item.expanded;
     },
   );
@@ -356,67 +356,67 @@ function forwardToPath(iter: TreeIterator<JsonTreeItem>, pathStr: string) {
 
 export function getIterator(
   tree: JsonTreeItem,
-  hasFilter: boolean,
+  expandAll: boolean,
   startPath?: string,
 ) {
-  const iter = createIterator(tree, hasFilter);
+  const iter = createIterator(tree, expandAll);
   if (startPath) forwardToPath(iter, startPath);
   return iter;
 }
 
 export function getNextItem(
   tree: JsonTreeItem,
-  hasFilter: boolean,
+  expandAll: boolean,
   path: string | undefined,
 ) {
   if (!path) return;
-  const iter = getIterator(tree, hasFilter, path);
+  const iter = getIterator(tree, expandAll, path);
   !iter.next() && iter.first() && iter.next();
   return iter.current;
 }
 
 export function getPreviousItem(
   tree: JsonTreeItem,
-  hasFilter: boolean,
+  expandAll: boolean,
   path: string | undefined,
 ) {
   if (!path) return;
-  const iter = getIterator(tree, hasFilter, path);
+  const iter = getIterator(tree, expandAll, path);
   iter.previous();
   if (iter.current.isRoot) iter.last();
   return iter.current;
 }
 
-export function getLastItem(tree: JsonTreeItem, hasFilter: boolean) {
-  const iter = createIterator(tree, hasFilter);
+export function getLastItem(tree: JsonTreeItem, expandAll: boolean) {
+  const iter = createIterator(tree, expandAll);
   iter.last();
   return iter.current;
 }
 
 export function getFirstItem(
   tree: JsonTreeItem,
-  hasFilter: boolean,
+  expandAll: boolean,
 ): JsonTreeItem | undefined {
-  const iter = createIterator(tree, hasFilter);
+  const iter = createIterator(tree, expandAll);
   // root is not rendered, first item is the first child of root
   if (iter.next()) {
     return iter.current;
   }
 }
 
-export function totalRows(item: JsonTreeItem, hasFilter: boolean): number {
-  const count = item.getDecendentsCount(hasFilter);
+export function totalRows(item: JsonTreeItem, expandAll: boolean): number {
+  const count = item.getDecendentsCount(expandAll);
   // root is not rendered, so we need to subtract 1
   return count - 1;
 }
 
 export function* sliceItems(
   tree: JsonTreeItem,
-  hasFilter: boolean,
+  expandAll: boolean,
   startIndex: number,
   length: number,
 ) {
-  const iter = getIteratorByIndex(tree, startIndex, hasFilter);
+  const iter = getIteratorByIndex(tree, startIndex, expandAll);
   if (!iter) return;
   for (let i = 0; i < length; i++) {
     yield iter.current;
@@ -426,16 +426,16 @@ export function* sliceItems(
 
 export function indexOfPathStr(
   tree: JsonTreeItem,
-  hasFilter: boolean,
+  expandAll: boolean,
   pathStr: string,
 ) {
-  const iter = getIterator(tree, hasFilter, pathStr);
+  const iter = getIterator(tree, expandAll, pathStr);
   let current = tree;
   let result = 0;
   for (let i = 0; i < iter.indexPath.length; i++) {
     const index = iter.indexPath[i];
     for (let j = 0; j < index; j++) {
-      result += current.children![j].getDecendentsCount(hasFilter);
+      result += current.children![j].getDecendentsCount(expandAll);
     }
     result += 1;
     current = current.children![index];
