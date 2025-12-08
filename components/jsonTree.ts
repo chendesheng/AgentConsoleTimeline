@@ -635,13 +635,10 @@ export class JsonTree extends LitElement {
 
   private copySelectedValue() {
     if (this._selectedPath) {
-      const toCopy = JSON.stringify(
-        getItemByPath(this._tree, this._selectedPath)?.value,
-        null,
-        2,
-      );
+      const item = getItemByPath(this._tree, this._selectedPath);
+      const toCopy = JSON.stringify(item?.value, null, 2);
       navigator.clipboard.writeText(toCopy);
-      const row = this.getElementByPath(this._selectedPath);
+      const row = this.getRowElement(item);
       if (row) {
         row.classList.add("copied");
         row.addEventListener(
@@ -831,7 +828,7 @@ export class JsonTree extends LitElement {
     CSS.highlights.delete("search-result-highlight");
 
     if (!this._pendingSearchResult) return;
-    const ele = this.getElementByPath(this._pendingSearchResult.current.path);
+    const ele = this.getRowElement(this._pendingSearchResult.current);
     if (!ele) return;
     const document = ele.ownerDocument;
     const domWalker = document.createTreeWalker(ele, NodeFilter.SHOW_TEXT, {
@@ -879,12 +876,10 @@ export class JsonTree extends LitElement {
     }
   }
 
-  private getElementByPath(
-    path: string[] | undefined,
-  ): HTMLElement | undefined {
-    if (!path) return undefined;
+  private getRowElement(item?: JsonTreeItem): HTMLElement | undefined {
+    if (!item) return undefined;
     return this.shadowRoot?.querySelector(
-      `.rows > .label[data-path="${path.join(".")}"]`,
+      `.rows > .label[data-path="${item.pathStr}"]`,
     ) as HTMLElement;
   }
 
