@@ -429,8 +429,7 @@ export class JsonTree extends LitElement {
       user-select: none;
       width: 1em;
       height: 1em;
-      margin-right: 3px;
-      display: inline-flex;
+      display: flex;
       align-items: center;
       justify-content: center;
       border: solid 1px currentColor;
@@ -439,8 +438,8 @@ export class JsonTree extends LitElement {
 
     button.play-sound:after {
       content: "▶";
-      position: relative;
-      left: 1px;
+      margin-left: 1px;
+      font-size: smaller;
     }
 
     button.play-sound.playing {
@@ -450,9 +449,7 @@ export class JsonTree extends LitElement {
 
     button.play-sound.playing:after {
       content: "⏹";
-      position: unset;
-      top: unset;
-      left: unset;
+      margin-left: 0px;
     }
 
     button.tracking {

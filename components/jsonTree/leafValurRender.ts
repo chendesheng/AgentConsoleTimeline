@@ -43,21 +43,21 @@ export function leafValueRenderer(
     ) {
       const anchorName = `--preview-${pathStr.replace(/\./g, "-")}`;
       const id = `html-preview-${pathStr}`;
-      return html`<span class="value string"
-        ><button
+      return html`<button
           popovertarget="${id}"
           class="preview"
           style="anchor-name: ${anchorName};"
-        ></button>
-        <div
-          id="${id}"
-          class="html-preview ${pathStr.slice(pathStr.lastIndexOf(".") + 1)}"
-          style="position-anchor: ${anchorName}; top: calc(anchor(bottom) + 4px); left: anchor(left); position-try-fallbacks: flip-block;"
-          popover="auto"
-          .innerHTML=${value}
-        ></div>
-        ${JSON.stringify(value)}</span
-      >`;
+        ></button
+        ><span class="value string">
+          <div
+            id="${id}"
+            class="html-preview ${pathStr.slice(pathStr.lastIndexOf(".") + 1)}"
+            style="position-anchor: ${anchorName}; top: calc(anchor(bottom) + 4px); left: anchor(left); position-try-fallbacks: flip-block;"
+            popover="auto"
+            .innerHTML=${value}
+          ></div>
+          ${JSON.stringify(value)}</span
+        >`;
     } else if (
       pathStr.endsWith("notificationIcon") ||
       pathStr.endsWith(".ico") ||
@@ -74,22 +74,18 @@ export function leafValueRenderer(
       /^rgb\(\s*[0-9]+,\s*[0-9]+,\s*[0-9]+\s*\)$/.test(value)
     ) {
       // FIXME: add alpha
-      return html`<span class="value string"
-        ><input
+      return html`<input
           type="color"
           value="${value.startsWith("rgb")
             ? rgbaToHex(value)
             : expandHex(value)}"
-        />
-        ${JSON.stringify(value)}</span
-      >`;
+        /><span class="value string">${JSON.stringify(value)}</span>`;
     } else if (
       (pathStr.startsWith("config.settings.sound") &&
         pathStr.endsWith(".id")) ||
       (pathStr.startsWith("config.preference") && pathStr.endsWith("SoundId"))
     ) {
-      return html`<span class="value string"
-        ><button
+      return html`<button
           class="play-sound"
           @click=${(e: MouseEvent) => {
             const button = e.currentTarget as HTMLButtonElement;
@@ -102,8 +98,7 @@ export function leafValueRenderer(
             audio.play();
           }}
         ></button
-        >${JSON.stringify(value)}</span
-      >`;
+        ><span class="value string">${JSON.stringify(value)}</span>`;
     } else if (
       pathStr.endsWith(".campaignId") ||
       /\.(codePlans|campaigns)\.[0-9]+\.id$/.test(pathStr)
