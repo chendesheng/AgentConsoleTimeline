@@ -7,7 +7,13 @@ import {
   unsafeCSS,
 } from "lit";
 import { repeat } from "lit/directives/repeat.js";
-import { customElement, property, query, state } from "lit/decorators.js";
+import {
+  customElement,
+  property,
+  query,
+  state,
+  StateDeclaration,
+} from "lit/decorators.js";
 import typeIcons from "../assets/images/TypeIcons.svg";
 import showIcon from "../assets/images/Show.svg";
 import circleIcon from "../assets/images/Circle.svg";
@@ -18,11 +24,10 @@ import {
   clearFilter,
   filterTree,
   getFirstItem,
-  getItemByPathStr,
   getLastItem,
   getNextItem,
   getPreviousItem,
-  indexOfPathStr,
+  indexOfPath,
   JsonTreeItem,
   ROW_HEIGHT,
   setExpanded,
@@ -32,11 +37,14 @@ import {
   setItemExpanded,
   sliceItems,
   searchTree,
+  getItemByPath,
+  isSamePath,
 } from "./jsonTree/model";
 import { tryParseNestedJson } from "./jsonTree/nested";
 import { productionPlatformsPrefixes } from "./domains";
 import { KeymapManager } from "./jsonTree/keymap";
 import { TreeIterator } from "./jsonTree/iterator";
+import { pathStrToPath } from "./jsonTree/keyPath";
 
 function escapeRegExp(str: string) {
   return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
@@ -120,15 +128,17 @@ export class JsonTree extends LitElement {
   @state()
   private _visibleRows = 10;
   private _visibleHeight = 10 * ROW_HEIGHT;
-  @state()
-  private _selectedPath: string | undefined;
+  @state({
+    hasChanged: (value, oldValue) => !isSamePath(value, oldValue),
+  } as StateDeclaration<string[] | undefined>)
+  private _selectedPath: string[] | undefined;
 
   private selectNextPath() {
     this._selectedPath = getNextItem(
       this._tree,
       this._expandAll,
       this._selectedPath,
-    )?.pathStr;
+    )?.path;
   }
 
   private selectPreviousPath() {
@@ -136,7 +146,7 @@ export class JsonTree extends LitElement {
       this._tree,
       this._expandAll,
       this._selectedPath,
-    )?.pathStr;
+    )?.path;
   }
 
   @state()
@@ -588,11 +598,11 @@ export class JsonTree extends LitElement {
     }
   `;
 
-  private toggleExpandByPathStr(pathStr?: string, forceExpanded?: boolean) {
-    if (!pathStr) return;
-    const item = getItemByPathStr(this._tree, pathStr);
+  private toggleExpandByPath(path?: string[], forceExpanded?: boolean) {
+    if (!path) return;
+    const item = getItemByPath(this._tree, path);
     if (item && !item.isLeaf) {
-      setItemExpanded(this._tree, pathStr, forceExpanded ?? !item.expanded);
+      setItemExpanded(this._tree, path, forceExpanded ?? !item.expanded);
       this.requestUpdate();
     }
   }
@@ -608,29 +618,30 @@ export class JsonTree extends LitElement {
     if (!rowElement) return;
 
     const pathStr = rowElement.getAttribute("data-path")!;
+    const path = pathStrToPath(pathStr);
 
     if (hasParent(rowElement, "breadcrumb")) {
-      if (pathStr === "") this.scrollToTop(); // root item
-      else this.scrollToPath(pathStr, "top");
+      if (path.length === 0) this.scrollToTop(); // root item
+      else this.scrollToPath(path, "top");
       return;
     } else if (hasParent(rowElement, "sticky-path-items")) {
-      this.scrollToPath(pathStr, "top", -ROW_HEIGHT);
+      this.scrollToPath(path, "top", -ROW_HEIGHT);
       return;
     } else {
-      this.toggleExpandByPathStr(pathStr);
-      this._selectedPath = pathStr;
+      this.toggleExpandByPath(path);
+      this._selectedPath = path;
     }
   }
 
   private copySelectedValue() {
     if (this._selectedPath) {
       const toCopy = JSON.stringify(
-        getItemByPathStr(this._tree, this._selectedPath)?.value,
+        getItemByPath(this._tree, this._selectedPath)?.value,
         null,
         2,
       );
       navigator.clipboard.writeText(toCopy);
-      const row = this.getElementByPathStr(this._selectedPath);
+      const row = this.getElementByPath(this._selectedPath);
       if (row) {
         row.classList.add("copied");
         row.addEventListener(
@@ -704,11 +715,12 @@ export class JsonTree extends LitElement {
     this._showSearch = false;
     this._pendingSearchSavedExpanded = undefined;
     if (this._pendingSearchResult) {
-      for (const item of this._pendingSearchResult.pathItems.slice(0, -1)) {
+      for (let i = 0; i < this._pendingSearchResult.pathItems.length - 1; i++) {
+        const item = this._pendingSearchResult.pathItems[i];
         item.expanded = true;
         item.resetDecendentsCountCache();
       }
-      this._selectedPath = this._pendingSearchResult.current.pathStr;
+      this._selectedPath = this._pendingSearchResult.current.path;
       this.requestUpdate();
     }
   }
@@ -764,7 +776,7 @@ export class JsonTree extends LitElement {
       }
 
       this._pendingSearchResult = iter;
-      this.scrollToPath(iter.current.pathStr);
+      this.scrollToPath(iter.current.path);
     } else {
       this._pendingSearchResult = undefined;
       this.restorePendingSearchExpanded();
@@ -819,9 +831,7 @@ export class JsonTree extends LitElement {
     CSS.highlights.delete("search-result-highlight");
 
     if (!this._pendingSearchResult) return;
-    const ele = this.getElementByPathStr(
-      this._pendingSearchResult.current.pathStr,
-    );
+    const ele = this.getElementByPath(this._pendingSearchResult.current.path);
     if (!ele) return;
     const document = ele.ownerDocument;
     const domWalker = document.createTreeWalker(ele, NodeFilter.SHOW_TEXT, {
@@ -869,21 +879,21 @@ export class JsonTree extends LitElement {
     }
   }
 
-  private getElementByPathStr(
-    pathStr: string | undefined,
+  private getElementByPath(
+    path: string[] | undefined,
   ): HTMLElement | undefined {
-    if (!pathStr) return undefined;
+    if (!path) return undefined;
     return this.shadowRoot?.querySelector(
-      `.rows > .label[data-path="${pathStr}"]`,
+      `.rows > .label[data-path="${path.join(".")}"]`,
     ) as HTMLElement;
   }
 
   private scrollToPath(
-    pathStr: string,
+    path: string[],
     position?: "top" | "center" | "bottom",
     offset?: number,
   ) {
-    const index = indexOfPathStr(this._tree, this._expandAll, pathStr);
+    const index = indexOfPath(this._tree, this._expandAll, path);
     if (index === -1) return;
 
     const itemRange = {
@@ -894,21 +904,19 @@ export class JsonTree extends LitElement {
     let newScrollTop: number | undefined;
 
     if (position === "top") {
-      newScrollTop =
-        itemRange.top - (pathStr.split(".").length - 1) * ROW_HEIGHT;
+      newScrollTop = itemRange.top - (path.length - 1) * ROW_HEIGHT;
     } else if (position === "center") {
       newScrollTop = itemRange.top - this._visibleHeight / 2 + ROW_HEIGHT / 2;
     } else if (position === "bottom") {
       newScrollTop = itemRange.bottom - this._visibleHeight;
     } else {
       const visibleRange = {
-        top: this._scrollTop + (pathStr.split(".").length - 1) * ROW_HEIGHT,
+        top: this._scrollTop + (path.length - 1) * ROW_HEIGHT,
         bottom: this._scrollTop + this._visibleHeight,
       };
 
       if (itemRange.top < visibleRange.top) {
-        newScrollTop =
-          itemRange.top - (pathStr.split(".").length - 1) * ROW_HEIGHT;
+        newScrollTop = itemRange.top - (path.length - 1) * ROW_HEIGHT;
       } else if (itemRange.bottom >= visibleRange.bottom) {
         newScrollTop = itemRange.bottom - this._visibleHeight;
       }
@@ -947,11 +955,11 @@ export class JsonTree extends LitElement {
 
   private handleArrowLeftKey() {
     if (this._selectedPath) {
-      const item = getItemByPathStr(this._tree, this._selectedPath);
+      const item = getItemByPath(this._tree, this._selectedPath);
       if (item) {
         if (item.isLeaf || !item.expanded) {
-          this._selectedPath = item.parentPathStr;
-          this.toggleExpandByPathStr(this._selectedPath, false);
+          this._selectedPath = item.path.slice(0, -1);
+          this.toggleExpandByPath(this._selectedPath, false);
         } else if (!item.isRoot) {
           item.expanded = false;
           this.requestUpdate();
@@ -971,7 +979,7 @@ export class JsonTree extends LitElement {
       count--;
       if (!iter.next()) break;
     }
-    this._selectedPath = iter.current.pathStr;
+    this._selectedPath = iter.current.path;
   }
 
   private scrollUpHalfPage() {
@@ -984,7 +992,7 @@ export class JsonTree extends LitElement {
     if (iter.current.isRoot) {
       iter.next();
     }
-    this._selectedPath = iter.current.pathStr;
+    this._selectedPath = iter.current.path;
   }
 
   private handleKeydown(e: KeyboardEvent) {
@@ -997,11 +1005,11 @@ export class JsonTree extends LitElement {
   }
 
   private goToFirstItem() {
-    this._selectedPath = getFirstItem(this._tree, this._expandAll)?.pathStr;
+    this._selectedPath = getFirstItem(this._tree, this._expandAll)?.path;
   }
 
   private goToLastItem() {
-    this._selectedPath = getLastItem(this._tree, this._expandAll)?.pathStr;
+    this._selectedPath = getLastItem(this._tree, this._expandAll)?.path;
   }
 
   private handleFilterInputBlur(e: Event) {
@@ -1062,7 +1070,9 @@ export class JsonTree extends LitElement {
     index: number,
   ): HTMLTemplateResult | undefined {
     const startRowIndex = topToIndex(this._scrollTop);
-    const selectedClass = item.pathStr === this._selectedPath ? "selected" : "";
+    const selectedClass = isSamePath(this._selectedPath, item.path)
+      ? "selected"
+      : "";
     const top = indexToTop(startRowIndex + index);
     const style = `padding-left: ${item.indent}ch;top: ${top}px;`;
 
@@ -1182,12 +1192,12 @@ export class JsonTree extends LitElement {
   }
 
   renderBreadcrumb() {
-    let pathStr = this._selectedPath;
+    let path = this._selectedPath;
     if (this._showSearch && this._pendingSearchResult) {
-      pathStr = this._pendingSearchResult.current.pathStr;
+      path = this._pendingSearchResult.current.path;
     }
 
-    const iter = getIterator(this._tree, this._expandAll, pathStr);
+    const iter = getIterator(this._tree, this._expandAll, path);
     if (!iter) return;
 
     const items = iter.current.isNoOrHideChildren(this._expandAll)
@@ -1212,8 +1222,6 @@ export class JsonTree extends LitElement {
       index,
       this._expandAll,
     );
-
-    // console.log("scrollTop", scrollTop, index, start, end, tree.pathStr);
 
     if (scrollTop < start) return true;
 
@@ -1342,19 +1350,19 @@ export class JsonTree extends LitElement {
       },
       {
         keys: ["ArrowRight"],
-        action: () => this.toggleExpandByPathStr(this._selectedPath, true),
+        action: () => this.toggleExpandByPath(this._selectedPath, true),
       },
       {
         keys: ["l"],
-        action: () => this.toggleExpandByPathStr(this._selectedPath, true),
+        action: () => this.toggleExpandByPath(this._selectedPath, true),
       },
       {
         keys: ["o"],
-        action: () => this.toggleExpandByPathStr(this._selectedPath),
+        action: () => this.toggleExpandByPath(this._selectedPath),
       },
       {
         keys: ["Space"],
-        action: () => this.toggleExpandByPathStr(this._selectedPath),
+        action: () => this.toggleExpandByPath(this._selectedPath),
       },
       {
         keys: ["y", "y"],

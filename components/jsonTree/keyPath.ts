@@ -8,5 +8,6 @@ export const pathToPathStr = (path: string[]) => {
 };
 
 export const pathStrToPath = (pathStr: string) => {
+  if (!pathStr) return [];
   return JSON.parse(base64ToUtf8(pathStr));
 };

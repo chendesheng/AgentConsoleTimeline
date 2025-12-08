@@ -2,6 +2,7 @@ import { HTMLTemplateResult } from "lit";
 import { jsonSummary } from "./tokenizer";
 import { leafValueRenderer } from "./leafValurRender";
 import { TreeIterator } from "./iterator";
+import { pathToPathStr } from "./keyPath";
 
 export const ROW_HEIGHT = 18;
 export const ACTION_ROW_HEIGHT = 20;
@@ -32,10 +33,14 @@ export class JsonTreeItem {
     public numberKeyWidth: number | undefined,
     public indent: number,
     public path: string[],
-    public pathStr: string,
-    public parentPathStr: string,
     public value: any,
   ) {}
+
+  private _pathStr?: string;
+  get pathStr(): string {
+    if (!this._pathStr) this._pathStr = pathToPathStr(this.path);
+    return this._pathStr;
+  }
 
   get expanded(): boolean {
     return this._expanded;
@@ -188,10 +193,10 @@ export function searchTree(
   tree: JsonTreeItem,
   re: RegExp,
   forward: boolean,
-  startPathStr?: string,
+  startPath?: string[],
 ) {
   const iter = new TreeIterator(tree);
-  if (startPathStr) forwardToPath(iter, startPathStr);
+  if (startPath) forwardToPath(iter, startPath);
   while (forward ? iter.next() : iter.previous()) {
     if (iter.current.isMatchTreeItem(re)) {
       return iter;
@@ -230,25 +235,12 @@ function getItemsOfPath(tree: JsonTreeItem, path: string[]) {
   return result;
 }
 
-export function getItemsOfPathStr(tree: JsonTreeItem, pathStr: string) {
-  const path = pathStr.split(".");
-  return getItemsOfPath(tree, path);
-}
-
 export function getItemByPath(
   tree: JsonTreeItem,
   path: string[],
 ): JsonTreeItem | undefined {
   const items = getItemsOfPath(tree, path);
   return items[items.length - 1];
-}
-
-export function getItemByPathStr(
-  tree: JsonTreeItem,
-  pathStr: string,
-): JsonTreeItem | undefined {
-  const path = pathStr.split(".");
-  return getItemByPath(tree, path);
 }
 
 function getItemByIndex(
@@ -302,10 +294,9 @@ export function getIteratorByIndex(
 
 export function setItemExpanded(
   tree: JsonTreeItem,
-  pathStr: string,
+  path: string[],
   expanded: boolean,
 ) {
-  const path = pathStr.split(".");
   let parents: JsonTreeItem[] = getItemsOfPath(tree, path);
   let current: JsonTreeItem | undefined = parents[parents.length - 1];
 
@@ -338,8 +329,8 @@ function createIterator(tree: JsonTreeItem, expandAll: boolean) {
   );
 }
 
-function forwardToPath(iter: TreeIterator<JsonTreeItem>, pathStr: string) {
-  const path = pathStr.split(".");
+function forwardToPath(iter: TreeIterator<JsonTreeItem>, path: string[]) {
+  path = [...path];
   const exist = iter.forward((item, indexPath) => {
     if (item.isRoot) return "child";
     if (item.isKey(path[0])) {
@@ -357,7 +348,7 @@ function forwardToPath(iter: TreeIterator<JsonTreeItem>, pathStr: string) {
 export function getIterator(
   tree: JsonTreeItem,
   expandAll: boolean,
-  startPath?: string,
+  startPath?: string[],
 ) {
   const iter = createIterator(tree, expandAll);
   if (startPath) forwardToPath(iter, startPath);
@@ -367,7 +358,7 @@ export function getIterator(
 export function getNextItem(
   tree: JsonTreeItem,
   expandAll: boolean,
-  path: string | undefined,
+  path: string[] | undefined,
 ) {
   if (!path) return;
   const iter = getIterator(tree, expandAll, path);
@@ -378,7 +369,7 @@ export function getNextItem(
 export function getPreviousItem(
   tree: JsonTreeItem,
   expandAll: boolean,
-  path: string | undefined,
+  path: string[] | undefined,
 ) {
   if (!path) return;
   const iter = getIterator(tree, expandAll, path);
@@ -424,12 +415,12 @@ export function* sliceItems(
   }
 }
 
-export function indexOfPathStr(
+export function indexOfPath(
   tree: JsonTreeItem,
   expandAll: boolean,
-  pathStr: string,
+  path: string[],
 ) {
-  const iter = getIterator(tree, expandAll, pathStr);
+  const iter = getIterator(tree, expandAll, path);
   let current = tree;
   let result = 0;
   for (let i = 0; i < iter.indexPath.length; i++) {
@@ -461,8 +452,6 @@ export const jsonToTree = (
   const key = Array.isArray(options.parentJson)
     ? parseInt(path[path.length - 1])
     : path[path.length - 1];
-  const parentPathStr = path.slice(0, -1).join(".");
-  const pathStr = [parentPathStr, key?.toString()].filter(Boolean).join(".");
   const nextIndent = Array.isArray(options.parentJson)
     ? indent + options.parentJson.length.toString().length + 5
     : indent + 2;
@@ -475,8 +464,6 @@ export const jsonToTree = (
     numberKeyWidth,
     indent,
     path,
-    pathStr,
-    parentPathStr,
     json,
   );
   if (item.isRoot) {
@@ -503,7 +490,17 @@ export const jsonToTree = (
     item.children = children;
     return item;
   } else {
-    item.valueRender = () => leafValueRenderer(json, pathStr, options);
+    item.valueRender = () => leafValueRenderer(json, item.path, options);
     return item;
   }
 };
+
+export function isSamePath(path1?: string[], path2?: string[]): boolean {
+  if (path1 === path2) return true;
+  if (!path1 || !path2) return false;
+  if (path1.length !== path2.length) return false;
+  for (let i = 0; i < path1.length; i++) {
+    if (path1[i] !== path2[i]) return false;
+  }
+  return true;
+}

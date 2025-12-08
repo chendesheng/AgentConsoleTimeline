@@ -4,7 +4,7 @@ import PermissionItems from "./T_Global_PermissionItem.json";
 
 export function leafValueRenderer(
   value: JsonType,
-  pathStr: string,
+  path: string[],
   options: {
     soundUrl: string;
     campaignPreviewUrl: string;
@@ -15,6 +15,8 @@ export function leafValueRenderer(
     parentJson?: object;
   },
 ): HTMLTemplateResult {
+  const pathStr = path.join(".");
+
   if (value === null) {
     return html`<span class="value null">null</span>`;
   } else if (typeof value === "string") {
