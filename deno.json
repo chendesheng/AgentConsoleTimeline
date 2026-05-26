@@ -1,0 +1,12 @@
+{
+  "nodeModulesDir": "auto",
+  "tasks": {
+    "start": "node ./node_modules/vite/bin/vite.js",
+    "server": "deno run --allow-read --allow-net server/server.ts",
+    "clean": "rm -rf dist",
+    "release": "node ./node_modules/vite/bin/vite.js build --base=./",
+    "build": "node ./node_modules/typescript/bin/tsc && ./node_modules/.bin/elm make src/Main.elm --debug --output=dist/elm.js",
+    "check": "node ./node_modules/typescript/bin/tsc --noEmit",
+    "tauri": "node ./node_modules/@tauri-apps/cli/tauri.js"
+  }
+}

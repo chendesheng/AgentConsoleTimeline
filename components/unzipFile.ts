@@ -1,5 +1,9 @@
-import JSZip from "jszip";
 import { diff } from "jsondiffpatch";
+import {
+  extractArchiveFile,
+  getArchiveErrorMessage,
+  isArchiveFileName,
+} from "./js7z";
 
 export async function unzipFilesAndCreateCustomEvent(files: FileList) {
   const file = files?.[0];
@@ -9,14 +13,20 @@ export async function unzipFilesAndCreateCustomEvent(files: FileList) {
     });
   }
 
-  if (file.name.endsWith(".zip") && file.size > 1024 * 1024 * 100) {
+  if (isArchiveFileName(file.name) && file.size > 1024 * 1024 * 100) {
     return new CustomEvent("error", {
-      detail: "Open failed: zip file is too large (> 100 MB)",
+      detail: "Open failed: archive file is too large (> 100 MB)",
     });
   }
 
-  if (file.name.endsWith(".zip")) {
-    return await toJsonFile(await unzipFiles(file));
+  if (isArchiveFileName(file.name)) {
+    try {
+      return await toJsonFile(await unzipFiles(file));
+    } catch (error) {
+      return new CustomEvent("error", {
+        detail: `Open failed: ${getArchiveErrorMessage(error)}`,
+      });
+    }
   } else {
     return await toJsonFile(file);
   }
@@ -140,28 +150,7 @@ async function toJsonFile(file: File) {
 }
 
 export async function unzipFiles(file: File) {
-  const jszip = new JSZip();
-  const zip = await jszip.loadAsync(file);
-
-  const files = Object.values(zip.files).filter((file) => !file.dir);
-  for (const file of files) {
-    if (file.name.endsWith(".har")) {
-      return toFile(file);
-    }
-  }
-
-  for (const file of files) {
-    if (file.name.endsWith(".json")) {
-      return toFile(file);
-    }
-  }
-
-  return toFile(files[0]);
-}
-
-async function toFile(file: JSZip.JSZipObject) {
-  const content = await file.async("uint8array");
-  return new File([new Uint8Array(content)], file.name);
+  return await extractArchiveFile(file);
 }
 
 function getJsonPaths(json: any, result: string[], p: string[] = []) {

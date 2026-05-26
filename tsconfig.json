@@ -117,5 +117,6 @@
     ]
   },
   "files": ["index.d.ts"],
-  "include": ["components/**/*.ts"]
+  "include": ["components/**/*.ts"],
+  "exclude": ["components/**/*_test.ts"]
 }

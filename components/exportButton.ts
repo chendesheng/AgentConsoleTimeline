@@ -1,6 +1,6 @@
-import JSZip from "jszip";
 import { html, LitElement, PropertyValues } from "lit";
 import { customElement, property } from "lit/decorators.js";
+import { create7zArchive, getArchiveErrorMessage } from "./js7z";
 
 @customElement("export-button")
 export class ExportButton extends LitElement {
@@ -16,18 +16,11 @@ export class ExportButton extends LitElement {
   private waiting = false;
 
   async export() {
-    const zip = new JSZip();
-    zip.file(this.fileName, this.fileContent, {
-      compression: "DEFLATE",
-      compressionOptions: {
-        level: 9,
-      },
-    });
-    const blob = await zip.generateAsync({ type: "blob" });
+    const blob = await create7zArchive(this.fileName, this.fileContent);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = this.fileName + ".zip";
+    a.download = this.fileName + ".7z";
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 30 * 1000);
@@ -42,7 +35,16 @@ export class ExportButton extends LitElement {
 
     e.preventDefault();
     e.stopPropagation();
-    await this.export();
+    try {
+      await this.export();
+    } catch (error) {
+      this.dispatchEvent(
+        new CustomEvent("error", {
+          detail: `Export failed: ${getArchiveErrorMessage(error)}`,
+          bubbles: true,
+        }),
+      );
+    }
   }
 
   protected createRenderRoot(): HTMLElement | DocumentFragment {
@@ -65,7 +67,14 @@ export class ExportButton extends LitElement {
       this.waiting
     ) {
       this.waiting = false;
-      this.export();
+      this.export().catch((error) => {
+        this.dispatchEvent(
+          new CustomEvent("error", {
+            detail: `Export failed: ${getArchiveErrorMessage(error)}`,
+            bubbles: true,
+          }),
+        );
+      });
     }
   }
 }
