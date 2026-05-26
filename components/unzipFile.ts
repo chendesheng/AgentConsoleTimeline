@@ -56,12 +56,19 @@ export function analysis(json: any) {
     });
     // console.log(json.log.comment);
     let prevStateEntry;
+    const duplicatedReduxStateEntries: any[] = [];
     for (const entry of json.log.entries) {
       if (entry.request.url === "/redux/state") {
         if (prevStateEntry) {
           const prevState = getState(prevStateEntry);
           const state = getState(entry);
           const delta = diff(prevState, state);
+          if (isReduxStateDeltaEmpty(delta)) {
+            duplicatedReduxStateEntries.push(entry);
+          }
+          if (delta.visitor) {
+            console.log(entry);
+          }
           const relatedVisitorIds = getRelatedVisitorIds(
             JSON.stringify(delta),
             visitors,
@@ -85,6 +92,8 @@ export function analysis(json: any) {
         }
       }
     }
+    console.log(duplicatedReduxStateEntries);
+    json.log.entries = json.log.entries.filter((e: any) => !duplicatedReduxStateEntries.includes(e))
     return json;
   } catch (e: any) {
     console.warn(`analysis failed: ${e}`);
@@ -175,4 +184,15 @@ function getJsonPaths(json: any, result: string[], p: string[] = []) {
     // this should not happen
     result.push(p.join("."));
   }
+}
+
+// consider state delta empty when it contains only visitor.lastGetNewVisitorTime or visitor.lastGetSegmentChangedTime
+function isReduxStateDeltaEmpty(delta: {[k: string]: any}) {
+  const keys = Object.keys(delta);
+  if (keys.length === 0) return true;
+  if (keys.length > 1 || keys[0] !== 'visitor') return false;
+  const visitorKeys = Object.keys(delta['visitor'])
+  if (visitorKeys.length === 0) return true;
+  if (visitorKeys.length > 2) return false;
+  return visitorKeys.every(k => ['lastGetNewVisitorTime', 'lastGetSegmentChangedTime'].includes(k));
 }
