@@ -1,4 +1,6 @@
 import type { MainModule } from "js7z-tools";
+import js7zSingleThreadScriptUrl from "../assets/js7z-st/js7z.js?url";
+import js7zSingleThreadWasmUrl from "../assets/js7z-st/js7z.wasm?url";
 import js7zModuleUrl from "js7z-tools/js7z.mjs?url";
 import js7zWasmUrl from "js7z-tools/js7z.wasm?url";
 
@@ -20,6 +22,14 @@ class JS7zArchiveError extends Error {
     this.name = "JS7zArchiveError";
   }
 }
+
+declare global {
+  interface Window {
+    JS7z?: JS7zFactory;
+  }
+}
+
+let singleThreadLoadPromise: Promise<JS7zFactory> | undefined;
 
 export function isArchiveFileName(fileName: string) {
   const lowerName = fileName.toLowerCase();
@@ -84,24 +94,8 @@ async function runJS7z<T>(
   args: string[],
   collect: (js7z: MainModule) => T,
 ) {
-  if (typeof SharedArrayBuffer !== "function") {
-    throw new JS7zArchiveError(
-      "archive support requires SharedArrayBuffer; start the app with cross-origin isolation enabled",
-    );
-  }
-
   const stderr: string[] = [];
-  const { default: JS7z } = (await import(
-    /* @vite-ignore */ js7zModuleUrl
-  )) as { default: JS7zFactory };
-  const js7z = await JS7z({
-    locateFile: (path: string) => (path.endsWith(".wasm") ? js7zWasmUrl : path),
-    mainScriptUrlOrBlob: js7zModuleUrl,
-    print: () => undefined,
-    printErr: (text: string) => {
-      stderr.push(text);
-    },
-  });
+  const js7z = await createJS7z(stderr);
 
   await prepare(js7z);
 
@@ -130,6 +124,52 @@ async function runJS7z<T>(
         reject(error);
       }
     }
+  });
+}
+
+async function createJS7z(stderr: string[]) {
+  const useMultiThread = typeof SharedArrayBuffer === "function";
+  const JS7z = useMultiThread
+    ? ((await import(/* @vite-ignore */ js7zModuleUrl)) as {
+        default: JS7zFactory;
+      }).default
+    : await loadSingleThreadJS7z();
+  const wasmUrl = useMultiThread ? js7zWasmUrl : js7zSingleThreadWasmUrl;
+
+  return await JS7z({
+    locateFile: (path: string) => (path.endsWith(".wasm") ? wasmUrl : path),
+    ...(useMultiThread ? { mainScriptUrlOrBlob: js7zModuleUrl } : {}),
+    print: () => undefined,
+    printErr: (text: string) => {
+      stderr.push(text);
+    },
+  });
+}
+
+async function loadSingleThreadJS7z() {
+  singleThreadLoadPromise ??= loadScript(js7zSingleThreadScriptUrl).then(() => {
+    if (!window.JS7z) {
+      throw new JS7zArchiveError("failed to load single-thread JS7z");
+    }
+
+    return window.JS7z;
+  });
+
+  return await singleThreadLoadPromise;
+}
+
+async function loadScript(src: string) {
+  await new Promise<void>((resolve, reject) => {
+    const script = document.createElement("script");
+
+    script.src = src;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => {
+      reject(new JS7zArchiveError(`failed to load JS7z script: ${src}`));
+    };
+
+    document.head.append(script);
   });
 }
 
