@@ -7,6 +7,7 @@ function createIframe(src: string) {
   const iframe = document.createElement("iframe");
   iframe.src = src;
   iframe.allow = "clipboard-read; clipboard-write";
+  iframe.setAttribute("credentialless", "");
   return iframe;
 }
 

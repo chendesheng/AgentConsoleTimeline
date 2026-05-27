@@ -79,6 +79,7 @@ export class AgentConsoleSnapshotFrame extends LitElement {
       class="snapshot"
       src="${this.getSrc()}"
       allow="clipboard-read; clipboard-write"
+      credentialless
       @load=${this.handleIframeLoad}
     ></iframe>`;
   }

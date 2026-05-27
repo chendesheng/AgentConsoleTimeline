@@ -331,6 +331,13 @@ ol.table-body {
   color: var(--text-color);
 }
 
+.table-filter button.text:disabled,
+.table-filter button.text:disabled:hover {
+  cursor: default;
+  color: var(--text-color-secondary);
+  opacity: 0.75;
+}
+
 .table-filter button.text.error,
 .table-filter button.text.error:hover {
   color: var(--error-text-color);

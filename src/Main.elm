@@ -10,7 +10,7 @@ import HarEncoder
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Html.Lazy exposing (lazy4, lazy7, lazy8)
+import Html.Lazy exposing (lazy4, lazy8)
 import Initial exposing (InitialModel, InitialMsg(..), defaultInitialModel, initialView, updateInitial)
 import Json.Decode as D
 import Json.Encode as Encode
@@ -57,6 +57,7 @@ type alias OpenedModel =
     , fileName : String
     , log : Har.Log
     , dropFile : DropFileModel
+    , exportError : Maybe String
     }
 
 
@@ -144,12 +145,13 @@ viewOpened model =
         "app"
         DropFile
         [ Html.map TableAction
-            (lazy7
+            (lazy8
                 tableFilterView
                 (isLiveSession model.fileName)
                 table.hosts
                 table.visitors
                 model.dropFile
+                model.exportError
                 True
                 model.log.pages
                 table.filter
@@ -268,6 +270,7 @@ initOpened timezone fileName fileContent log initialViewportHeight =
                 , fileContentString = fileContent
                 , fileContent = Just log
             }
+      , exportError = Nothing
       }
     , Cmd.batch
         [ Task.attempt (\_ -> TableAction Table.NoOp) <| Dom.setViewportOf "table-body" 0 0
@@ -350,6 +353,12 @@ updateOpened msg model =
 
         TableAction (GotImportFile (Err error)) ->
             updateOpened (DropFile (ReadFileError error)) model
+
+        TableAction ExportStarted ->
+            ( { model | exportError = Nothing }, Cmd.none )
+
+        TableAction (GotExportError error) ->
+            ( { model | exportError = Just error }, Cmd.none )
 
         TableAction JsonEncodeFileContent ->
             let
