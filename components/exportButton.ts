@@ -1,5 +1,5 @@
 import { html, LitElement, PropertyValues } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { customElement, property, state } from "lit/decorators.js";
 import { create7zArchive, getArchiveErrorMessage } from "./js7z";
 
 @customElement("export-button")
@@ -12,6 +12,9 @@ export class ExportButton extends LitElement {
 
   @property({ type: String })
   fileContent = "";
+
+  @state()
+  private exporting = false;
 
   private waiting = false;
 
@@ -27,15 +30,23 @@ export class ExportButton extends LitElement {
   }
 
   async handleClick(e: MouseEvent) {
+    if (this.exporting) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
     if (!this.fileContent) {
       // this is a hack to wait for the file content to be set
       this.waiting = true;
+      this.exporting = true;
       return;
     }
 
     e.preventDefault();
     e.stopPropagation();
     try {
+      this.exporting = true;
       await this.export();
     } catch (error) {
       this.dispatchEvent(
@@ -44,6 +55,8 @@ export class ExportButton extends LitElement {
           bubbles: true,
         }),
       );
+    } finally {
+      this.exporting = false;
     }
   }
 
@@ -53,8 +66,10 @@ export class ExportButton extends LitElement {
 
   render() {
     return html`<div>
-      <button class="text" @click=${this.handleClick}>
-        <i class="icon export"></i>${this.label}
+      <button class="text" ?disabled=${this.exporting} @click=${this.handleClick}>
+        <i class="icon export"></i>${this.exporting
+          ? "Exporting..."
+          : this.label}
       </button>
     </div>`;
   }
@@ -74,6 +89,8 @@ export class ExportButton extends LitElement {
             bubbles: true,
           }),
         );
+      }).finally(() => {
+        this.exporting = false;
       });
     }
   }
