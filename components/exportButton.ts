@@ -13,6 +13,9 @@ export class ExportButton extends LitElement {
   @property({ type: String })
   fileContent = "";
 
+  @property({ type: String })
+  error = "";
+
   @state()
   private exporting = false;
 
@@ -29,6 +32,19 @@ export class ExportButton extends LitElement {
     setTimeout(() => URL.revokeObjectURL(url), 30 * 1000);
   }
 
+  private dispatchExportStart() {
+    this.dispatchEvent(new CustomEvent("export-start", { bubbles: true }));
+  }
+
+  private dispatchExportError(error: unknown) {
+    this.dispatchEvent(
+      new CustomEvent("export-error", {
+        detail: `Export failed: ${getArchiveErrorMessage(error)}`,
+        bubbles: true,
+      }),
+    );
+  }
+
   async handleClick(e: MouseEvent) {
     if (this.exporting) {
       e.preventDefault();
@@ -40,6 +56,7 @@ export class ExportButton extends LitElement {
       // this is a hack to wait for the file content to be set
       this.waiting = true;
       this.exporting = true;
+      this.dispatchExportStart();
       return;
     }
 
@@ -47,14 +64,10 @@ export class ExportButton extends LitElement {
     e.stopPropagation();
     try {
       this.exporting = true;
+      this.dispatchExportStart();
       await this.export();
     } catch (error) {
-      this.dispatchEvent(
-        new CustomEvent("error", {
-          detail: `Export failed: ${getArchiveErrorMessage(error)}`,
-          bubbles: true,
-        }),
-      );
+      this.dispatchExportError(error);
     } finally {
       this.exporting = false;
     }
@@ -65,8 +78,12 @@ export class ExportButton extends LitElement {
   }
 
   render() {
-    return html`<div>
-      <button class="text" ?disabled=${this.exporting} @click=${this.handleClick}>
+    return html`<div title=${this.error}>
+      <button
+        class=${this.error ? "text error" : "text"}
+        ?disabled=${this.exporting}
+        @click=${this.handleClick}
+      >
         <i class="icon export"></i>${this.exporting
           ? "Exporting..."
           : this.label}
@@ -83,12 +100,7 @@ export class ExportButton extends LitElement {
     ) {
       this.waiting = false;
       this.export().catch((error) => {
-        this.dispatchEvent(
-          new CustomEvent("error", {
-            detail: `Export failed: ${getArchiveErrorMessage(error)}`,
-            bubbles: true,
-          }),
-        );
+        this.dispatchExportError(error);
       }).finally(() => {
         this.exporting = false;
       });

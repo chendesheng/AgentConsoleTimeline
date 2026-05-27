@@ -818,8 +818,8 @@ importButton error =
         []
 
 
-tableFilterView : Bool -> List String -> List VisitorInfo -> DropFileModel -> Bool -> List Har.Page -> TableFilter -> Html TableMsg
-tableFilterView liveSession hosts visitors dropFile autoFocus pages filter =
+tableFilterView : Bool -> List String -> List VisitorInfo -> DropFileModel -> Maybe String -> Bool -> List Har.Page -> TableFilter -> Html TableMsg
+tableFilterView liveSession hosts visitors dropFile exportError autoFocus pages filter =
     section [ class "table-filter" ]
         [ if liveSession then
             Icons.live
@@ -861,11 +861,23 @@ tableFilterView liveSession hosts visitors dropFile autoFocus pages filter =
         , div [ class "actions" ]
             [ importButton dropFile.error
             , Html.node "export-button"
-                [ property "label" <| Encode.string "Export"
-                , property "fileName" <| Encode.string dropFile.fileName
-                , property "fileContent" <| Encode.string dropFile.fileContentString
-                , onClick JsonEncodeFileContent
-                ]
+                ([ property "label" <| Encode.string "Export"
+                 , property "fileName" <| Encode.string dropFile.fileName
+                 , property "fileContent" <| Encode.string dropFile.fileContentString
+                 , on "export-start" <| D.succeed ExportStarted
+                 , on "export-error" <|
+                    D.map GotExportError <|
+                        D.field "detail" D.string
+                 , onClick JsonEncodeFileContent
+                 ]
+                    ++ (case exportError of
+                            Just err ->
+                                [ property "error" <| Encode.string err ]
+
+                            Nothing ->
+                                []
+                       )
+                )
                 []
             ]
         ]
@@ -1245,6 +1257,8 @@ type TableMsg
     | SelectTable
     | ChangePage String
     | GotImportFile (Result String JsonFile)
+    | ExportStarted
+    | GotExportError String
     | HoverNameCell String Int Bool
     | UnhoverNameCell
     | JsonEncodeFileContent
@@ -1261,6 +1275,12 @@ updateTable action log table =
             ( table, Cmd.none )
 
         GotImportFile _ ->
+            ( table, Cmd.none )
+
+        ExportStarted ->
+            ( table, Cmd.none )
+
+        GotExportError _ ->
             ( table, Cmd.none )
 
         FlipSort column ->
