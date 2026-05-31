@@ -14,6 +14,9 @@ export class OpenFileButton extends LitElement {
   @property({ type: String })
   icon = "";
 
+  @property({ type: Boolean })
+  disabled = false;
+
   async handleChange(e: Event) {
     e.preventDefault();
     e.stopPropagation();
@@ -43,6 +46,8 @@ export class OpenFileButton extends LitElement {
   }
 
   handleClick() {
+    if (this.disabled) return;
+
     const input = document.createElement("input");
     input.type = "file";
     input.onchange = this.handleChange;
@@ -53,6 +58,7 @@ export class OpenFileButton extends LitElement {
     return html`<div title=${this.error}>
       <button
         class="text ${this.error ? "error" : ""}"
+        ?disabled=${this.disabled}
         @click=${this.handleClick}
       >
         ${this.icon ? html`<i class="icon ${this.icon}"></i>` : ""}${this.label}

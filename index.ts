@@ -9,7 +9,7 @@ import "./components/monacoEditor";
 import "./components/openFileButton";
 import "./components/dropZipFile";
 import "./components/exportButton";
-import { analysis, unzipFiles } from "./components/unzipFile";
+import { parseJsonFile, unzipFiles } from "./components/unzipFile";
 import "./components/hexEditor";
 import {
   saveRecentFile,
@@ -47,11 +47,7 @@ async function main() {
   app.ports.getFileContent.subscribe(async (key) => {
     const content = await getFileContent(key);
     const name = await getFileName(key);
-    app.ports.gotFileContent.send({
-      name,
-      text: content,
-      json: analysis(JSON.parse(content)),
-    });
+    app.ports.gotFileContent.send(await parseJsonFile(name, content));
   });
 
   app.ports.clearRecentFiles.subscribe(async () => {
@@ -147,11 +143,9 @@ async function main() {
           content = event.data.content;
         }
 
-        app.ports.gotFileContent.send({
-          name: event.data.filename,
-          text: content,
-          json: analysis(JSON.parse(content)),
-        });
+        app.ports.gotFileContent.send(
+          await parseJsonFile(event.data.filename, content),
+        );
       }
     }
   };

@@ -21,6 +21,7 @@ type alias DropFileModel =
     , fileName : String
     , fileContentString : String
     , fileContent : Maybe Har.Log
+    , openingFile : Maybe String
     }
 
 
@@ -30,6 +31,7 @@ defaultDropFileModel =
     , fileName = ""
     , fileContentString = ""
     , fileContent = Nothing
+    , openingFile = Nothing
     }
 
 
@@ -88,12 +90,13 @@ dropFileUpdate timezone msg model =
 
                         Err err ->
                             Just <| "Decode file " ++ name ++ " failed: " ++ D.errorToString err
+                , openingFile = Nothing
               }
             , Cmd.none
             )
 
         ReadFileError error ->
-            ( { model | error = Just error }, Cmd.none )
+            ( { model | error = Just error, openingFile = Nothing }, Cmd.none )
 
         DownloadFile ->
             case model.fileContentString of
@@ -103,8 +106,8 @@ dropFileUpdate timezone msg model =
                 s ->
                     ( model, Download.string model.fileName "text/plain" s )
 
-        SetOpeningFile _ ->
-            ( model, Cmd.none )
+        SetOpeningFile fileName ->
+            ( { model | error = Nothing, openingFile = Just fileName }, Cmd.none )
 
 
 

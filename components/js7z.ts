@@ -27,6 +27,8 @@ declare global {
   interface Window {
     JS7z?: JS7zFactory;
   }
+
+  var JS7z: JS7zFactory | undefined;
 }
 
 let singleThreadLoadPromise: Promise<JS7zFactory> | undefined;
@@ -148,17 +150,29 @@ async function createJS7z(stderr: string[]) {
 
 async function loadSingleThreadJS7z() {
   singleThreadLoadPromise ??= loadScript(js7zSingleThreadScriptUrl).then(() => {
-    if (!window.JS7z) {
+    const JS7z = globalThis.JS7z;
+
+    if (!JS7z) {
       throw new JS7zArchiveError("failed to load single-thread JS7z");
     }
 
-    return window.JS7z;
+    return JS7z;
   });
 
   return await singleThreadLoadPromise;
 }
 
 async function loadScript(src: string) {
+  if (typeof document === "undefined") {
+    const response = await fetch(src);
+
+    if (!response.ok) {
+      throw new JS7zArchiveError(`failed to load JS7z script: ${src}`);
+    }
+
+    return evaluateSingleThreadScript(await response.text());
+  }
+
   await new Promise<void>((resolve, reject) => {
     const script = document.createElement("script");
 
@@ -171,6 +185,10 @@ async function loadScript(src: string) {
 
     document.head.append(script);
   });
+}
+
+function evaluateSingleThreadScript(source: string) {
+  globalThis.JS7z = new Function(`${source}\n; return JS7z;`)();
 }
 
 function formatFailure(status: string, stderr: string[], reason?: unknown) {

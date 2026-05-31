@@ -1,6 +1,10 @@
 import { html, LitElement, PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { create7zArchive, getArchiveErrorMessage } from "./js7z";
+import ExportWorker from "./exportWorker?worker";
+
+type ExportResponse =
+  | { ok: true; blob: Blob }
+  | { ok: false; error: string };
 
 @customElement("export-button")
 export class ExportButton extends LitElement {
@@ -22,7 +26,7 @@ export class ExportButton extends LitElement {
   private waiting = false;
 
   async export() {
-    const blob = await create7zArchive(this.fileName, this.fileContent);
+    const blob = await create7zArchiveInWorker(this.fileName, this.fileContent);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -39,7 +43,7 @@ export class ExportButton extends LitElement {
   private dispatchExportError(error: unknown) {
     this.dispatchEvent(
       new CustomEvent("export-error", {
-        detail: `Export failed: ${getArchiveErrorMessage(error)}`,
+        detail: error instanceof Error ? error.message : String(error),
         bubbles: true,
       }),
     );
@@ -106,4 +110,27 @@ export class ExportButton extends LitElement {
       });
     }
   }
+}
+
+async function create7zArchiveInWorker(fileName: string, fileContent: string) {
+  const worker = new ExportWorker();
+
+  return await new Promise<Blob>((resolve, reject) => {
+    worker.onmessage = (event: MessageEvent<ExportResponse>) => {
+      worker.terminate();
+
+      if (event.data.ok) {
+        resolve(event.data.blob);
+      } else {
+        reject(new Error(event.data.error));
+      }
+    };
+
+    worker.onerror = (event) => {
+      worker.terminate();
+      reject(new Error(event.message || "Export failed: worker error"));
+    };
+
+    worker.postMessage({ fileName, fileContent });
+  });
 }

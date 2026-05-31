@@ -795,16 +795,33 @@ waterfallScaleOptions =
     ]
 
 
-importButton : Maybe String -> Html TableMsg
-importButton error =
+importButton : DropFileModel -> Html TableMsg
+importButton dropFile =
+    let
+        isImporting =
+            dropFile.openingFile /= Nothing
+
+        error =
+            dropFile.error
+    in
     Html.node "open-file-button"
-        ([ property "label" <| Encode.string "Import"
+        ([ property "label" <|
+            Encode.string <|
+                if isImporting then
+                    "Importing..."
+
+                else
+                    "Import"
          , property "icon" <| Encode.string "import"
+         , property "disabled" <| Encode.bool isImporting
          , on "change" <|
             D.map (GotImportFile << Ok) <|
                 D.field "detail" jsonFileDecoder
          , on "error" <|
             D.map (GotImportFile << Err) <|
+                D.field "detail" D.string
+         , on "setOpeningFile" <|
+            D.map SetImportingFile <|
                 D.field "detail" D.string
          ]
             ++ (case error of
@@ -859,7 +876,7 @@ tableFilterView liveSession hosts visitors dropFile exportError autoFocus pages 
             changedPaths ->
                 div [ class "tags" ] <| List.map tagView changedPaths
         , div [ class "actions" ]
-            [ importButton dropFile.error
+            [ importButton dropFile
             , Html.node "export-button"
                 ([ property "label" <| Encode.string "Export"
                  , property "fileName" <| Encode.string dropFile.fileName
@@ -1256,6 +1273,7 @@ type TableMsg
     | SetViewportHeight Int
     | SelectTable
     | ChangePage String
+    | SetImportingFile String
     | GotImportFile (Result String JsonFile)
     | ExportStarted
     | GotExportError String
@@ -1275,6 +1293,9 @@ updateTable action log table =
             ( table, Cmd.none )
 
         GotImportFile _ ->
+            ( table, Cmd.none )
+
+        SetImportingFile _ ->
             ( table, Cmd.none )
 
         ExportStarted ->

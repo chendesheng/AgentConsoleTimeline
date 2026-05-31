@@ -354,6 +354,9 @@ updateOpened msg model =
         TableAction (GotImportFile (Err error)) ->
             updateOpened (DropFile (ReadFileError error)) model
 
+        TableAction (SetImportingFile fileName) ->
+            updateOpened (DropFile (SetOpeningFile fileName)) model
+
         TableAction ExportStarted ->
             ( { model | exportError = Nothing }, Cmd.none )
 
