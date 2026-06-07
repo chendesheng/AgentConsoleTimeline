@@ -121,8 +121,8 @@ detailTabs selected entry =
             detailTabsByEntryKind (Har.getEntryKind entry)
 
 
-jsonViewer : Bool -> Int -> String -> Bool -> Bool -> Bool -> List String -> String -> Html DetailMsg
-jsonViewer autoExpand initialIndent className showBreadcrumb showActions disableTrackingPath trackedPaths json =
+jsonViewer : Bool -> Int -> String -> Bool -> Bool -> Bool -> List String -> String -> String -> Html DetailMsg
+jsonViewer autoExpand initialIndent className showBreadcrumb showActions disableTrackingPath trackedPaths fileName json =
     Html.node "json-tree"
         [ class className
         , property "data" <| Encode.string json
@@ -132,6 +132,7 @@ jsonViewer autoExpand initialIndent className showBreadcrumb showActions disable
         , property "disableTrackingPath" <| Encode.bool disableTrackingPath
         , property "showBreadcrumb" <| Encode.bool showBreadcrumb
         , property "showActions" <| Encode.bool showActions
+        , property "fileName" <| Encode.string fileName
         , on "togglePath" <| Decode.map ClickStatePath (Decode.field "detail" Decode.string)
         ]
         []
@@ -288,14 +289,14 @@ svgViewer svg =
         []
 
 
-jsonDataViewer : DetailViewTool -> Bool -> Int -> Bool -> String -> Bool -> Bool -> Bool -> List String -> String -> Html DetailMsg
-jsonDataViewer tool autoExpand initialIndent format className showBreadcrumb showActions disableTrackingPath trackedPaths json =
+jsonDataViewer : DetailViewTool -> Bool -> Int -> Bool -> String -> Bool -> Bool -> Bool -> List String -> String -> String -> Html DetailMsg
+jsonDataViewer tool autoExpand initialIndent format className showBreadcrumb showActions disableTrackingPath trackedPaths fileName json =
     case tool of
         Raw ->
             codeEditor "json" format json
 
         _ ->
-            jsonViewer autoExpand initialIndent className showBreadcrumb showActions disableTrackingPath trackedPaths json
+            jsonViewer autoExpand initialIndent className showBreadcrumb showActions disableTrackingPath trackedPaths fileName json
 
 
 agentConsoleSnapshotPlayer : Bool -> List Har.Entry -> String -> Maybe String -> List String -> Html DetailMsg
@@ -435,7 +436,7 @@ requestHeaderKeyValue { name, value } =
                     [ text value
                     , case parseToken value of
                         Ok v ->
-                            jsonViewer False 0 "inline-json-tree" False False True [] <| "{\"payload\":" ++ v ++ "}"
+                            jsonViewer False 0 "inline-json-tree" False False True [] "" <| "{\"payload\":" ++ v ++ "}"
 
                         _ ->
                             text ""
@@ -444,7 +445,7 @@ requestHeaderKeyValue { name, value } =
             else if String.toLower name == "cookie" then
                 div []
                     [ text value
-                    , jsonViewer False 0 "inline-json-tree" False False True [] <| "{\"payload\":" ++ parseCookies value ++ "}"
+                    , jsonViewer False 0 "inline-json-tree" False False True [] "" <| "{\"payload\":" ++ parseCookies value ++ "}"
                     ]
 
             else
@@ -640,6 +641,20 @@ responseView tool entry trackedPaths =
                     let
                         entryKind =
                             Har.getEntryKind entry
+
+                        fileName =
+                            case entryKind of
+                                ReduxState ->
+                                    "state"
+
+                                ReduxAction ->
+                                    "action"
+
+                                LogMessage ->
+                                    "message"
+
+                                _ ->
+                                    "response_body"
                     in
                     jsonDataViewer
                         tool
@@ -651,6 +666,7 @@ responseView tool entry trackedPaths =
                         True
                         (entryKind /= ReduxState)
                         trackedPaths
+                        fileName
                         t
 
         _ ->
@@ -789,7 +805,7 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
                     LogMessage ->
                         entry
                             |> Har.getLogMessage
-                            |> Maybe.map (jsonViewer True 2 "detail-body" True True True [])
+                            |> Maybe.map (jsonViewer True 2 "detail-body" True True True [] "message")
                             |> Maybe.withDefault noContent
 
                     _ ->
@@ -803,10 +819,16 @@ detailView liveSession isSnapshotPopout isSortByTime entries model href pageName
                     ReduxState ->
                         stateChangeViewer entry entries
 
+                    ReduxAction ->
+                        entry
+                            |> Har.getRequestBody
+                            |> Maybe.map (jsonDataViewer tool True 2 True "detail-body" True True True trackedPaths "action")
+                            |> Maybe.withDefault noContent
+
                     _ ->
                         entry
                             |> Har.getRequestBody
-                            |> Maybe.map (jsonDataViewer tool True 2 True "detail-body" True True True trackedPaths)
+                            |> Maybe.map (jsonDataViewer tool True 2 True "detail-body" True True True trackedPaths "request_body")
                             |> Maybe.withDefault noContent
 
             Response ->

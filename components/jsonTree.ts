@@ -98,6 +98,8 @@ export class JsonTree extends LitElement {
   showBreadcrumb = true;
   @property({ type: Boolean })
   showActions = true;
+  @property({ type: String })
+  fileName = "";
 
   @state()
   private _tree!: JsonTreeItem;
@@ -964,6 +966,20 @@ export class JsonTree extends LitElement {
     navigator.clipboard.writeText(this.data);
   }
 
+  private handleExport() {
+    let fileName = this.fileName || "data";
+    if (!fileName.endsWith(".json")) {
+      fileName += ".json";
+    }
+    const blob = new Blob([this.data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   private scrollDownHalfPage() {
     let count = this._visibleRows / 2;
     const iter = getIterator(this._tree, this._expandAll, this._selectedPath);
@@ -1162,6 +1178,7 @@ export class JsonTree extends LitElement {
           />`
         : html`
             <button tabindex="0" @click=${this.handleCopy}>Copy</button>
+            <button tabindex="0" @click=${this.handleExport}>Export</button>
             <button tabindex="0" @click=${this.handleCollapseAll}>
               Collapse
             </button>
