@@ -12,6 +12,7 @@ const isTimestamp = (o: any, path: (string | number)[] = []) => {
     ["config", "preference", "loginTime"],
     ["visitor", "lastGetSegmentChangedTime"],
     ["visitor", "lastGetNewVisitorTime"],
+    ["visitor", "lastGetTriggerPopupNotificationTime"],
   ];
   for (const p of timestampPath) {
     if (equals(path, p)) {

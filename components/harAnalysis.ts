@@ -133,6 +133,6 @@ function isReduxStateDeltaEmpty(delta: { [k: string]: any }) {
   if (visitorKeys.length === 0) return true;
   if (visitorKeys.length > 2) return false;
   return visitorKeys.every((k) =>
-    ["lastGetNewVisitorTime", "lastGetSegmentChangedTime"].includes(k),
+    ["lastGetNewVisitorTime", "lastGetSegmentChangedTime", "lastGetTriggerPopupNotificationTime"].includes(k),
   );
 }
